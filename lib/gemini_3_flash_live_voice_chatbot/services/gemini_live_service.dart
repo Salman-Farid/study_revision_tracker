@@ -23,19 +23,24 @@ class GeminiLiveService {
   StreamSubscription? _responseAudioSub;
   StreamSubscription? _transcriptSub;
   StreamSubscription? _functionCallSub;
+  StreamSubscription? _audioActivitySub;
+  StreamSubscription? _turnCompleteSub;
 
   final _responseAudioController = StreamController<Uint8List>.broadcast();
   final _transcriptController = StreamController<String>.broadcast();
   final _stateController = StreamController<ConnectionState>.broadcast();
   final _functionCallController = StreamController<Map<String, dynamic>>.broadcast();
+  final _turnCompleteController = StreamController<void>.broadcast();
 
   Stream<Uint8List> get responseAudioStream => _responseAudioController.stream;
   Stream<String> get transcriptStream => _transcriptController.stream;
   Stream<ConnectionState> get connectionStateStream => _stateController.stream;
   Stream<Map<String, dynamic>> get functionCallStream => _functionCallController.stream;
+  Stream<void> get turnCompleteStream => _turnCompleteController.stream;
 
   GeminiSocket? get socket => _socket;
   bool isMuted = false;
+  bool _autoMutedByGemini = false;
   bool _sessionActive = false;
 
   /// Start a live voice session.
@@ -75,6 +80,25 @@ class GeminiLiveService {
     // Forward function calls
     _functionCallSub = _socket!.functionCallStream.listen((call) {
       _functionCallController.add(call);
+    });
+
+    // Auto-mute mic when Gemini starts speaking (prevent feedback loop)
+    _audioActivitySub = _socket!.audioActivityStream.listen((_) {
+      if (!_autoMutedByGemini && !isMuted) {
+        _autoMutedByGemini = true;
+        isMuted = true;
+        print('[Service] Auto-muted mic — Gemini is speaking');
+      }
+    });
+
+    // Auto-unmute mic when Gemini finishes speaking
+    _turnCompleteSub = _socket!.turnCompleteStream.listen((_) {
+      _turnCompleteController.add(null);
+      if (_autoMutedByGemini) {
+        _autoMutedByGemini = false;
+        isMuted = false;
+        print('[Service] Auto-unmuted mic — Gemini finished speaking');
+      }
     });
 
     await _socket!.connect();
@@ -140,6 +164,8 @@ class GeminiLiveService {
     await _responseAudioSub?.cancel();
     await _transcriptSub?.cancel();
     await _functionCallSub?.cancel();
+    await _audioActivitySub?.cancel();
+    await _turnCompleteSub?.cancel();
     await _socket?.disconnect();
     _player?.clear();
   }

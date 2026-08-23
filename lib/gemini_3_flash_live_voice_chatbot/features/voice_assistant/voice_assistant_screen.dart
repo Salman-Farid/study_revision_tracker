@@ -143,12 +143,17 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
               if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
 
               final muted = controller.isMuted;
-              final statusText = muted
-                  ? 'Muted — tap mic to unmute'
-                  : 'Listening... speak now';
-              final statusColor = muted
-                  ? AppColors.textMutedDark
-                  : AppConstants.successColor;
+              final processing = controller.isProcessing.value;
+              final statusText = processing
+                  ? 'Processing your request...'
+                  : muted
+                      ? 'Muted — tap mic to unmute'
+                      : 'Listening... speak now';
+              final statusColor = processing
+                  ? AppConstants.warningColor
+                  : muted
+                      ? AppColors.textMutedDark
+                      : AppConstants.successColor;
 
               return Container(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -304,14 +309,18 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                 ),
                 Obx(() {
                   final st = controller.connectionState.value;
-                  final (color, label) = switch (st) {
-                    ws.ConnectionState.connecting =>
-                      (AppConstants.warningColor, 'Connecting...'),
-                    ws.ConnectionState.connected =>
-                      (AppConstants.successColor, 'Listening'),
-                    ws.ConnectionState.error =>
-                      (AppConstants.errorColor, 'Offline'),
-                    _ => (AppColors.textMutedDark, 'Offline'),
+                  final processing = controller.isProcessing.value;
+                  final (color, label) = switch (processing) {
+                    true => (AppConstants.warningColor, 'Processing...'),
+                    false => switch (st) {
+                      ws.ConnectionState.connecting =>
+                        (AppConstants.warningColor, 'Connecting...'),
+                      ws.ConnectionState.connected =>
+                        (AppConstants.successColor, 'Listening'),
+                      ws.ConnectionState.error =>
+                        (AppConstants.errorColor, 'Offline'),
+                      _ => (AppColors.textMutedDark, 'Offline'),
+                    },
                   };
                   return Row(
                     children: [

@@ -29,11 +29,15 @@ class GeminiSocket {
   final _transcriptController = StreamController<String>.broadcast();
   final _stateController = StreamController<ConnectionState>.broadcast();
   final _functionCallController = StreamController<Map<String, dynamic>>.broadcast();
+  final _turnCompleteController = StreamController<void>.broadcast();
+  final _audioActivityController = StreamController<void>.broadcast();
 
   Stream<Uint8List> get audioStream => _audioController.stream;
   Stream<String> get transcriptStream => _transcriptController.stream;
   Stream<ConnectionState> get stateStream => _stateController.stream;
   Stream<Map<String, dynamic>> get functionCallStream => _functionCallController.stream;
+  Stream<void> get turnCompleteStream => _turnCompleteController.stream;
+  Stream<void> get audioActivityStream => _audioActivityController.stream;
   ConnectionState get state => _state;
 
   String? _pendingError;
@@ -167,6 +171,7 @@ class GeminiSocket {
               if (part['inlineData'] != null) {
                 final audioBytes = base64Decode(part['inlineData']['data'] as String);
                 _audioController.add(audioBytes);
+                _audioActivityController.add(null);
               }
               if (part['functionCall'] != null) {
                 final functionCall = part['functionCall'] as Map<String, dynamic>;
@@ -194,6 +199,11 @@ class GeminiSocket {
 
         if (sc['generationComplete'] == true) {
           _drainTrailing();
+        }
+
+        if (sc['turnComplete'] == true) {
+          print('[Gemini] turnComplete received');
+          _turnCompleteController.add(null);
         }
       }
     } catch (e) {
@@ -334,5 +344,7 @@ class GeminiSocket {
     _transcriptController.close();
     _stateController.close();
     _functionCallController.close();
+    _turnCompleteController.close();
+    _audioActivityController.close();
   }
 }

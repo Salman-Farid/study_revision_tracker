@@ -21,11 +21,13 @@ class VoiceAssistantController extends GetxController {
 
   bool _isMuted = false;
   bool get isMuted => _isMuted;
+  bool _mutedByFunctionCall = false;
 
   StreamSubscription? _connectionSub;
   StreamSubscription? _transcriptSub;
   StreamSubscription? _audioSub;
   StreamSubscription? _functionCallSub;
+  StreamSubscription? _turnCompleteSub;
 
   final List<Map<String, dynamic>> _tools = [
     {
@@ -132,6 +134,11 @@ class VoiceAssistantController extends GetxController {
     _functionCallSub = _service.functionCallStream.listen((call) {
       _handleFunctionCall(call['id'] as String, call['name'] as String, call['args'] as Map<String, dynamic>);
     });
+
+    // Unmute after Gemini finishes speaking (turnComplete from Gemini)
+    _turnCompleteSub = _service.turnCompleteStream.listen((_) {
+      _unmuteAfterFunctionCall();
+    });
   }
 
   @override
@@ -140,6 +147,7 @@ class VoiceAssistantController extends GetxController {
     _transcriptSub?.cancel();
     _audioSub?.cancel();
     _functionCallSub?.cancel();
+    _turnCompleteSub?.cancel();
     _service.stopSession();
     super.onClose();
   }
@@ -199,7 +207,23 @@ Be concise and natural in your responses. Speak as if having a casual conversati
   }
 
   Future<void> _handleFunctionCall(String callId, String name, Map<String, dynamic> args) async {
+    print('[Gemini] Handling function call: $name id=$callId');
     isProcessing.value = true;
+
+    // Mute mic so Gemini doesn't interrupt itself with new audio
+    _mutedByFunctionCall = !_isMuted;
+    if (!_isMuted) {
+      _isMuted = true;
+      _service.mute();
+      print('[Gemini] Mic muted for function call');
+    }
+
+    // Show processing message to user
+    messages.add(ChatMessage(
+      role: ChatRole.system,
+      text: 'Executing your request...',
+    ));
+
     try {
       switch (name) {
         case 'addSubject':
@@ -222,6 +246,7 @@ Be concise and natural in your responses. Speak as if having a casual conversati
         'result': {'success': false, 'error': e.toString()},
       });
       _service.endTurn();
+      _unmuteAfterFunctionCall();
     }
   }
 
@@ -304,5 +329,14 @@ Be concise and natural in your responses. Speak as if having a casual conversati
 
   Future<void> stopSession() async {
     await _service.stopSession();
+  }
+
+  void _unmuteAfterFunctionCall() {
+    if (_mutedByFunctionCall) {
+      _mutedByFunctionCall = false;
+      _isMuted = false;
+      _service.unmute();
+      print('[Gemini] Mic unmuted after function call');
+    }
   }
 }
