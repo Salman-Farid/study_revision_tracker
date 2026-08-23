@@ -5,6 +5,8 @@ import '../services/supabase_service.dart';
 class SubjectRepository {
   final _s = Get.find<SupabaseService>();
   Future<List<SubjectModel>> getAll() => _s.fetchSubjects();
+  Stream<List<SubjectModel>> get stream => _s.subjectsStream;
+  void refresh() => _s.refreshSubjects();
   Future<SubjectModel> create({required String name, String? description,
     String? colorHex, int? iconCodePoint}) =>
     _s.createSubject(name: name, description: description, colorHex: colorHex, iconCodePoint: iconCodePoint);

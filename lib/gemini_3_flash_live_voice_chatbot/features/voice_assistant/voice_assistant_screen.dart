@@ -68,7 +68,14 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) {
+          controller.stopSession();
+        }
+      },
+      child: Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Column(
@@ -258,6 +265,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
       ),
     );
   }

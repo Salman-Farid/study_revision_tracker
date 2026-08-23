@@ -328,7 +328,18 @@ Be concise and natural in your responses. Speak as if having a casual conversati
   }
 
   Future<void> stopSession() async {
+    _connectionSub?.cancel();
+    _transcriptSub?.cancel();
+    _audioSub?.cancel();
+    _functionCallSub?.cancel();
+    _turnCompleteSub?.cancel();
     await _service.stopSession();
+    messages.clear();
+    connectionState.value = ws.ConnectionState.disconnected;
+    isProcessing.value = false;
+    errorMessage.value = '';
+    _isMuted = false;
+    _mutedByFunctionCall = false;
   }
 
   void _unmuteAfterFunctionCall() {

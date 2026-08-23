@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -19,8 +21,22 @@ class SubjectsController extends GetxController {
   final isListening = false.obs;
   final chatMessages = <Map<String, dynamic>>[].obs;
   final showChat = false.obs;
+  StreamSubscription<List<SubjectModel>>? _realtimeSub;
 
-  @override void onInit() { super.onInit(); load(); }
+  @override void onInit() { super.onInit(); load(); _subscribeRealtime(); }
+
+  void _subscribeRealtime() {
+    _realtimeSub = _repo.stream.listen((list) {
+      subjects.assignAll(list);
+      isLoading.value = false;
+    });
+  }
+
+  @override
+  void onClose() {
+    _realtimeSub?.cancel();
+    super.onClose();
+  }
 
   Future<void> load() async {
     try {

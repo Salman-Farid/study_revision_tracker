@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -12,6 +14,19 @@ class SupabaseService extends GetxService {
   final _uuid = const Uuid();
   User? get currentUser => client.auth.currentUser;
   String get userId => currentUser!.id;
+
+  // ── Realtime streams ──
+  final _subjectsController = StreamController<List<SubjectModel>>.broadcast();
+  final _topicsController = StreamController<List<TopicModel>>.broadcast();
+  final _schedulesController = StreamController<List<RevisionScheduleModel>>.broadcast();
+
+  Stream<List<SubjectModel>> get subjectsStream => _subjectsController.stream;
+  Stream<List<TopicModel>> get topicsStream => _topicsController.stream;
+  Stream<List<RevisionScheduleModel>> get schedulesStream => _schedulesController.stream;
+
+  RealtimeChannel? _subjectsChannel;
+  RealtimeChannel? _topicsChannel;
+  RealtimeChannel? _schedulesChannel;
 
   // ── SUBJECTS ──
   Future<List<SubjectModel>> fetchSubjects() async {
@@ -133,5 +148,82 @@ class SupabaseService extends GetxService {
     return {'overdue_count': (overdue as List).length, 'today_count': (today as List).length,
       'upcoming_count': (upcoming as List).length, 'sessions_this_week': (sessions as List).length,
       'total_completed': cl, 'total_schedules': tl, 'completion_rate': tl == 0 ? 0.0 : cl / tl};
+  }
+
+  // ── REALTIME SUBSCRIPTIONS ──
+
+  /// Start listening to all table changes. Call once on app start.
+  void initRealtime() {
+    // Subjects table changes
+    _subjectsChannel = client.channel('subjects-realtime')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'subjects',
+        callback: (_) => _refreshSubjects(),
+      )
+      ..subscribe();
+
+    // Topics table changes
+    _topicsChannel = client.channel('topics-realtime')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'topics',
+        callback: (_) => _refreshTopics(),
+      )
+      ..subscribe();
+
+    // Revision schedules table changes
+    _schedulesChannel = client.channel('schedules-realtime')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'revision_schedules',
+        callback: (_) => _refreshSchedules(),
+      )
+      ..subscribe();
+  }
+
+  Future<void> _refreshSubjects() async {
+    try {
+      final subjects = await fetchSubjects();
+      _subjectsController.add(subjects);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshTopics() async {
+    try {
+      // Refresh all topics for all subjects
+      final subjects = await fetchSubjects();
+      final allTopics = <TopicModel>[];
+      for (final sub in subjects) {
+        allTopics.addAll(await fetchTopics(sub.id));
+      }
+      _topicsController.add(allTopics);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshSchedules() async {
+    try {
+      final schedules = await fetchSchedules();
+      _schedulesController.add(schedules);
+    } catch (_) {}
+  }
+
+  /// Manually trigger a refresh
+  void refreshSubjects() => _refreshSubjects();
+  void refreshTopics() => _refreshTopics();
+  void refreshSchedules() => _refreshSchedules();
+
+  @override
+  void onClose() {
+    _subjectsChannel?.unsubscribe();
+    _topicsChannel?.unsubscribe();
+    _schedulesChannel?.unsubscribe();
+    _subjectsController.close();
+    _topicsController.close();
+    _schedulesController.close();
+    super.onClose();
   }
 }

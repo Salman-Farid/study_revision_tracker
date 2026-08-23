@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/size_constants.dart';
+import '../../data/services/supabase_service.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 
@@ -40,6 +41,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged_in', true);
       await prefs.setString('user_email', _email.text.trim());
+      Get.find<SupabaseService>().initRealtime();
       Get.offAllNamed(AppRoutes.home);
     } on AuthException catch (e) {
       String msg = e.message;
@@ -94,6 +96,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged_in', true);
       await prefs.setString('user_email', googleUser.email);
+      Get.find<SupabaseService>().initRealtime();
       Get.offAllNamed(AppRoutes.home);
     } on AuthException catch (e) {
       Get.snackbar('Error', e.message,

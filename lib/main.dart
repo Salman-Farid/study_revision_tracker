@@ -38,6 +38,11 @@ void main() async {
   Get.put(VoiceAssistantController(), permanent: true);
   await Get.putAsync<NotificationService>(() => NotificationService().init());
 
+  // Start realtime subscriptions after login
+  if (Get.find<SupabaseService>().currentUser != null) {
+    Get.find<SupabaseService>().initRealtime();
+  }
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,

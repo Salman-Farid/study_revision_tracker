@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/models/subject_model.dart';
@@ -12,12 +14,26 @@ class TopicDetailController extends GetxController {
   final schedules = <RevisionScheduleModel>[].obs;
   final sessions = <RevisionSessionModel>[].obs;
   final isLoading = true.obs;
+  StreamSubscription<List<RevisionScheduleModel>>? _realtimeSub;
 
   @override void onInit() {
     super.onInit();
     final args = Get.arguments as Map;
     topic = args['topic']; subject = args['subject'];
     _load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    _realtimeSub = _repo.schedulesStream.listen((all) {
+      schedules.assignAll(all.where((s) => s.topicId == topic.id));
+    });
+  }
+
+  @override
+  void onClose() {
+    _realtimeSub?.cancel();
+    super.onClose();
   }
 
   Future<void> _load() async {

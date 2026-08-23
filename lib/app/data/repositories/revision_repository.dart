@@ -5,6 +5,8 @@ import '../services/supabase_service.dart';
 
 class RevisionRepository {
   final _s = Get.find<SupabaseService>();
+  Stream<List<RevisionScheduleModel>> get schedulesStream => _s.schedulesStream;
+  void refreshSchedules() => _s.refreshSchedules();
   Future<List<RevisionScheduleModel>> getSchedules({String? topicId,
     String? status, DateTime? fromDate, DateTime? toDate}) =>
     _s.fetchSchedules(topicId: topicId, status: status, fromDate: fromDate, toDate: toDate);
