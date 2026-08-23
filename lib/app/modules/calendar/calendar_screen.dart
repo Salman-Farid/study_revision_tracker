@@ -50,8 +50,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           onFormatChanged: (f) => setState(() => _fmt = f), eventLoader: _getEvents,
           calendarStyle: CalendarStyle(
             todayDecoration: BoxDecoration(color: AppColors.primary.withOpacity(0.3), shape: BoxShape.circle),
-            selectedDecoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-            markerDecoration: const BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
+            selectedDecoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+            markerDecoration: BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
             markerSize: 6, todayTextStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary(d))),
           headerStyle: HeaderStyle(titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary(d)),
             formatButtonTextStyle: AppTextStyles.labelMedium,

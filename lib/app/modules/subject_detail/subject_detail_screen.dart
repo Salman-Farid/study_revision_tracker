@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/size_constants.dart';
-import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import 'subject_detail_controller.dart';
@@ -15,6 +14,11 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: Obx(() => Text(controller.subject.name, style: AppTextStyles.headlineMedium)), actions: [
+        IconButton(
+          onPressed: controller.openVoiceAssistant,
+          icon: Icon(Icons.mic_rounded, color: AppConstants.primaryColor),
+          tooltip: 'Voice Assistant',
+        ),
         IconButton(onPressed: controller.toggleChat,
           icon: Obx(() => Icon(controller.showChat.value ? Icons.mic_rounded : Icons.mic_none_rounded,
             color: controller.showChat.value ? AppColors.primary : null))),
@@ -60,7 +64,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               ]),
             ])),
             Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
-          ]))));
+          ])));
     });
 
   Widget _voiceChat(bool d) => AnimatedSize(duration: AppConstants.mediumDuration, curve: Curves.easeInOut,

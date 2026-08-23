@@ -35,6 +35,7 @@ class RevisionSessionScreen extends GetView<RevisionSessionController> {
     decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusXl),
       border: Border.all(color: AppColors.border(d)), boxShadow: S.shadowMd),
     child: Column(children: [
+      Text(controller.formattedTime, style: AppTextStyles.headlineLarge.copyWith(
         fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()],
         color: AppColors.textPrimary(d))),
       SizedBox(height: S.sm),

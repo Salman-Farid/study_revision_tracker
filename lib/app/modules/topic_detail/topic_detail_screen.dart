@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/size_constants.dart';
-import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/revision_schedule_timeline.dart';
 import 'topic_detail_controller.dart';

@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/constants/app_constants.dart';
 import '../core/constants/responsive.dart';
 
 class AppColors {
   AppColors._();
-  static const Color primary = Color(0xFF6C63FF);
-  static const Color primaryLight = Color(0xFF9D97FF);
-  static const Color secondary = Color(0xFFFF6584);
-  static const Color success = Color(0xFF43E97B);
-  static const Color warning = Color(0xFFFFBE0B);
-  static const Color error = Color(0xFFFF5252);
-  static const Color info = Color(0xFF4FACFE);
-  static const Color forgot = Color(0xFFFF5252);
-  static const Color partial = Color(0xFFFFBE0B);
-  static const Color good = Color(0xFF4FACFE);
-  static const Color perfect = Color(0xFF43E97B);
+  static Color get primary => AppConstants.primaryColor;
+  static Color get primaryLight => AppConstants.primaryColorLight;
+  static Color get secondary => AppConstants.secondaryColor;
+  static Color get success => AppConstants.successColor;
+  static Color get warning => AppConstants.warningColor;
+  static Color get error => AppConstants.errorColor;
+  static Color get info => AppConstants.infoColor;
+  static Color get forgot => AppConstants.errorColor;
+  static Color get partial => AppConstants.warningColor;
+  static Color get good => AppConstants.infoColor;
+  static Color get perfect => AppConstants.successColor;
 
   static const Color bgLight = Color(0xFFF8F9FC);
   static const Color surfaceLight = Color(0xFFFFFFFF);
@@ -40,6 +41,12 @@ class AppColors {
     switch (r) { case 'forgot': return forgot; case 'partial': return partial;
       case 'good': return good; case 'perfect': return perfect; default: return textMutedLight; }
   }
+
+  static Color get accent => AppConstants.accentColor;
+  static Color get accentLight => AppConstants.accentColorLight;
+  static Color get primarySurface => AppConstants.primarySurface;
+  static Color get secondarySurface => AppConstants.secondarySurface;
+  static Color get accentSurface => AppConstants.accentSurface;
 }
 
 class AppTextStyles {
@@ -65,9 +72,9 @@ class AppTheme {
   static ThemeData get light => ThemeData(
     useMaterial3: true, brightness: Brightness.light,
     colorScheme: ColorScheme.light(
-      primary: AppColors.primary, secondary: AppColors.secondary,
+      primary: AppConstants.primaryColor, secondary: AppConstants.secondaryColor,
       surface: AppColors.surfaceLight, background: AppColors.bgLight,
-      error: AppColors.error, onPrimary: Colors.white, onSecondary: Colors.white,
+      error: AppConstants.errorColor, onPrimary: Colors.white, onSecondary: Colors.white,
       onSurface: AppColors.textPrimaryLight, onBackground: AppColors.textPrimaryLight,
     ),
     scaffoldBackgroundColor: AppColors.bgLight,
@@ -112,9 +119,9 @@ class AppTheme {
   static ThemeData get dark => ThemeData(
     useMaterial3: true, brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(
-      primary: AppColors.primary, secondary: AppColors.secondary,
+      primary: AppConstants.primaryColor, secondary: AppConstants.secondaryColor,
       surface: AppColors.surfaceDark, background: AppColors.bgDark,
-      error: AppColors.error, onPrimary: Colors.white, onSecondary: Colors.white,
+      error: AppConstants.errorColor, onPrimary: Colors.white, onSecondary: Colors.white,
       onSurface: AppColors.textPrimaryDark, onBackground: AppColors.textPrimaryDark,
     ),
     scaffoldBackgroundColor: AppColors.bgDark,

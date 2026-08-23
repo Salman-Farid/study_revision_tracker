@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_revision_tracker/gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/core/constants/app_constants.dart';
 import 'app/core/services/connectivity_service.dart';
@@ -15,6 +17,8 @@ import 'app/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SharedPreferences.getInstance(); // Ensure initialized for auth persistence
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -30,6 +34,8 @@ void main() async {
   Get.put(TopicRepository(), permanent: true);
   Get.put(RevisionRepository(), permanent: true);
   Get.put(ConnectivityService(), permanent: true);
+  Get.put(GeminiLiveService(), permanent: true);
+  Get.put(VoiceAssistantController(), permanent: true);
   await Get.putAsync<NotificationService>(() => NotificationService().init());
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

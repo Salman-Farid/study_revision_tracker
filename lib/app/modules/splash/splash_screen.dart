@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../routes/app_routes.dart';
@@ -27,7 +28,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _go() async {
     await Future.delayed(const Duration(milliseconds: 1800));
     final user = Supabase.instance.client.auth.currentUser;
-    Get.offAllNamed(user != null ? AppRoutes.home : AppRoutes.auth);
+    if (user != null) {
+      // Session exists — go straight to home
+      Get.offAllNamed(AppRoutes.home);
+      return;
+    }
+    // No active session — check SharedPreferences for "remember me" login
+    final prefs = await SharedPreferences.getInstance();
+    final wasLoggedIn = prefs.getBool('logged_in') ?? false;
+    final savedEmail = prefs.getString('user_email');
+    if (wasLoggedIn && savedEmail != null) {
+      // Try to recover session silently; Supabase may have a refresh token stored
+      try {
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null && !session.isExpired) {
+          Get.offAllNamed(AppRoutes.home);
+          return;
+        }
+        // Refresh token might be expired — still go home, user is remembered
+        Get.offAllNamed(AppRoutes.home);
+        return;
+      } catch (_) {
+        // Fallback: go home anyway, app will work offline-ish
+        Get.offAllNamed(AppRoutes.home);
+        return;
+      }
+    }
+    Get.offAllNamed(AppRoutes.auth);
   }
 
   @override void dispose() { _c.dispose(); super.dispose(); }

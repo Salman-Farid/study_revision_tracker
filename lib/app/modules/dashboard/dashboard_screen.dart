@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/constants/size_constants.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
@@ -29,7 +28,7 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _header(bool d) => Padding(padding: EdgeInsets.fromLTRB(S.xl, S.xl, S.xl, S.sm),
     child: Row(children: [
       Container(width: S.avatarSize, height: S.avatarSize, decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
+        gradient:  LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
         borderRadius: BorderRadius.circular(S.radiusMd)),
         child: Icon(Icons.person, color: Colors.white, size: S.iconLg)),
       SizedBox(width: S.md),
@@ -80,7 +79,7 @@ class DashboardScreen extends GetView<DashboardController> {
     return Padding(padding: EdgeInsets.all(S.xl), child: GridView.builder(
       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2,
-        crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.5),
+        crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.25),
       itemCount: items.length, itemBuilder: (_, i) {
         final it = items[i];
         return StatCard(title: it[0] as String, value: it[1] as String,

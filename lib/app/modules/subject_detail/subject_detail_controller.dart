@@ -8,6 +8,7 @@ import '../../data/repositories/revision_repository.dart';
 import '../../data/services/gemini_service.dart';
 import '../../theme/app_theme.dart';
 import '../../core/constants/size_constants.dart';
+import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
 class SubjectDetailController extends GetxController {
   final _topicRepo = Get.find<TopicRepository>();
@@ -125,5 +126,10 @@ class SubjectDetailController extends GetxController {
   Future<void> deleteTopic(String id) async {
     try { await _topicRepo.delete(id); topics.removeWhere((t) => t.id == id); }
     catch (e) { Get.snackbar('Error', 'Failed'); }
+  }
+
+  /// Navigate to Gemini Live voice assistant
+  void openVoiceAssistant() {
+    Get.to(() => const VoiceAssistantScreen());
   }
 }

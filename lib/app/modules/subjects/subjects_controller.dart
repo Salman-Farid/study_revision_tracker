@@ -4,9 +4,11 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/repositories/subject_repository.dart';
+import '../../data/services/supabase_service.dart';
 import '../../data/services/gemini_service.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
+import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
 class SubjectsController extends GetxController {
   final _repo = Get.find<SubjectRepository>();
@@ -21,8 +23,11 @@ class SubjectsController extends GetxController {
   @override void onInit() { super.onInit(); load(); }
 
   Future<void> load() async {
-    try { isLoading.value = true; subjects.assignAll(await _repo.getAll()); }
-    catch (e) { Get.snackbar('Error', 'Failed to load'); }
+    try {
+      if (Get.find<SupabaseService>().currentUser == null) return;
+      isLoading.value = true;
+      subjects.assignAll(await _repo.getAll());
+    } catch (e) { /* silent */ }
     finally { isLoading.value = false; }
   }
 
@@ -73,6 +78,11 @@ class SubjectsController extends GetxController {
     } else {
       chatMessages.add({'t': r['question'] ?? 'Could not understand. Try again.', 'u': false});
     }
+  }
+
+  /// Navigate to Gemini Live voice assistant
+  void openVoiceAssistant() {
+    Get.to(() => const VoiceAssistantScreen());
   }
 
   void showAddSheet() {

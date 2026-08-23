@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/size_constants.dart';
-import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
@@ -16,6 +15,11 @@ class SubjectsScreen extends GetView<SubjectsController> {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: Text('Subjects', style: AppTextStyles.headlineMedium), actions: [
+        IconButton(
+          onPressed: controller.openVoiceAssistant,
+          icon: Icon(Icons.mic_rounded, color: AppConstants.primaryColor),
+          tooltip: 'Voice Assistant',
+        ),
         IconButton(onPressed: controller.toggleChat, icon: Obx(() => Icon(
           controller.showChat.value ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
           color: controller.showChat.value ? AppColors.primary : null))),
@@ -62,7 +66,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
                 LinearProgressIndicator(value: sub.progressPercent, backgroundColor: sub.color.withOpacity(0.12),
                   valueColor: AlwaysStoppedAnimation(sub.color), borderRadius: BorderRadius.circular(S.radiusFull), minHeight: 4),
               ]),
-            ]))));
+            ])));
     });
 
   Widget _voiceChat(bool d) => AnimatedSize(duration: AppConstants.mediumDuration, curve: Curves.easeInOut,
