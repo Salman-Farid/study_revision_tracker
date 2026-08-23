@@ -63,6 +63,18 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                 Text('${t.totalRevisions} revisions', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted(d))),
               ]),
             ])),
+            GestureDetector(
+              onTap: () => Get.defaultDialog(
+                title: 'Delete?', middleText: 'Delete "${t.name}"?',
+                textConfirm: 'Delete', textCancel: 'Cancel', confirmTextColor: Colors.white,
+                buttonColor: AppColors.error,
+                onConfirm: () { controller.deleteTopic(t.id); Get.back(); }),
+              child: Container(padding: EdgeInsets.all(S.sm),
+                decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(S.radiusSm)),
+                child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20)),
+            ),
+            SizedBox(width: S.sm),
             Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
           ])));
     });

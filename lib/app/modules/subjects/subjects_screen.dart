@@ -45,18 +45,28 @@ class SubjectsScreen extends GetView<SubjectsController> {
       final sub = controller.subjects[i];
       return GestureDetector(
         onTap: () => Get.toNamed('/subject/${sub.id}', arguments: sub),
-        onLongPress: () => Get.defaultDialog(title: 'Delete?', middleText: 'Delete "${sub.name}"?',
-          textConfirm: 'Delete', textCancel: 'Cancel', confirmTextColor: Colors.white,
-          buttonColor: AppColors.error, onConfirm: () { controller.deleteSubject(sub.id); Get.back(); }),
         child: Container(padding: EdgeInsets.all(S.base), decoration: BoxDecoration(
           color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusLg),
           border: Border.all(color: AppColors.border(d)), boxShadow: S.shadowSm),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Container(padding: EdgeInsets.all(S.md), decoration: BoxDecoration(
-                color: sub.color.withOpacity(0.12), borderRadius: BorderRadius.circular(S.radiusMd)),
-                child: Icon(IconData(sub.iconCodePoint, fontFamily: 'MaterialIcons'),
-                  color: sub.color, size: S.iconLg)),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Container(padding: EdgeInsets.all(S.md), decoration: BoxDecoration(
+                  color: sub.color.withOpacity(0.12), borderRadius: BorderRadius.circular(S.radiusMd)),
+                  child: Icon(IconData(sub.iconCodePoint, fontFamily: 'MaterialIcons'),
+                    color: sub.color, size: S.iconLg)),
+                GestureDetector(
+                  onTap: () => Get.defaultDialog(
+                    title: 'Delete?', middleText: 'Delete "${sub.name}" and all its topics?',
+                    textConfirm: 'Delete', textCancel: 'Cancel', confirmTextColor: Colors.white,
+                    buttonColor: AppColors.error,
+                    onConfirm: () { controller.deleteSubject(sub.id); Get.back(); }),
+                  child: Container(padding: EdgeInsets.all(S.sm),
+                    decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(S.radiusSm)),
+                    child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20)),
+                ),
+              ]),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(sub.name, style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d)),
                   maxLines: 1, overflow: TextOverflow.ellipsis),

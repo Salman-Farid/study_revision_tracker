@@ -43,6 +43,9 @@ class GeminiLiveService {
   bool _autoMutedByGemini = false;
   bool _sessionActive = false;
 
+  /// Generation counter to prevent race between stopSession/startSession
+  int _generation = 0;
+
   /// Start a live voice session.
   /// Mic opens once, streams continuously. Gemini VAD detects speech boundaries.
   Future<void> startSession({
@@ -52,6 +55,8 @@ class GeminiLiveService {
     List<Map<String, dynamic>>? tools,
   }) async {
     if (_sessionActive) return;
+
+    final gen = ++_generation;
     _sessionActive = true;
 
     _player = PcmAudioPlayer();
@@ -102,6 +107,9 @@ class GeminiLiveService {
     });
 
     await _socket!.connect();
+
+    // Check if session was stopped while we were connecting
+    if (gen != _generation) return;
 
     // Start mic streaming — opens once, streams forever
     if (streamMicrophone) {
@@ -158,16 +166,39 @@ class GeminiLiveService {
 
   /// Full teardown — stop everything, close streams, release resources
   Future<void> stopSession() async {
+    final gen = ++_generation; // Invalidate any in-flight startSession
     _sessionActive = false;
-    await _recorder?.stop();
+    _autoMutedByGemini = false;
+    isMuted = false;
+
+    // Cancel mic subscription first, then stop recorder
     await _micSub?.cancel();
+    _micSub = null;
+    if (_recorder != null) {
+      await _recorder!.stop();
+      _recorder!.dispose();
+      _recorder = null;
+    }
+
+    // Cancel all other subscriptions
     await _responseAudioSub?.cancel();
+    _responseAudioSub = null;
     await _transcriptSub?.cancel();
+    _transcriptSub = null;
     await _functionCallSub?.cancel();
+    _functionCallSub = null;
     await _audioActivitySub?.cancel();
+    _audioActivitySub = null;
     await _turnCompleteSub?.cancel();
+    _turnCompleteSub = null;
+
+    // Disconnect socket
     await _socket?.disconnect();
+    _socket = null;
+
+    // Clear player
     _player?.clear();
+    _player = null;
   }
 
   void dispose() {

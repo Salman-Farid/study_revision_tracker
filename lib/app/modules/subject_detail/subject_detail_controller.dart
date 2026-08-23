@@ -149,8 +149,10 @@ class SubjectDetailController extends GetxController {
     catch (e) { Get.snackbar('Error', 'Failed'); }
   }
 
-  /// Navigate to Gemini Live voice assistant
+  /// Navigate to Gemini Live voice assistant with subject context
   void openVoiceAssistant() {
+    final vc = Get.find<VoiceAssistantController>();
+    vc.currentSubjectName = subject.name;
     Get.to(() => const VoiceAssistantScreen());
   }
 }

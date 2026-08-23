@@ -2,7 +2,7 @@ enum ChatRole { user, assistant, system }
 
 class ChatMessage {
   final ChatRole role;
-  final String text;
+  String text;
   final DateTime timestamp;
   final bool isAudio;
 
