@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/revision_schedule_timeline.dart';
@@ -12,7 +13,13 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
-      appBar: AppBar(title: Text(controller.topic.name, style: AppTextStyles.headlineMedium)),
+      appBar: AppBar(title: Text(controller.topic.name, style: AppTextStyles.headlineMedium), actions: [
+        IconButton(
+          onPressed: controller.openVoiceAssistant,
+          icon: Icon(Icons.mic_rounded, color: AppConstants.primaryColor),
+          tooltip: 'Voice Assistant',
+        ),
+      ]),
       body: Obx(() {
         if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
         return SingleChildScrollView(physics: const BouncingScrollPhysics(), padding: EdgeInsets.all(S.xl),

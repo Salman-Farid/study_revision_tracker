@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/models/revision_session_model.dart';
 import '../../data/repositories/revision_repository.dart';
+import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
 class TopicDetailController extends GetxController {
   final _repo = Get.find<RevisionRepository>();
@@ -42,5 +44,18 @@ class TopicDetailController extends GetxController {
       schedules.assignAll(await _repo.getSchedules(topicId: topic.id));
       sessions.assignAll(await _repo.getSessions(topicId: topic.id));
     } catch (_) {} finally { isLoading.value = false; }
+  }
+
+  void openVoiceAssistant() {
+    final vc = Get.find<VoiceAssistantController>();
+    vc.currentSubjectName = subject.name;
+    Get.bottomSheet(
+      const VoiceAssistantSheet(),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Get.theme.scaffoldBackgroundColor,
+    );
   }
 }

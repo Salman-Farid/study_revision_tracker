@@ -60,7 +60,7 @@ class DashboardScreen extends GetView<DashboardController> {
             ])),
         ],
         SizedBox(height: S.base),
-        ElevatedButton(onPressed: () {},
+        ElevatedButton(onPressed: controller.startRevising,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.white, foregroundColor: AppColors.primary,
             minimumSize: Size(S.avatarSize * 2, S.buttonHeight * 0.75)),

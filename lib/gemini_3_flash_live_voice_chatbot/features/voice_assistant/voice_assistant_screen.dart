@@ -577,6 +577,246 @@ class _ThinkingDotsState extends State<_ThinkingDots>
   }
 }
 
+// ── Animated Bottom Sheet Widget ─────────────────────────
+
+class VoiceAssistantSheet extends StatefulWidget {
+  const VoiceAssistantSheet({super.key});
+
+  @override
+  State<VoiceAssistantSheet> createState() => _VoiceAssistantSheetState();
+}
+
+class _VoiceAssistantSheetState extends State<VoiceAssistantSheet>
+    with SingleTickerProviderStateMixin {
+  late final VoiceAssistantController controller;
+  final _textCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final _focusNode = FocusNode();
+  late AnimationController _animCtrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<VoiceAssistantController>();
+    if (controller.connectionState.value == ws.ConnectionState.disconnected) {
+      controller.startSession();
+    }
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    _textCtrl.dispose();
+    _scrollCtrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  void _sendText() {
+    final text = _textCtrl.text.trim();
+    if (text.isEmpty) return;
+    controller.sendText(text);
+    _textCtrl.clear();
+    _focusNode.unfocus();
+    _scrollToBottom();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollCtrl) {
+        return FadeTransition(
+          opacity: _fadeAnim,
+          child: SlideTransition(
+            position: _slideAnim,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  _buildHandle(),
+                  _buildSheetHeader(isDark),
+                  Expanded(
+                    child: Obx(() {
+                      final msgs = controller.messages;
+                      final processing = controller.isProcessing.value;
+                      if (msgs.isEmpty && controller.connectionState.value == ws.ConnectionState.connecting) {
+                        return Center(
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            CircularProgressIndicator(color: AppConstants.primaryColor, strokeWidth: 3),
+                            const SizedBox(height: 16),
+                            Text('Connecting...', style: TextStyle(
+                                color: (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight).withOpacity(0.6),
+                                fontSize: 13)),
+                          ]),
+                        );
+                      }
+                      _scrollToBottom();
+                      return ListView.builder(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: msgs.length + (processing ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i == msgs.length && processing) return const _ThinkingBubble();
+                          return _ChatBubble(message: msgs[i], isDark: isDark);
+                        },
+                      );
+                    }),
+                  ),
+                  Obx(() {
+                    final st = controller.connectionState.value;
+                    if (st == ws.ConnectionState.error) {
+                      return _ErrorBar(
+                        message: controller.errorMessage.value.isNotEmpty ? controller.errorMessage.value : 'Connection lost',
+                        onRetry: () => controller.startSession(), isDark: isDark);
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                  _buildInputRow(isDark),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHandle() => Center(
+    child: Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 4),
+      width: 40, height: 4,
+      decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+    ),
+  );
+
+  Widget _buildSheetHeader(bool isDark) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    decoration: BoxDecoration(
+      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      border: Border(bottom: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1)),
+    ),
+    child: Row(children: [
+      CircleAvatar(radius: 18, backgroundColor: AppConstants.primaryColor.withOpacity(0.15),
+        child: Icon(Icons.smart_toy_rounded, color: AppConstants.primaryColor, size: 20)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Study Assistant', style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontSize: 16, fontWeight: FontWeight.w600)),
+        Obx(() {
+          final st = controller.connectionState.value;
+          final processing = controller.isProcessing.value;
+          final (color, label) = switch (processing) {
+            true => (AppConstants.warningColor, 'Processing...'),
+            false => switch (st) {
+              ws.ConnectionState.connecting => (AppConstants.warningColor, 'Connecting...'),
+              ws.ConnectionState.connected => (AppConstants.successColor, 'Listening'),
+              ws.ConnectionState.error => (AppConstants.errorColor, 'Offline'),
+              _ => (AppColors.textMutedDark, 'Offline'),
+            },
+          };
+          return Row(children: [
+            Container(width: 6, height: 6, margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+            Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500)),
+          ]);
+        }),
+      ])),
+      IconButton(
+        icon: Icon(Icons.close_rounded, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+        onPressed: () {
+          _animCtrl.reverse().then((_) {
+            controller.stopSession();
+            Navigator.pop(context);
+          });
+        },
+      ),
+    ]),
+  );
+
+  Widget _buildInputRow(bool isDark) {
+    return Obx(() {
+      final st = controller.connectionState.value;
+      if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
+      final muted = controller.isMuted;
+      final processing = controller.isProcessing.value;
+      final statusText = processing ? 'Processing...' : muted ? 'Muted — tap mic' : 'Listening...';
+      final statusColor = processing ? AppConstants.warningColor : muted ? AppColors.textMutedDark : AppConstants.successColor;
+      return Container(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+        child: Row(children: [
+          GestureDetector(
+            onTap: () => controller.toggleListening(),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300), width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: muted ? AppConstants.warningColor : AppConstants.successColor,
+                boxShadow: !muted ? [BoxShadow(color: AppConstants.successColor.withOpacity(0.3), blurRadius: 12, spreadRadius: 2)] : [],
+              ),
+              child: Icon(muted ? Icons.mic_off_rounded : Icons.mic_rounded, color: Colors.white, size: 22),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            ),
+            child: TextField(
+              controller: _textCtrl, focusNode: _focusNode,
+              textInputAction: TextInputAction.send, maxLines: 4, minLines: 1,
+              style: TextStyle(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: statusText,
+                hintStyle: TextStyle(color: !muted ? statusColor.withOpacity(0.6) : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              onSubmitted: (_) => _sendText(),
+            ),
+          )),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _sendText,
+            child: Container(width: 44, height: 44,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppConstants.primaryColor),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        ]),
+      );
+    });
+  }
+}
+
 // ── Error bar ───────────────────────────────────────────
 
 class _ErrorBar extends StatelessWidget {

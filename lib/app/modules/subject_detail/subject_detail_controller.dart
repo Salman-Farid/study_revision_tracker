@@ -2,12 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/revision_repository.dart';
-import '../../data/services/gemini_service.dart';
 import '../../theme/app_theme.dart';
 import '../../core/constants/size_constants.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
@@ -15,14 +13,9 @@ import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 class SubjectDetailController extends GetxController {
   final _topicRepo = Get.find<TopicRepository>();
   final _revRepo = Get.find<RevisionRepository>();
-  final _gemini = GeminiService();
-  final _stt = SpeechToText();
   late SubjectModel subject;
   final topics = <TopicModel>[].obs;
   final isLoading = true.obs;
-  final isListening = false.obs;
-  final chatMessages = <Map<String, dynamic>>[].obs;
-  final showChat = false.obs;
   StreamSubscription<List<TopicModel>>? _realtimeSub;
 
   @override void onInit() {
@@ -64,37 +57,6 @@ class SubjectDetailController extends GetxController {
       Get.snackbar('Created', '"$name" with schedule', snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.success.withOpacity(0.1));
     } catch (e) { Get.snackbar('Error', 'Failed: $e'); }
-  }
-
-  Future<void> toggleChat() async {
-    showChat.value = !showChat.value;
-    if (showChat.value) chatMessages.add({'t': '"${subject.name}" topic voice. "OSI Model, TCP/IP, kakey shokal 10tay"', 'u': false});
-  }
-
-  Future<void> startListening() async {
-    final ok = await _stt.initialize(); if (!ok) return;
-    isListening.value = true;
-    await _stt.listen(onResult: (r) { if (r.finalResult) _onVoice(r.recognizedWords); },
-      localeId: 'bn_BD', listenFor: const Duration(seconds: 45), pauseFor: const Duration(seconds: 4));
-  }
-
-  Future<void> stopListening() async { await _stt.stop(); isListening.value = false; }
-
-  Future<void> _onVoice(String text) async {
-    isListening.value = false;
-    chatMessages.add({'t': text, 'u': true});
-    final r = await _gemini.processTopicCommand(speech: text, subject: subject.name);
-    if (r['action'] == 'create_topics') {
-      final list = r['topics'] as List? ?? [];
-      chatMessages.add({'t': r['confirmation'] ?? 'Creating ${list.length} topics...', 'u': false});
-      for (final t in list) {
-        final n = t['name'] as String? ?? ''; if (n.isEmpty) continue;
-        DateTime? rd; if (t['first_read_date'] != null) rd = DateTime.tryParse(t['first_read_date']);
-        await createTopic(name: n, notes: t['notes'], refAnswer: t['reference_answer'], firstRead: rd);
-      }
-    } else {
-      chatMessages.add({'t': r['question'] ?? 'Could not understand', 'u': false});
-    }
   }
 
   void showAddSheet() {
@@ -153,6 +115,13 @@ class SubjectDetailController extends GetxController {
   void openVoiceAssistant() {
     final vc = Get.find<VoiceAssistantController>();
     vc.currentSubjectName = subject.name;
-    Get.to(() => const VoiceAssistantScreen());
+    Get.bottomSheet(
+      const VoiceAssistantSheet(),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Get.theme.scaffoldBackgroundColor,
+    );
   }
 }
