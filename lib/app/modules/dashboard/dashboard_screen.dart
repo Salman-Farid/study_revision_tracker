@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/constants/size_constants.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
@@ -12,8 +13,8 @@ class DashboardScreen extends GetView<DashboardController> {
   @override
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
-        return Scaffold(body: SafeArea(child: Obx(() {
-      if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
+    return Scaffold(body: SafeArea(child: Obx(() {
+      if (controller.isLoading.value) return _shimmerLoader(d);
       return RefreshIndicator(onRefresh: controller.load,
         child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()), slivers: [
           SliverToBoxAdapter(child: _header(d)),
@@ -23,6 +24,52 @@ class DashboardScreen extends GetView<DashboardController> {
           SliverPadding(padding: EdgeInsets.only(bottom: S.xxxl)),
         ]));
     })));
+  }
+
+  // ─── SHIMMER LOADER ─────────────────────────────────────────
+  Widget _shimmerLoader(bool d) {
+    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
+    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.all(S.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header shimmer
+            Row(children: [
+              Container(width: S.avatarSize, height: S.avatarSize,
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusMd))),
+              SizedBox(width: S.md),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(height: 12, width: 80, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                SizedBox(height: S.sm),
+                Container(height: 16, width: 160, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+              ])),
+            ]),
+            SizedBox(height: S.lg),
+            // Hero card shimmer
+            Container(width: double.infinity, height: 140,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))),
+            SizedBox(height: S.lg),
+            // Stats grid shimmer
+            GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2, crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.25,
+              children: List.generate(4, (_) => Container(
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))))),
+            SizedBox(height: S.lg),
+            // Actions shimmer
+            Container(height: 16, width: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+            SizedBox(height: S.md),
+            Container(height: 64, width: double.infinity,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusMd))),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _header(bool d) => Padding(padding: EdgeInsets.fromLTRB(S.xl, S.xl, S.xl, S.sm),
@@ -91,7 +138,7 @@ class DashboardScreen extends GetView<DashboardController> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Quick Actions', style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
       SizedBox(height: S.md),
-      Material(color: Colors.transparent, child: InkWell(onTap: () => Get.toNamed(AppRoutes.statistics),
+      Material(color: Colors.transparent, child: InkWell(onTap: () => Get.toNamed(AppRoutes.history),
         borderRadius: BorderRadius.circular(S.radiusMd),
         child: Container(padding: EdgeInsets.all(S.base),
           decoration: BoxDecoration(border: Border.all(color: AppColors.border(d)),
@@ -102,7 +149,7 @@ class DashboardScreen extends GetView<DashboardController> {
               child: Icon(Icons.bar_chart_rounded, color: AppColors.success, size: S.iconMd)),
             SizedBox(width: S.base),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Statistics', style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
+              Text('History', style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
               Text('View progress and analytics', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             ])),
             Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),

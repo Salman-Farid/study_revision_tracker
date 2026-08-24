@@ -11,6 +11,7 @@ import '../../data/services/gemini_service.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
+import '../../../gemini_3_flash_live_voice_chatbot/features/voice_assistant/study_assistant_dialogue.dart';
 
 class SubjectsController extends GetxController {
   final _repo = Get.find<SubjectRepository>();
@@ -22,6 +23,9 @@ class SubjectsController extends GetxController {
   final chatMessages = <Map<String, dynamic>>[].obs;
   final showChat = false.obs;
   StreamSubscription<List<SubjectModel>>? _realtimeSub;
+
+  // Global key for Study Assistant button to get its position
+  final studyAssistantButtonKey = GlobalKey();
 
   @override void onInit() { super.onInit(); load(); _subscribeRealtime(); }
 
@@ -65,6 +69,12 @@ class SubjectsController extends GetxController {
     catch (e) { Get.snackbar('Error', 'Failed'); }
   }
 
+  void reorderSubjects(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final item = subjects.removeAt(oldIndex);
+    subjects.insert(newIndex, item);
+  }
+
   Future<void> toggleChat() async {
     showChat.value = !showChat.value;
     if (showChat.value) chatMessages.add({'t': 'Subject names in Bengali/English. "Bangla, English, Math"', 'u': false});
@@ -99,6 +109,29 @@ class SubjectsController extends GetxController {
   /// Navigate to Gemini Live voice assistant
   void openVoiceAssistant() {
     Get.to(() => const VoiceAssistantScreen());
+  }
+
+  /// Open Study Assistant as a floating dialogue on top of this screen
+  void openStudyAssistantDialogue() {
+    // Register controller if not already
+    try { Get.find<VoiceAssistantController>(); } catch (_) {
+      Get.put(VoiceAssistantController(), permanent: true);
+    }
+
+    showGeneralDialog(
+      context: Get.context!,
+      barrierDismissible: true,
+      barrierLabel: 'Study Assistant',
+      barrierColor: Colors.black45,
+      transitionDuration: const Duration(milliseconds: 350),
+      transitionBuilder: (ctx, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.elasticOut),
+          child: FadeTransition(opacity: anim1, child: child),
+        );
+      },
+      pageBuilder: (_, __, ___) => const StudyAssistantDialogue(),
+    );
   }
 
   void showAddSheet() {

@@ -111,6 +111,12 @@ class SubjectDetailController extends GetxController {
     catch (e) { Get.snackbar('Error', 'Failed'); }
   }
 
+  void reorderTopics(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final item = topics.removeAt(oldIndex);
+    topics.insert(newIndex, item);
+  }
+
   /// Navigate to Gemini Live voice assistant with subject context
   void openVoiceAssistant() {
     final vc = Get.find<VoiceAssistantController>();

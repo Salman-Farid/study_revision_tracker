@@ -4,7 +4,7 @@ abstract class AppRoutes {
   static const home = '/home';
   static const subjectDetail = '/subject/:id';
   static const topicDetail = '/topic/:id';
-  static const statistics = '/statistics';
+  static const history = '/history';
   static const settings = '/settings';
   static const revisionSession = '/revision-session/:id';
   static const calendar = '/calendar';

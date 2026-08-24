@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'statistics_controller.dart';
 
-class StatisticsBinding extends Bindings {
+class HistoryBinding extends Bindings {
   @override
-  void dependencies() { Get.lazyPut<StatisticsController>(() => StatisticsController()); }
+  void dependencies() { Get.lazyPut<HistoryController>(() => HistoryController()); }
 }

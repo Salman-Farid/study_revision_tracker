@@ -32,47 +32,102 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       ]));
   }
 
-  Widget _list(bool d) => ListView.builder(padding: EdgeInsets.all(S.base), itemCount: controller.topics.length,
+  Widget _list(bool d) => ReorderableListView.builder(
+    padding: EdgeInsets.all(S.base),
+    itemCount: controller.topics.length,
+    onReorder: controller.reorderTopics,
     itemBuilder: (_, i) {
       final t = controller.topics[i];
-      return GestureDetector(
-        onTap: () => Get.toNamed('/topic/${t.id}', arguments: {'topic': t, 'subject': controller.subject}),
-        child: Container(margin: EdgeInsets.only(bottom: S.md), padding: EdgeInsets.all(S.base),
-          decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusLg),
-            border: Border.all(color: AppColors.border(d)), boxShadow: S.shadowSm),
-          child: Row(children: [
-            Container(width: S.avatarSize, height: S.avatarSize, decoration: BoxDecoration(
-              color: controller.subject.color.withOpacity(0.12), borderRadius: BorderRadius.circular(S.radiusMd)),
-              child: Center(child: Text(t.name.isNotEmpty ? t.name[0].toUpperCase() : '?',
-                style: AppTextStyles.headlineSmall.copyWith(color: controller.subject.color)))),
-            SizedBox(width: S.md),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t.name, style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
-              SizedBox(height: S.xs),
-              Row(children: [
-                Container(padding: EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xs),
-                  decoration: BoxDecoration(color: (t.masteryLevel >= 0.75 ? AppColors.success : AppColors.warning).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(S.radiusSm)),
-                  child: Text('${(t.masteryLevel * 100).round()}%',
-                    style: AppTextStyles.labelSmall.copyWith(color: t.masteryLevel >= 0.75 ? AppColors.success : AppColors.warning, fontWeight: FontWeight.w700))),
-                SizedBox(width: S.sm),
-                Text('${t.totalRevisions} revisions', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted(d))),
-              ]),
-            ])),
-            GestureDetector(
-              onTap: () => Get.defaultDialog(
-                title: 'Delete?', middleText: 'Delete "${t.name}"?',
-                textConfirm: 'Delete', textCancel: 'Cancel', confirmTextColor: Colors.white,
-                buttonColor: AppColors.error,
-                onConfirm: () { controller.deleteTopic(t.id); Get.back(); }),
-              child: Container(padding: EdgeInsets.all(S.sm),
-                decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(S.radiusSm)),
-                child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20)),
+      return Container(
+        key: Key(t.id),
+        margin: EdgeInsets.only(bottom: S.md),
+        child: GestureDetector(
+          onTap: () => Get.toNamed('/topic/${t.id}', arguments: {'topic': t, 'subject': controller.subject}),
+          child: Container(
+            padding: EdgeInsets.all(S.base),
+            decoration: BoxDecoration(
+              color: AppColors.surface(d),
+              borderRadius: BorderRadius.circular(S.radiusLg),
+              border: Border.all(color: AppColors.border(d)),
+              boxShadow: S.shadowSm,
             ),
-            SizedBox(width: S.sm),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
-          ])));
-    });
+            child: Row(children: [
+              Icon(Icons.drag_handle_rounded, color: AppColors.textMuted(d), size: 20),
+              SizedBox(width: S.sm),
+              Container(
+                width: S.avatarSize,
+                height: S.avatarSize,
+                decoration: BoxDecoration(
+                  color: controller.subject.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(S.radiusMd),
+                ),
+                child: Center(
+                  child: Text(
+                    t.name.isNotEmpty ? t.name[0].toUpperCase() : '?',
+                    style: AppTextStyles.headlineSmall.copyWith(color: controller.subject.color),
+                  ),
+                ),
+              ),
+              SizedBox(width: S.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.name,
+                        style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
+                    SizedBox(height: S.xs),
+                    Row(children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xs),
+                        decoration: BoxDecoration(
+                          color: (t.masteryLevel >= 0.75 ? AppColors.success : AppColors.warning)
+                              .withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(S.radiusSm),
+                        ),
+                        child: Text(
+                          '${(t.masteryLevel * 100).round()}%',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: t.masteryLevel >= 0.75 ? AppColors.success : AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: S.sm),
+                      Text('${t.totalRevisions} revisions',
+                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted(d))),
+                    ]),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Get.defaultDialog(
+                  title: 'Delete?',
+                  middleText: 'Delete "${t.name}"?',
+                  textConfirm: 'Delete',
+                  textCancel: 'Cancel',
+                  confirmTextColor: Colors.white,
+                  buttonColor: AppColors.error,
+                  onConfirm: () {
+                    controller.deleteTopic(t.id);
+                    Get.back();
+                  },
+                ),
+                child: Container(
+                  padding: EdgeInsets.all(S.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(S.radiusSm),
+                  ),
+                  child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                ),
+              ),
+              SizedBox(width: S.sm),
+              Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
+            ]),
+          ),
+        ),
+      );
+    },
+  );
 
 }

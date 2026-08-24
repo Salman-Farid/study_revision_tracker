@@ -253,6 +253,8 @@ class GeminiSocket {
     }));
   }
 
+  /// Send a single function response WITHOUT turnComplete.
+  /// The controller batches all responses and calls [endTurn] once at the end.
   void sendFunctionResponse(String callId, Map<String, dynamic> response) {
     if (_state != ConnectionState.connected) return;
     _channel?.sink.add(jsonEncode({
@@ -271,7 +273,6 @@ class GeminiSocket {
             ],
           },
         ],
-        'turnComplete': true,
       },
     }));
   }

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:get/get.dart';
@@ -24,8 +26,8 @@ class VoiceAssistantController extends GetxController {
   final RxBool isProcessing = false.obs;
   final RxString errorMessage = ''.obs;
 
-  bool _isMuted = false;
-  bool get isMuted => _isMuted;
+  /// Mic state — ALWAYS read from service (single source of truth)
+  bool get isMuted => _service.isMuted;
   bool _mutedByFunctionCall = false;
 
   /// Generation counter to prevent race between stop/start
@@ -41,6 +43,18 @@ class VoiceAssistantController extends GetxController {
   final Set<String> _processedCallIds = {};
   /// Track recent function name+args to prevent Gemini sending same call with different IDs
   final List<String> _recentCalls = [];
+  /// Track pending (in-flight) function call IDs — endTurn only when all are done
+  final Set<String> _pendingCallIds = {};
+  /// Safety timer — if pending calls are stuck for too long, force endTurn + unmute
+  Timer? _pendingCallsSafetyTimer;
+
+  // ── Batch progress tracking ──
+  bool _batchInProgress = false;
+  bool _batchJustCompleted = false;
+  int _batchTotal = 0;
+  int _batchCompleted = 0;
+  int _batchCompletedCount = 0;
+  ChatMessage? _batchProgressMessage;
 
   /// Streaming message accumulator — assistant text accumulates here until turnComplete
   ChatMessage? _streamingMessage;
@@ -156,8 +170,15 @@ class VoiceAssistantController extends GetxController {
         if (text.trim().isEmpty) return;
         messages.add(ChatMessage(role: ChatRole.user, text: text.trim()));
       } else {
-        _removeExecutingMessage();
-        isProcessing.value = false;
+        // When batch just finished, update the progress message in-place
+        if (_batchJustCompleted) {
+          if (_batchProgressMessage != null) {
+            _batchProgressMessage!.text = '✅ All done — $_batchCompletedCount operations completed';
+            _batchProgressMessage = null;
+          }
+          _batchJustCompleted = false;
+          isProcessing.value = false;
+        }
         // Accumulate assistant text into one message (streaming)
         if (_streamingMessage != null) {
           _streamingMessage!.text += t;
@@ -177,9 +198,9 @@ class VoiceAssistantController extends GetxController {
 
     _turnCompleteSub = _service.turnCompleteStream.listen((_) {
       _streamingMessage = null; // Finalize current message
-      _removeExecutingMessage();
-      isProcessing.value = false; // Always clear processing on turn complete
-      _unmuteAfterFunctionCall();
+      // Batch state is already cleared in _handleFunctionCall's finally block
+      // (before endTurn), so transcript listener can process Gemini's response.
+      // turnComplete just finalizes any streaming message.
     });
   }
 
@@ -190,6 +211,7 @@ class VoiceAssistantController extends GetxController {
     _audioSub?.cancel();
     _functionCallSub?.cancel();
     _turnCompleteSub?.cancel();
+    _pendingCallsSafetyTimer?.cancel();
     _service.stopSession();
     super.onClose();
   }
@@ -220,13 +242,19 @@ RULES:
 4. When user says "delete all subjects" or "shob subject muche de" → call deleteAllSubjects.
 5. When user says "delete subject X" → call deleteSubjectByName with name X.
 6. When user says "add topic X to subject Y" → call addTopic with subjectName Y, name X.
-7. When user says "add topics A, B, C to X" → call addMultipleTopics.
+7. When user says "add topics A, B, C to X" → call addMultipleTopics (send ALL topics in ONE call).
 8. When user says "add subject X" → call addSubject.
 9. You have full knowledge of all data. NEVER say "I don't know" or ask for IDs. Use names only.
 10. When a topic is added, revision dates are automatically set from today (Day 1, 2, 4, 7, 15, 30).
 11. Be natural and conversational. Confirm what you did after each action.
 12. If user asks about revision dates, counts, or anything → use getAllData to find the answer.
 13. When adding topics, ALWAYS use the subject NAME. The system resolves names automatically.
+
+CRITICAL BATCH RULES:
+14. When user asks to add MULTIPLE subjects AND topics, send ALL function calls in ONE SINGLE message. Do NOT split across multiple turns. Example: "add 10 subjects with 10 topics each" → send 10 addSubject calls + 10 addMultipleTopics calls ALL IN ONE toolCall message.
+15. Always use addMultipleTopics when adding multiple topics to a subject. Never call addTopic in a loop.
+16. After ALL batch operations complete, call getAllData to verify the work was done correctly, then summarize what was created to the user.
+17. NEVER send partial batches. If user asks for 10 subjects, send ALL 10 in one go.
 ''';
 
       await _service.startSession(
@@ -258,12 +286,9 @@ RULES:
   }
 
   void toggleListening() {
-    _isMuted = !_isMuted;
-    if (_isMuted) {
-      _service.mute();
-    } else {
-      _service.unmute();
-    }
+    // Don't allow mic toggle while batch function calls are in-flight
+    if (_pendingCallIds.isNotEmpty) return;
+    _service.isMuted = !_service.isMuted;
   }
 
   void sendText(String text) {
@@ -304,8 +329,9 @@ RULES:
       return;
     }
 
-    // Deduplicate by function name + args (Gemini may retry with different IDs)
-    final argsHash = '$name:${args.entries.map((e) => '${e.key}=${e.value}').join('&')}';
+    // Deduplicate by function name + sorted args (robust against key ordering)
+    final sortedArgs = SplayTreeMap<String, dynamic>.from(args);
+    final argsHash = '$name:${jsonEncode(sortedArgs)}';
     if (_recentCalls.contains(argsHash)) {
       print('[Gemini] Skipping duplicate call (same args): $name');
       return;
@@ -313,31 +339,49 @@ RULES:
     _processedCallIds.add(callId);
     _recentCalls.add(argsHash);
 
-    // Keep only last 50 IDs and 20 recent call hashes
+    // Keep only last 50 IDs and 50 recent call hashes
     if (_processedCallIds.length > 50) {
       final toRemove = _processedCallIds.take(30).toList();
       for (final id in toRemove) {
         _processedCallIds.remove(id);
       }
     }
-    if (_recentCalls.length > 20) {
-      _recentCalls.removeRange(0, _recentCalls.length - 20);
+    if (_recentCalls.length > 50) {
+      _recentCalls.removeRange(0, _recentCalls.length - 30);
     }
 
-    print('[Gemini] Handling function call: $name id=$callId');
+    // Track this call as pending — endTurn will be called only when ALL pending calls finish
+    _pendingCallIds.add(callId);
+
+    print('[Gemini] Handling function call: $name id=$callId (${_pendingCallIds.length} pending)');
     isProcessing.value = true;
 
-    _mutedByFunctionCall = !_isMuted;
-    if (!_isMuted) {
-      _isMuted = true;
-      _service.mute();
+    // Only capture original mic state on the FIRST pending call —
+    // subsequent calls must NOT overwrite it or _unmuteAfterFunctionCall() won't fire
+    if (!_mutedByFunctionCall) {
+      _mutedByFunctionCall = !_service.isMuted;
+    }
+    if (!_service.isMuted) {
+      _service.isMuted = true;
       print('[Gemini] Mic muted for function call');
     }
 
-    messages.add(ChatMessage(
-      role: ChatRole.system,
-      text: 'Executing your request...',
-    ));
+    // ── Batch progress tracking ──
+    if (_pendingCallIds.length == 1) {
+      // First call of a new batch — start batch mode
+      _batchInProgress = true;
+      _batchTotal = 1;
+      _batchCompleted = 0;
+      _batchProgressMessage = ChatMessage(
+        role: ChatRole.system,
+        text: '⏳ Executing batch... (0 done)',
+      );
+      messages.add(_batchProgressMessage!);
+    } else {
+      // Subsequent call — update total count
+      _batchTotal = _pendingCallIds.length + _batchCompleted;
+    }
+    _updateBatchProgress();
 
     try {
       switch (name) {
@@ -362,8 +406,70 @@ RULES:
         'name': name,
         'result': {'success': false, 'error': e.toString()},
       });
-      _service.endTurn();
-      _unmuteAfterFunctionCall();
+    } finally {
+      // Remove this call from pending; only call endTurn when ALL pending calls are done
+      _pendingCallIds.remove(callId);
+      _batchCompleted++;
+      _updateBatchProgress();
+      print('[Gemini] Function call done: $name (${_pendingCallIds.length} pending, $_batchCompleted/$_batchTotal done)');
+
+      if (_pendingCallIds.isEmpty) {
+        _pendingCallsSafetyTimer?.cancel();
+        print('[Gemini] All function calls done — sending endTurn');
+        // CRITICAL: Clear batch state BEFORE endTurn so transcript listener
+        // can process Gemini's response (transcript arrives BEFORE turnComplete)
+        _batchInProgress = false;
+        _batchJustCompleted = true;
+        _batchCompletedCount = _batchCompleted;
+        _service.endTurn();
+        _unmuteAfterFunctionCall();
+        // Safety: if Gemini doesn't respond within 5s, force-clear
+        _batchTotal = 0;
+        _batchCompleted = 0;
+        Future.delayed(const Duration(seconds: 5), () {
+          if (_batchJustCompleted) {
+            _batchJustCompleted = false;
+            _removeExecutingMessage();
+            isProcessing.value = false;
+            if (_batchProgressMessage != null) {
+              _batchProgressMessage!.text = '✅ All done — $_batchCompletedCount operations completed';
+              _batchProgressMessage = null;
+            }
+          }
+        });
+      } else {
+        // Reset safety timer — if pending calls are stuck for 30s, force endTurn + unmute
+        _pendingCallsSafetyTimer?.cancel();
+        _pendingCallsSafetyTimer = Timer(const Duration(seconds: 30), () {
+          print('[Gemini] Safety timeout: ${_pendingCallIds.length} calls still pending — forcing endTurn');
+          _pendingCallIds.clear();
+          _batchInProgress = false;
+          _batchJustCompleted = true;
+          _batchCompletedCount = _batchCompleted;
+          _batchTotal = 0;
+          _batchCompleted = 0;
+          _service.endTurn();
+          _unmuteAfterFunctionCall();
+          Future.delayed(const Duration(seconds: 5), () {
+            if (_batchJustCompleted) {
+              _batchJustCompleted = false;
+              _removeExecutingMessage();
+              isProcessing.value = false;
+              if (_batchProgressMessage != null) {
+                _batchProgressMessage!.text = '✅ All done — $_batchCompletedCount operations completed';
+                _batchProgressMessage = null;
+              }
+            }
+          });
+        });
+      }
+    }
+  }
+
+  void _updateBatchProgress() {
+    if (_batchProgressMessage != null) {
+      _batchProgressMessage!.text = '⏳ Executing batch... ($_batchCompleted/$_batchTotal done)';
+      _triggerUiUpdate();
     }
   }
 
@@ -416,7 +522,6 @@ RULES:
         'data': allData,
       },
     });
-    _service.endTurn();
   }
 
   // ── ADD SUBJECT ──
@@ -429,7 +534,6 @@ RULES:
       'name': 'addSubject',
       'result': {'success': true, 'message': 'Subject "$name" added successfully'},
     });
-    _service.endTurn();
   }
 
   // ── ADD TOPIC (by subject name, with context fallback) ──
@@ -448,7 +552,6 @@ RULES:
         'name': 'addTopic',
         'result': {'success': false, 'error': 'No subject specified. Please tell me which subject to add the topic to.'},
       });
-      _service.endTurn();
       return;
     }
 
@@ -458,7 +561,6 @@ RULES:
         'name': 'addTopic',
         'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
       });
-      _service.endTurn();
       return;
     }
 
@@ -474,7 +576,6 @@ RULES:
         'message': 'Topic "$name" added to "${subject.name}" with 6 revision dates auto-set from today',
       },
     });
-    _service.endTurn();
   }
 
   // ── ADD MULTIPLE TOPICS ──
@@ -488,7 +589,6 @@ RULES:
         'name': 'addMultipleTopics',
         'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
       });
-      _service.endTurn();
       return;
     }
 
@@ -509,7 +609,6 @@ RULES:
         'message': '$added topics added to "${subject.name}" with revision dates auto-set',
       },
     });
-    _service.endTurn();
   }
 
   // ── DELETE ALL SUBJECTS ──
@@ -529,7 +628,6 @@ RULES:
         'message': '$count subjects deleted',
       },
     });
-    _service.endTurn();
   }
 
   // ── DELETE SUBJECT BY NAME ──
@@ -541,7 +639,6 @@ RULES:
         'name': 'deleteSubjectByName',
         'result': {'success': false, 'error': 'Subject "$name" not found'},
       });
-      _service.endTurn();
       return;
     }
     await _subjectRepo.delete(subject.id);
@@ -551,7 +648,6 @@ RULES:
       'name': 'deleteSubjectByName',
       'result': {'success': true, 'message': 'Subject "${subject.name}" deleted'},
     });
-    _service.endTurn();
   }
 
   // ── DELETE TOPIC BY NAME ──
@@ -565,7 +661,6 @@ RULES:
         'name': 'deleteTopicByName',
         'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
       });
-      _service.endTurn();
       return;
     }
 
@@ -575,7 +670,6 @@ RULES:
         'name': 'deleteTopicByName',
         'result': {'success': false, 'error': 'Topic "$topicName" not found in "${subject.name}"'},
       });
-      _service.endTurn();
       return;
     }
 
@@ -586,7 +680,6 @@ RULES:
       'name': 'deleteTopicByName',
       'result': {'success': true, 'message': 'Topic "${topic.name}" deleted from "${subject.name}"'},
     });
-    _service.endTurn();
   }
 
   Future<void> stopSession() async {
@@ -596,31 +689,40 @@ RULES:
     _audioSub?.cancel();
     _functionCallSub?.cancel();
     _turnCompleteSub?.cancel();
+    _pendingCallsSafetyTimer?.cancel();
     await _service.stopSession();
     messages.clear();
     connectionState.value = ws.ConnectionState.disconnected;
     isProcessing.value = false;
     errorMessage.value = '';
-    _isMuted = false;
     _mutedByFunctionCall = false;
     currentSubjectName = null;
     _processedCallIds.clear();
     _recentCalls.clear();
+    _pendingCallIds.clear();
     _streamingMessage = null;
+    _batchInProgress = false;
+    _batchJustCompleted = false;
+    _batchTotal = 0;
+    _batchCompleted = 0;
+    _batchCompletedCount = 0;
+    _batchProgressMessage = null;
   }
 
   void _unmuteAfterFunctionCall() {
     if (_mutedByFunctionCall) {
       _mutedByFunctionCall = false;
-      _isMuted = false;
       _service.unmute();
       print('[Gemini] Mic unmuted after function call');
     }
   }
 
   void _removeExecutingMessage() {
-    messages.removeWhere(
-        (m) => m.role == ChatRole.system && m.text == 'Executing your request...');
+    messages.removeWhere((m) =>
+        m.role == ChatRole.system &&
+        (m.text == 'Executing your request...' ||
+         m.text.startsWith('⏳ Executing batch') ||
+         m.text.startsWith('✅ All done')));
   }
 
   void _triggerUiUpdate() {
