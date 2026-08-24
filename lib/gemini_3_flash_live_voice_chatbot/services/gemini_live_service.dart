@@ -144,6 +144,11 @@ class GeminiLiveService {
     _socket?.sendFunctionResponse(callId, response);
   }
 
+  /// Send ALL function responses in one message + turnComplete (batch mode)
+  void sendBatchedFunctionResponses(List<Map<String, dynamic>> responses, {int retryCount = 0}) {
+    _socket?.sendBatchedFunctionResponses(responses, retryCount: retryCount);
+  }
+
   /// Manually send audio bytes
   void sendAudio(Uint8List pcm) {
     _socket?.sendAudio(pcm);

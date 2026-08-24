@@ -26,8 +26,9 @@ class VoiceAssistantController extends GetxController {
   final RxBool isProcessing = false.obs;
   final RxString errorMessage = ''.obs;
 
-  /// Mic state — ALWAYS read from service (single source of truth)
-  bool get isMuted => _service.isMuted;
+  /// Mic state — observable, always synced with service
+  final RxBool _micMuted = false.obs;
+  bool get isMuted => _micMuted.value;
   bool _mutedByFunctionCall = false;
 
   /// Generation counter to prevent race between stop/start
@@ -45,6 +46,8 @@ class VoiceAssistantController extends GetxController {
   final List<String> _recentCalls = [];
   /// Track pending (in-flight) function call IDs — endTurn only when all are done
   final Set<String> _pendingCallIds = {};
+  /// Buffer function responses — flushed as ONE batched message when all calls done
+  final List<Map<String, dynamic>> _pendingResponses = [];
   /// Safety timer — if pending calls are stuck for too long, force endTurn + unmute
   Timer? _pendingCallsSafetyTimer;
 
@@ -54,6 +57,8 @@ class VoiceAssistantController extends GetxController {
   int _batchTotal = 0;
   int _batchCompleted = 0;
   int _batchCompletedCount = 0;
+  int _batchRetryCount = 0; // Track retries — stop after 2nd try
+  static const int _maxBatchRetries = 2;
   ChatMessage? _batchProgressMessage;
 
   /// Streaming message accumulator — assistant text accumulates here until turnComplete
@@ -165,13 +170,22 @@ class VoiceAssistantController extends GetxController {
     });
 
     _transcriptSub = _service.transcriptStream.listen((t) {
+      // Sync observable mic state from service (service auto-mutes on Gemini speech)
+      _micMuted.value = _service.isMuted;
+
       if (t.startsWith('USER:')) {
         final text = t.substring(5);
         if (text.trim().isEmpty) return;
         messages.add(ChatMessage(role: ChatRole.user, text: text.trim()));
+        // New user instruction = reset retry count AND clear dedup cache
+        // so Gemini can retry previously failed calls if needed
+        _batchRetryCount = 0;
+        _recentCalls.clear();
+        print('[Gemini] 🆕 New user message — retry count reset, dedup cache cleared');
       } else {
         // When batch just finished, update the progress message in-place
         if (_batchJustCompleted) {
+          print('[Gemini] 📦 Batch completed — processing Gemini response');
           if (_batchProgressMessage != null) {
             _batchProgressMessage!.text = '✅ All done — $_batchCompletedCount operations completed';
             _batchProgressMessage = null;
@@ -197,7 +211,10 @@ class VoiceAssistantController extends GetxController {
     });
 
     _turnCompleteSub = _service.turnCompleteStream.listen((_) {
+      // Sync observable mic state from service (service auto-unmutes on turnComplete)
+      _micMuted.value = _service.isMuted;
       _streamingMessage = null; // Finalize current message
+      print('[Gemini] 🔚 Turn complete — streaming finalized');
       // Batch state is already cleared in _handleFunctionCall's finally block
       // (before endTurn), so transcript listener can process Gemini's response.
       // turnComplete just finalizes any streaming message.
@@ -253,8 +270,20 @@ RULES:
 CRITICAL BATCH RULES:
 14. When user asks to add MULTIPLE subjects AND topics, send ALL function calls in ONE SINGLE message. Do NOT split across multiple turns. Example: "add 10 subjects with 10 topics each" → send 10 addSubject calls + 10 addMultipleTopics calls ALL IN ONE toolCall message.
 15. Always use addMultipleTopics when adding multiple topics to a subject. Never call addTopic in a loop.
-16. After ALL batch operations complete, call getAllData to verify the work was done correctly, then summarize what was created to the user.
-17. NEVER send partial batches. If user asks for 10 subjects, send ALL 10 in one go.
+16. NEVER send partial batches. If user asks for 10 subjects, send ALL 10 in one go.
+
+CRITICAL FEEDBACK RULES — YOU MUST ALWAYS DO THIS:
+17. AFTER every batch execution, you WILL receive a BATCH_RESULT message telling you exactly how many succeeded and how many failed, plus a list of FAILED_ITEMS with their original parameters.
+18. You MUST ALWAYS give feedback to the user after EVERY task execution — success, failure, or partial. NEVER stay silent. NEVER skip feedback.
+19. If ALL operations succeeded → tell the user what was created and confirm. Example: "Done! I added 10 subjects with 10 topics each."
+20. If SOME operations failed → tell the user EXACTLY which items failed and WHY. Then ask: "Do you want me to retry only the failed items?"
+21. ONLY retry the FAILED items when the user explicitly says yes. Do NOT retry successful items.
+22. TO RETRY: Look at the FAILED_ITEMS in the BATCH_RESULT. Each failed item shows the function name and its original parameters (e.g., "addMultipleTopics | params: {subjectName: Physics, topics: [Ch1, Ch2, ...]}"). Call the EXACT SAME functions with the EXACT SAME parameters. Do NOT call getAllData first — just retry the failed calls directly.
+23. If RETRY_LIMIT_REACHED error appears → STOP immediately. Tell the user: "I've tried multiple times but some items still failed. Please try again manually." Then WAIT for new instructions. Do NOT retry again.
+24. When the user says something NEW (not about retrying), respond to their NEW request. Do NOT go back to retrying old failed items unless they specifically ask.
+
+GREETING RULES:
+25. When user greets (hello, hi, eki, hey, etc.) → greet back warmly and ask how you can help. Do NOT call getAllData on greeting.
 ''';
 
       await _service.startSession(
@@ -289,6 +318,12 @@ CRITICAL BATCH RULES:
     // Don't allow mic toggle while batch function calls are in-flight
     if (_pendingCallIds.isNotEmpty) return;
     _service.isMuted = !_service.isMuted;
+    _micMuted.value = _service.isMuted;
+  }
+
+  /// Buffer a function response — will be sent as ONE batched message when all calls finish
+  void _respondToFunction(String callId, String name, Map<String, dynamic> result, {Map<String, dynamic>? params}) {
+    _pendingResponses.add({'id': callId, 'name': name, 'result': result, 'params': params ?? {}});
   }
 
   void sendText(String text) {
@@ -325,19 +360,20 @@ CRITICAL BATCH RULES:
   Future<void> _handleFunctionCall(String callId, String name, Map<String, dynamic> args) async {
     // Deduplicate by call ID
     if (_processedCallIds.contains(callId)) {
-      print('[Gemini] Skipping duplicate call ID: $name id=$callId');
+      print('[Gemini] ⏭️ SKIP duplicate call ID: $name id=$callId');
       return;
     }
 
     // Deduplicate by function name + sorted args (robust against key ordering)
+    // NOTE: _recentCalls is populated ONLY AFTER success (see finally block)
+    // so that FAILED calls can be retried by Gemini.
     final sortedArgs = SplayTreeMap<String, dynamic>.from(args);
     final argsHash = '$name:${jsonEncode(sortedArgs)}';
     if (_recentCalls.contains(argsHash)) {
-      print('[Gemini] Skipping duplicate call (same args): $name');
+      print('[Gemini] ⏭️ SKIP duplicate call (same args): $name hash=$argsHash');
       return;
     }
     _processedCallIds.add(callId);
-    _recentCalls.add(argsHash);
 
     // Keep only last 50 IDs and 50 recent call hashes
     if (_processedCallIds.length > 50) {
@@ -363,6 +399,7 @@ CRITICAL BATCH RULES:
     }
     if (!_service.isMuted) {
       _service.isMuted = true;
+      _micMuted.value = true;
       print('[Gemini] Mic muted for function call');
     }
 
@@ -372,9 +409,11 @@ CRITICAL BATCH RULES:
       _batchInProgress = true;
       _batchTotal = 1;
       _batchCompleted = 0;
+      _batchRetryCount++;
+      final retryInfo = _batchRetryCount > 1 ? ' (retry #${_batchRetryCount - 1})' : '';
       _batchProgressMessage = ChatMessage(
         role: ChatRole.system,
-        text: '⏳ Executing batch... (0 done)',
+        text: '⏳ Executing batch$retryInfo... (0 done)',
       );
       messages.add(_batchProgressMessage!);
     } else {
@@ -394,7 +433,7 @@ CRITICAL BATCH RULES:
         case 'addMultipleTopics':
           await _addMultipleTopics(callId, args);
         case 'deleteAllSubjects':
-          await _deleteAllSubjects(callId);
+          await _deleteAllSubjects(callId, args);
         case 'deleteSubjectByName':
           await _deleteSubjectByName(callId, args);
         case 'deleteTopicByName':
@@ -402,26 +441,38 @@ CRITICAL BATCH RULES:
       }
     } catch (e) {
       print('[Gemini] Function call error: $e');
-      _service.sendFunctionResponse(callId, {
-        'name': name,
-        'result': {'success': false, 'error': e.toString()},
-      });
+      _respondToFunction(callId, name, {'success': false, 'error': e.toString()}, params: args);
     } finally {
       // Remove this call from pending; only call endTurn when ALL pending calls are done
       _pendingCallIds.remove(callId);
+
+      // Only cache SUCCESSFUL calls for dedup — failed calls MUST be retryable
+      final respIdx = _pendingResponses.indexWhere((r) => r['id'] == callId);
+      if (respIdx != -1 && _pendingResponses[respIdx]['result']['success'] == true) {
+        _recentCalls.add(argsHash);
+        print('[Gemini] ✅ Cached SUCCESS for dedup: $name hash=$argsHash');
+      } else {
+        print('[Gemini] ⚠️ NOT caching FAILED call — retry allowed: $name hash=$argsHash');
+      }
+
       _batchCompleted++;
       _updateBatchProgress();
-      print('[Gemini] Function call done: $name (${_pendingCallIds.length} pending, $_batchCompleted/$_batchTotal done)');
+      print('[Gemini] Done: $name (${_pendingCallIds.length} pending, $_batchCompleted/$_batchTotal done)');
 
       if (_pendingCallIds.isEmpty) {
         _pendingCallsSafetyTimer?.cancel();
-        print('[Gemini] All function calls done — sending endTurn');
-        // CRITICAL: Clear batch state BEFORE endTurn so transcript listener
+        final okCount = _pendingResponses.where((r) => (r['result'] as Map<String, dynamic>?)?['success'] == true).length;
+        final failCount = _pendingResponses.length - okCount;
+        print('[Gemini] 📦 All function calls done — ${_pendingResponses.length} responses (${okCount} ok, $failCount fail)');
+
+        // CRITICAL: Clear batch state BEFORE sending so transcript listener
         // can process Gemini's response (transcript arrives BEFORE turnComplete)
         _batchInProgress = false;
         _batchJustCompleted = true;
         _batchCompletedCount = _batchCompleted;
-        _service.endTurn();
+        // Send ALL responses in ONE message + turnComplete (required by Gemini Live API)
+        _service.sendBatchedFunctionResponses(_pendingResponses, retryCount: _batchRetryCount);
+        _pendingResponses.clear();
         _unmuteAfterFunctionCall();
         // Safety: if Gemini doesn't respond within 5s, force-clear
         _batchTotal = 0;
@@ -441,14 +492,15 @@ CRITICAL BATCH RULES:
         // Reset safety timer — if pending calls are stuck for 30s, force endTurn + unmute
         _pendingCallsSafetyTimer?.cancel();
         _pendingCallsSafetyTimer = Timer(const Duration(seconds: 30), () {
-          print('[Gemini] Safety timeout: ${_pendingCallIds.length} calls still pending — forcing endTurn');
+          print('[Gemini] ⏰ Safety timeout: ${_pendingCallIds.length} calls stuck — forcing flush');
           _pendingCallIds.clear();
           _batchInProgress = false;
           _batchJustCompleted = true;
           _batchCompletedCount = _batchCompleted;
           _batchTotal = 0;
           _batchCompleted = 0;
-          _service.endTurn();
+          _service.sendBatchedFunctionResponses(_pendingResponses, retryCount: _batchRetryCount);
+          _pendingResponses.clear();
           _unmuteAfterFunctionCall();
           Future.delayed(const Duration(seconds: 5), () {
             if (_batchJustCompleted) {
@@ -514,14 +566,11 @@ CRITICAL BATCH RULES:
       });
     }
 
-    _service.sendFunctionResponse(callId, {
-      'name': 'getAllData',
-      'result': {
-        'success': true,
-        'total_subjects': subjects.length,
-        'data': allData,
-      },
-    });
+    _respondToFunction(callId, 'getAllData', {
+      'success': true,
+      'total_subjects': subjects.length,
+      'data': allData,
+    }, params: {});
   }
 
   // ── ADD SUBJECT ──
@@ -530,10 +579,7 @@ CRITICAL BATCH RULES:
     final color = args['color'] as String?;
     await _subjectRepo.create(name: name, colorHex: color ?? '#87CEEB');
     _subjectRepo.refresh();
-    _service.sendFunctionResponse(callId, {
-      'name': 'addSubject',
-      'result': {'success': true, 'message': 'Subject "$name" added successfully'},
-    });
+    _respondToFunction(callId, 'addSubject', {'success': true, 'message': 'Subject "$name" added successfully'}, params: args);
   }
 
   // ── ADD TOPIC (by subject name, with context fallback) ──
@@ -548,19 +594,13 @@ CRITICAL BATCH RULES:
     }
 
     if (subjectName == null || subjectName.trim().isEmpty) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'addTopic',
-        'result': {'success': false, 'error': 'No subject specified. Please tell me which subject to add the topic to.'},
-      });
+      _respondToFunction(callId, 'addTopic', {'success': false, 'error': 'No subject specified. Please tell me which subject to add the topic to.'}, params: args);
       return;
     }
 
     final subject = await _findSubjectByName(subjectName);
     if (subject == null) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'addTopic',
-        'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
-      });
+      _respondToFunction(callId, 'addTopic', {'success': false, 'error': 'Subject "$subjectName" not found'}, params: args);
       return;
     }
 
@@ -569,13 +609,10 @@ CRITICAL BATCH RULES:
     _subjectRepo.refresh();
     _topicRepo.refresh();
 
-    _service.sendFunctionResponse(callId, {
-      'name': 'addTopic',
-      'result': {
-        'success': true,
-        'message': 'Topic "$name" added to "${subject.name}" with 6 revision dates auto-set from today',
-      },
-    });
+    _respondToFunction(callId, 'addTopic', {
+      'success': true,
+      'message': 'Topic "$name" added to "${subject.name}" with 6 revision dates auto-set from today',
+    }, params: args);
   }
 
   // ── ADD MULTIPLE TOPICS ──
@@ -585,10 +622,7 @@ CRITICAL BATCH RULES:
 
     final subject = await _findSubjectByName(subjectName);
     if (subject == null) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'addMultipleTopics',
-        'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
-      });
+      _respondToFunction(callId, 'addMultipleTopics', {'success': false, 'error': 'Subject "$subjectName" not found'}, params: args);
       return;
     }
 
@@ -602,17 +636,14 @@ CRITICAL BATCH RULES:
     _subjectRepo.refresh();
     _topicRepo.refresh();
 
-    _service.sendFunctionResponse(callId, {
-      'name': 'addMultipleTopics',
-      'result': {
-        'success': true,
-        'message': '$added topics added to "${subject.name}" with revision dates auto-set',
-      },
-    });
+    _respondToFunction(callId, 'addMultipleTopics', {
+      'success': true,
+      'message': '$added topics added to "${subject.name}" with revision dates auto-set',
+    }, params: args);
   }
 
   // ── DELETE ALL SUBJECTS ──
-  Future<void> _deleteAllSubjects(String callId) async {
+  Future<void> _deleteAllSubjects(String callId, Map<String, dynamic> args) async {
     final subjects = await _subjectRepo.getAll();
     int count = 0;
     for (final sub in subjects) {
@@ -621,13 +652,10 @@ CRITICAL BATCH RULES:
     }
     _subjectRepo.refresh();
     _topicRepo.refresh();
-    _service.sendFunctionResponse(callId, {
-      'name': 'deleteAllSubjects',
-      'result': {
-        'success': true,
-        'message': '$count subjects deleted',
-      },
-    });
+    _respondToFunction(callId, 'deleteAllSubjects', {
+      'success': true,
+      'message': '$count subjects deleted',
+    }, params: args);
   }
 
   // ── DELETE SUBJECT BY NAME ──
@@ -635,19 +663,13 @@ CRITICAL BATCH RULES:
     final name = args['name'] as String;
     final subject = await _findSubjectByName(name);
     if (subject == null) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'deleteSubjectByName',
-        'result': {'success': false, 'error': 'Subject "$name" not found'},
-      });
+      _respondToFunction(callId, 'deleteSubjectByName', {'success': false, 'error': 'Subject "$name" not found'}, params: args);
       return;
     }
     await _subjectRepo.delete(subject.id);
     _subjectRepo.refresh();
     _topicRepo.refresh();
-    _service.sendFunctionResponse(callId, {
-      'name': 'deleteSubjectByName',
-      'result': {'success': true, 'message': 'Subject "${subject.name}" deleted'},
-    });
+    _respondToFunction(callId, 'deleteSubjectByName', {'success': true, 'message': 'Subject "${subject.name}" deleted'}, params: args);
   }
 
   // ── DELETE TOPIC BY NAME ──
@@ -657,29 +679,20 @@ CRITICAL BATCH RULES:
 
     final subject = await _findSubjectByName(subjectName);
     if (subject == null) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'deleteTopicByName',
-        'result': {'success': false, 'error': 'Subject "$subjectName" not found'},
-      });
+      _respondToFunction(callId, 'deleteTopicByName', {'success': false, 'error': 'Subject "$subjectName" not found'}, params: args);
       return;
     }
 
     final topic = await _findTopicByName(subject.id, topicName);
     if (topic == null) {
-      _service.sendFunctionResponse(callId, {
-        'name': 'deleteTopicByName',
-        'result': {'success': false, 'error': 'Topic "$topicName" not found in "${subject.name}"'},
-      });
+      _respondToFunction(callId, 'deleteTopicByName', {'success': false, 'error': 'Topic "$topicName" not found in "${subject.name}"'}, params: args);
       return;
     }
 
     await _topicRepo.delete(topic.id);
     _subjectRepo.refresh();
     _topicRepo.refresh();
-    _service.sendFunctionResponse(callId, {
-      'name': 'deleteTopicByName',
-      'result': {'success': true, 'message': 'Topic "${topic.name}" deleted from "${subject.name}"'},
-    });
+    _respondToFunction(callId, 'deleteTopicByName', {'success': true, 'message': 'Topic "${topic.name}" deleted from "${subject.name}"'}, params: args);
   }
 
   Future<void> stopSession() async {
@@ -695,17 +708,20 @@ CRITICAL BATCH RULES:
     connectionState.value = ws.ConnectionState.disconnected;
     isProcessing.value = false;
     errorMessage.value = '';
+    _micMuted.value = false;
     _mutedByFunctionCall = false;
     currentSubjectName = null;
     _processedCallIds.clear();
     _recentCalls.clear();
     _pendingCallIds.clear();
+    _pendingResponses.clear();
     _streamingMessage = null;
     _batchInProgress = false;
     _batchJustCompleted = false;
     _batchTotal = 0;
     _batchCompleted = 0;
     _batchCompletedCount = 0;
+    _batchRetryCount = 0;
     _batchProgressMessage = null;
   }
 
@@ -713,6 +729,7 @@ CRITICAL BATCH RULES:
     if (_mutedByFunctionCall) {
       _mutedByFunctionCall = false;
       _service.unmute();
+      _micMuted.value = false;
       print('[Gemini] Mic unmuted after function call');
     }
   }
