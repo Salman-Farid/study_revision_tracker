@@ -1,8 +1,8 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:get/get.dart';
 import '../../data/models/revision_schedule_model.dart';
-import '../../data/models/topic_model.dart';
-import '../../data/models/subject_model.dart';
 import '../../data/repositories/revision_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/subject_repository.dart';
@@ -16,7 +16,28 @@ class DashboardController extends GetxController {
   final isLoading = true.obs;
   final pendingSchedules = <RevisionScheduleModel>[].obs;
 
-  @override void onInit() { super.onInit(); load(); }
+  StreamSubscription? _schedulesSub;
+  StreamSubscription? _subjectsSub;
+
+  @override void onInit() {
+    super.onInit();
+    load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    _schedulesSub?.cancel();
+    _subjectsSub?.cancel();
+    _schedulesSub = Get.find<SupabaseService>().schedulesStream.listen((_) => load());
+    _subjectsSub = Get.find<SupabaseService>().subjectsStream.listen((_) => load());
+  }
+
+  @override
+  void onClose() {
+    _schedulesSub?.cancel();
+    _subjectsSub?.cancel();
+    super.onClose();
+  }
 
   Future<void> load() async {
     try {

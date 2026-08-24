@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
+import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/revision_repository.dart';
 import '../../theme/app_theme.dart';
@@ -11,6 +12,7 @@ import '../../core/constants/size_constants.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
 class SubjectDetailController extends GetxController {
+  final _subjectRepo = Get.find<SubjectRepository>();
   final _topicRepo = Get.find<TopicRepository>();
   final _revRepo = Get.find<RevisionRepository>();
   late SubjectModel subject;
@@ -53,7 +55,7 @@ class SubjectDetailController extends GetxController {
         notes: notes, referenceAnswer: refAnswer, firstReadDate: rd);
       await _revRepo.createSchedules(topicId: t.id, subjectId: subject.id, firstReadDate: rd);
       topics.insert(0, t);
-      subject = subject.copyWith(totalTopics: subject.totalTopics + 1);
+      _subjectRepo.refresh();
       Get.snackbar('Created', '"$name" with schedule', snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.success.withOpacity(0.1));
     } catch (e) { Get.snackbar('Error', 'Failed: $e'); }
@@ -107,8 +109,11 @@ class SubjectDetailController extends GetxController {
   }
 
   Future<void> deleteTopic(String id) async {
-    try { await _topicRepo.delete(id); topics.removeWhere((t) => t.id == id); }
-    catch (e) { Get.snackbar('Error', 'Failed'); }
+    try {
+      await _topicRepo.delete(id, subjectId: subject.id);
+      topics.removeWhere((t) => t.id == id);
+      _subjectRepo.refresh();
+    } catch (e) { Get.snackbar('Error', 'Failed'); }
   }
 
   void reorderTopics(int oldIndex, int newIndex) {

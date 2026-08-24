@@ -161,6 +161,24 @@ class GeminiSocket {
         return;
       }
 
+      if (msg.containsKey('goAway')) {
+        final goAway = msg['goAway'] as Map<String, dynamic>;
+        final timeLeft = goAway['timeLeft'] ?? 'unknown';
+        print('[Gemini] ⚠️ goAway received — timeLeft=$timeLeft. Server wants session to end.');
+        // Gracefully close — send endTurn so Gemini can wrap up, then close sink
+        try {
+          endTurn();
+        } catch (_) {}
+        // Close after a short delay to let endTurn go through
+        Future.delayed(const Duration(seconds: 2), () {
+          if (_state == ConnectionState.connected) {
+            print('[Gemini] Closing connection after goAway');
+            _channel?.sink.close(1000, 'Session ended after goAway');
+          }
+        });
+        return;
+      }
+
       if (msg.containsKey('serverContent')) {
         final sc = msg['serverContent'] as Map<String, dynamic>;
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:get/get.dart';
 import '../../data/models/subject_model.dart';
@@ -24,10 +26,33 @@ class HistoryController extends GetxController {
   final avgMastery = 0.0.obs;
   final streakDays = 0.obs;
 
+  StreamSubscription? _schedulesSub;
+  StreamSubscription? _subjectsSub;
+  StreamSubscription? _topicsSub;
+
   @override
   void onInit() {
     super.onInit();
     load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    _schedulesSub?.cancel();
+    _subjectsSub?.cancel();
+    _topicsSub?.cancel();
+    final svc = Get.find<SupabaseService>();
+    _schedulesSub = svc.schedulesStream.listen((_) => load());
+    _subjectsSub = svc.subjectsStream.listen((_) => load());
+    _topicsSub = svc.topicsStream.listen((_) => load());
+  }
+
+  @override
+  void onClose() {
+    _schedulesSub?.cancel();
+    _subjectsSub?.cancel();
+    _topicsSub?.cancel();
+    super.onClose();
   }
 
   Future<void> load() async {

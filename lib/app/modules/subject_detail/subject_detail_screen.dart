@@ -91,23 +91,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                   color: AppColors.textMuted(d),
                   size: 20,
                 ),
-                SizedBox(width: S.sm),
-                Container(
-                  width: S.avatarSize,
-                  height: S.avatarSize,
-                  decoration: BoxDecoration(
-                    color: controller.subject.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(S.radiusMd),
-                  ),
-                  child: Center(
-                    child: Text(
-                      t.name.isNotEmpty ? t.name[0].toUpperCase() : '?',
-                      style: AppTextStyles.headlineSmall.copyWith(
-                        color: controller.subject.color,
-                      ),
-                    ),
-                  ),
-                ),
+
                 SizedBox(width: S.md),
                 Expanded(
                   child: Column(

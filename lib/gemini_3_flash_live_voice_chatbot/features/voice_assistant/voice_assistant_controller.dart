@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../app/data/repositories/subject_repository.dart';
@@ -12,7 +13,7 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';
 
-class VoiceAssistantController extends GetxController {
+class VoiceAssistantController extends GetxController with GetTickerProviderStateMixin {
   GeminiLiveService get _service => Get.find<GeminiLiveService>();
   SubjectRepository get _subjectRepo => Get.find<SubjectRepository>();
   TopicRepository get _topicRepo => Get.find<TopicRepository>();
@@ -20,6 +21,84 @@ class VoiceAssistantController extends GetxController {
 
   /// Current subject context - set when opened from subject detail screen
   String? currentSubjectName;
+
+  // ── UI controllers (shared across screens) ──
+  final textCtrl = TextEditingController();
+  final scrollCtrl = ScrollController();
+  final focusNode = FocusNode();
+  AnimationController? _sheetAnimCtrl;
+  AnimationController? _expandAnimCtrl;
+
+  // ── Dialogue overlay state ──
+  final isExpanded = false.obs;
+  final dialogueOffset = Offset(12, 200).obs;
+  bool dialogueOffsetInitialized = false;
+
+  Animation<double>? get sheetFade => _sheetAnimCtrl != null
+      ? CurvedAnimation(parent: _sheetAnimCtrl!, curve: Curves.easeOut)
+      : null;
+  Animation<Offset>? get sheetSlide => _sheetAnimCtrl != null
+      ? Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+          .animate(CurvedAnimation(parent: _sheetAnimCtrl!, curve: Curves.easeOutCubic))
+      : null;
+  Animation<double>? get expandAnim => _expandAnimCtrl != null
+      ? CurvedAnimation(parent: _expandAnimCtrl!, curve: Curves.easeInOutCubic)
+      : null;
+
+  void initSheetAnim() {
+    _sheetAnimCtrl?.dispose();
+    _sheetAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _sheetAnimCtrl!.forward();
+  }
+
+  void initExpandAnim() {
+    _expandAnimCtrl?.dispose();
+    _expandAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+  }
+
+  void reverseSheetAnim() {
+    _sheetAnimCtrl?.reverse().then((_) {
+      stopSession();
+      Navigator.pop(Get.context!);
+    });
+  }
+
+  void toggleExpanded() {
+    isExpanded.value = !isExpanded.value;
+    if (isExpanded.value) {
+      _expandAnimCtrl?.forward();
+    } else {
+      _expandAnimCtrl?.reverse();
+    }
+  }
+
+  void updateDialogueOffset(Offset delta, double screenW, double screenH, double dialogueW, double currentH) {
+    dialogueOffset.value = Offset(
+      (dialogueOffset.value.dx + delta.dx).clamp(0, screenW - dialogueW),
+      (dialogueOffset.value.dy + delta.dy).clamp(0, screenH - currentH),
+    );
+  }
+
+  void scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollCtrl.hasClients) {
+        scrollCtrl.animateTo(
+          scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void sendTextFromInput() {
+    final text = textCtrl.text.trim();
+    if (text.isEmpty) return;
+    sendText(text);
+    textCtrl.clear();
+    focusNode.unfocus();
+    scrollToBottom();
+  }
 
   final messages = <ChatMessage>[].obs;
   final connectionState = ws.ConnectionState.disconnected.obs;
@@ -166,6 +245,24 @@ class VoiceAssistantController extends GetxController {
         errorMessage.value = _service.socket?.lastError ?? 'Unknown error';
       } else if (s == ws.ConnectionState.connected) {
         errorMessage.value = '';
+      } else if (s == ws.ConnectionState.disconnected) {
+        // Clean up batch state on disconnect so it doesn't carry over to reconnect
+        if (_batchInProgress || _pendingCallIds.isNotEmpty) {
+          print('[Gemini] 🔌 Disconnected during batch — cleaning up orphaned state');
+          _pendingCallsSafetyTimer?.cancel();
+          _pendingCallIds.clear();
+          _pendingResponses.clear();
+          _batchInProgress = false;
+          _batchJustCompleted = false;
+          _batchTotal = 0;
+          _batchCompleted = 0;
+          _batchCompletedCount = 0;
+          _batchProgressMessage = null;
+          isProcessing.value = false;
+          _mutedByFunctionCall = false;
+          _service.unmute();
+          _micMuted.value = false;
+        }
       }
     });
 
@@ -229,6 +326,11 @@ class VoiceAssistantController extends GetxController {
     _functionCallSub?.cancel();
     _turnCompleteSub?.cancel();
     _pendingCallsSafetyTimer?.cancel();
+    _sheetAnimCtrl?.dispose();
+    _expandAnimCtrl?.dispose();
+    textCtrl.dispose();
+    scrollCtrl.dispose();
+    focusNode.dispose();
     _service.stopSession();
     super.onClose();
   }
@@ -689,14 +791,14 @@ GREETING RULES:
       return;
     }
 
-    await _topicRepo.delete(topic.id);
+    await _topicRepo.delete(topic.id, subjectId: subject.id);
     _subjectRepo.refresh();
     _topicRepo.refresh();
     _respondToFunction(callId, 'deleteTopicByName', {'success': true, 'message': 'Topic "${topic.name}" deleted from "${subject.name}"'}, params: args);
   }
 
   Future<void> stopSession() async {
-    final gen = ++_generation; // Invalidate any in-flight startSession
+    final gen = ++_generation;
     _connectionSub?.cancel();
     _transcriptSub?.cancel();
     _audioSub?.cancel();
@@ -723,6 +825,8 @@ GREETING RULES:
     _batchCompletedCount = 0;
     _batchRetryCount = 0;
     _batchProgressMessage = null;
+    isExpanded.value = false;
+    dialogueOffsetInitialized = false;
   }
 
   void _unmuteAfterFunctionCall() {

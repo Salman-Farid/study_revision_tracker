@@ -12,5 +12,5 @@ class TopicRepository {
     _s.createTopic(subjectId: subjectId, name: name, notes: notes,
       referenceAnswer: referenceAnswer, firstReadDate: firstReadDate);
   Future<void> update(String id, Map<String, dynamic> u) => _s.updateTopic(id, u);
-  Future<void> delete(String id) => _s.deleteTopic(id);
+  Future<void> delete(String id, {String? subjectId}) => _s.deleteTopic(id, subjectId: subjectId);
 }

@@ -70,7 +70,19 @@ class SupabaseService extends GetxService {
 
   Future<void> updateTopic(String id, Map<String, dynamic> u) =>
     client.from('topics').update(u).eq('id', id);
-  Future<void> deleteTopic(String id) => client.from('topics').delete().eq('id', id);
+  Future<void> deleteTopic(String id, {String? subjectId}) async {
+    await client.from('topics').delete().eq('id', id);
+    // Decrement subject's total_topics count if subjectId provided
+    if (subjectId != null) {
+      try {
+        final sub = await client.from('subjects').select('total_topics').eq('id', subjectId).single();
+        final current = (sub['total_topics'] as int?) ?? 0;
+        if (current > 0) {
+          await client.from('subjects').update({'total_topics': current - 1}).eq('id', subjectId);
+        }
+      } catch (_) {}
+    }
+  }
 
   // ── SCHEDULES ──
   Future<List<RevisionScheduleModel>> fetchSchedules({String? topicId,

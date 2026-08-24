@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/revision_repository.dart';
+import '../../data/services/supabase_service.dart';
 
 class TodayController extends GetxController {
   final _repo = Get.find<RevisionRepository>();
@@ -8,7 +11,24 @@ class TodayController extends GetxController {
   final today = <RevisionScheduleModel>[].obs;
   final isLoading = true.obs;
 
-  @override void onInit() { super.onInit(); load(); }
+  StreamSubscription? _schedulesSub;
+
+  @override void onInit() {
+    super.onInit();
+    load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    _schedulesSub?.cancel();
+    _schedulesSub = Get.find<SupabaseService>().schedulesStream.listen((_) => load());
+  }
+
+  @override
+  void onClose() {
+    _schedulesSub?.cancel();
+    super.onClose();
+  }
 
   Future<void> load() async {
     try {

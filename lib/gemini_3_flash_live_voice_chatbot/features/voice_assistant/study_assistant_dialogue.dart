@@ -7,61 +7,12 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import 'voice_assistant_controller.dart';
 
-class StudyAssistantDialogue extends StatefulWidget {
+class StudyAssistantDialogue extends StatelessWidget {
   const StudyAssistantDialogue({super.key});
 
   @override
-  State<StudyAssistantDialogue> createState() => _StudyAssistantDialogueState();
-}
-
-class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
-    with SingleTickerProviderStateMixin {
-  late final VoiceAssistantController controller;
-  final _textCtrl = TextEditingController();
-  Offset _offset = Offset.zero;
-  bool _offsetInitialized = false;
-  final _scrollCtrl = ScrollController();
-  final _focusNode = FocusNode();
-
-  // ── Expand / Collapse ──
-  bool _expanded = false;
-  late final AnimationController _expandAnimCtrl;
-  late final Animation<double> _expandAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _expandAnimCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _expandAnim = CurvedAnimation(
-      parent: _expandAnimCtrl,
-      curve: Curves.easeInOutCubic,
-    );
-    try {
-      controller = Get.find<VoiceAssistantController>();
-    } catch (_) {
-      controller = Get.put(VoiceAssistantController(), permanent: true);
-    }
-    try {
-      if (controller.connectionState.value == ws.ConnectionState.disconnected) {
-        controller.startSession();
-      }
-    } catch (_) {}
-  }
-
-  @override
-  void dispose() {
-    _expandAnimCtrl.dispose();
-    _textCtrl.dispose();
-    _scrollCtrl.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final c = Get.find<VoiceAssistantController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenW = MediaQuery.of(context).size.width;
     final screenH = MediaQuery.of(context).size.height;
@@ -69,30 +20,30 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
     final dialogueHNormal = screenH * 0.35;
     final dialogueHExpanded = screenH * 0.70;
 
-    // Center the dialogue on first build
-    if (!_offsetInitialized) {
-      _offset = Offset(12, (screenH - dialogueHNormal) / 2);
-      _offsetInitialized = true;
+    if (c.connectionState.value == ws.ConnectionState.disconnected) {
+      try { c.startSession(); } catch (_) {}
+    }
+    c.initExpandAnim();
+
+    if (!c.dialogueOffsetInitialized) {
+      c.dialogueOffset.value = Offset(12, (screenH - dialogueHNormal) / 2);
+      c.dialogueOffsetInitialized = true;
     }
 
     return AnimatedBuilder(
-      animation: _expandAnim,
+      animation: c.expandAnim!,
       builder: (context, _) {
-        final currentH = dialogueHNormal + (dialogueHExpanded - dialogueHNormal) * _expandAnim.value;
+        final currentH = dialogueHNormal +
+            (dialogueHExpanded - dialogueHNormal) * c.expandAnim!.value;
         return Stack(
           children: [
             Positioned(
-              left: _offset.dx,
-              top: _offset.dy,
+              left: c.dialogueOffset.value.dx,
+              top: c.dialogueOffset.value.dy,
               child: GestureDetector(
                 onPanUpdate: (details) {
-                  setState(() {
-                    _offset += details.delta;
-                    _offset = Offset(
-                      _offset.dx.clamp(0, screenW - dialogueW),
-                      _offset.dy.clamp(0, screenH - currentH),
-                    );
-                  });
+                  c.updateDialogueOffset(
+                      details.delta, screenW, screenH, dialogueW, currentH);
                 },
                 child: Material(
                   color: Colors.transparent,
@@ -115,34 +66,27 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        _buildHeader(isDark),
-                        Expanded(child: _buildMessages(isDark)),
+                        _buildHeader(c, isDark),
+                        Expanded(child: _buildMessages(c, isDark)),
                         Obx(() {
-                          final st = controller.connectionState.value;
+                          final st = c.connectionState.value;
                           if (st == ws.ConnectionState.error) {
-                            final err = controller.errorMessage.value;
+                            final err = c.errorMessage.value;
                             return _ErrorBar(
-                              message: err.isNotEmpty ? err : 'Connection lost',
-                              onRetry: () => controller.startSession(),
+                              message:
+                                  err.isNotEmpty ? err : 'Connection lost',
+                              onRetry: () => c.startSession(),
                               isDark: isDark,
                             );
                           }
                           return const SizedBox.shrink();
                         }),
                         GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _expanded = !_expanded;
-                              if (_expanded) {
-                                _expandAnimCtrl.forward();
-                              } else {
-                                _expandAnimCtrl.reverse();
-                              }
-                            });
-                          },
+                          onTap: () => c.toggleExpanded(),
                           child: Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 4),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -150,26 +94,32 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                                   width: 36,
                                   height: 3.5,
                                   decoration: BoxDecoration(
-                                    color: isDark ? Colors.white24 : Colors.black26,
-                                    borderRadius: BorderRadius.circular(2),
+                                    color: isDark
+                                        ? Colors.white24
+                                        : Colors.black26,
+                                    borderRadius:
+                                        BorderRadius.circular(2),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                AnimatedRotation(
-                                  turns: _expanded ? 0.5 : 0,
-                                  duration: const Duration(milliseconds: 450),
-                                  curve: Curves.easeInOutCubic,
-                                  child: Icon(
-                                    Icons.keyboard_arrow_up,
-                                    size: 16,
-                                    color: isDark ? Colors.white38 : Colors.black38,
-                                  ),
-                                ),
+                                Obx(() => AnimatedRotation(
+                                      turns: c.isExpanded.value ? 0.5 : 0,
+                                      duration: const Duration(
+                                          milliseconds: 450),
+                                      curve: Curves.easeInOutCubic,
+                                      child: Icon(
+                                        Icons.keyboard_arrow_up,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.white38
+                                            : Colors.black38,
+                                      ),
+                                    )),
                               ],
                             ),
                           ),
                         ),
-                        _buildInputRow(isDark),
+                        _buildInputRow(c, isDark),
                         const SizedBox(height: 10),
                       ],
                     ),
@@ -183,11 +133,10 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader(VoiceAssistantController c, bool isDark) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Drag handle
         Container(
           margin: const EdgeInsets.only(top: 8),
           width: 40,
@@ -198,12 +147,16 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            color:
+                isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             border: Border(
               bottom: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: isDark
+                    ? AppColors.borderDark
+                    : AppColors.borderLight,
                 width: 1,
               ),
             ),
@@ -212,7 +165,8 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: AppConstants.primaryColor.withOpacity(0.15),
+                backgroundColor:
+                    AppConstants.primaryColor.withOpacity(0.15),
                 child: Icon(Icons.smart_toy_rounded,
                     color: AppConstants.primaryColor, size: 18),
               ),
@@ -232,8 +186,8 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                       ),
                     ),
                     Obx(() {
-                      final st = controller.connectionState.value;
-                      final processing = controller.isProcessing.value;
+                      final st = c.connectionState.value;
+                      final processing = c.isProcessing.value;
                       final (color, label) = switch (processing) {
                         true => (AppConstants.warningColor, 'Processing...'),
                         false => switch (st) {
@@ -252,12 +206,15 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                             width: 6,
                             height: 6,
                             margin: const EdgeInsets.only(right: 4),
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle, color: color),
                           ),
                           Text(
                             label,
                             style: TextStyle(
-                                color: color, fontSize: 11, fontWeight: FontWeight.w500),
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       );
@@ -267,11 +224,13 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
               ),
               IconButton(
                 icon: Icon(Icons.close_rounded,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                     size: 20),
                 onPressed: () {
-                  try { controller.stopSession(); } catch (_) {}
-                  Navigator.of(context).pop();
+                  try { c.stopSession(); } catch (_) {}
+                  Get.back();
                 },
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -283,14 +242,14 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
     );
   }
 
-  Widget _buildMessages(bool isDark) {
+  Widget _buildMessages(VoiceAssistantController c, bool isDark) {
     return Expanded(
       child: Obx(() {
-        final msgs = controller.messages;
-        final processing = controller.isProcessing.value;
+        final msgs = c.messages;
+        final processing = c.isProcessing.value;
 
         if (msgs.isEmpty &&
-            controller.connectionState.value == ws.ConnectionState.connecting) {
+            c.connectionState.value == ws.ConnectionState.connecting) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -315,10 +274,11 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
           );
         }
 
-        _scrollToBottom();
+        c.scrollToBottom();
         return ListView.builder(
-          controller: _scrollCtrl,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          controller: c.scrollCtrl,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           itemCount: msgs.length + (processing ? 1 : 0),
           itemBuilder: (_, i) {
             if (i == msgs.length && processing) {
@@ -331,13 +291,13 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
     );
   }
 
-  Widget _buildInputRow(bool isDark) {
+  Widget _buildInputRow(VoiceAssistantController c, bool isDark) {
     return Obx(() {
-      final st = controller.connectionState.value;
+      final st = c.connectionState.value;
       if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
 
-      final muted = controller.isMuted;
-      final processing = controller.isProcessing.value;
+      final muted = c.isMuted;
+      final processing = c.isProcessing.value;
       final statusText = processing
           ? 'Processing...'
           : muted
@@ -354,18 +314,21 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
         child: Row(
           children: [
             GestureDetector(
-              onTap: () => controller.toggleListening(),
+              onTap: () => c.toggleListening(),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: muted ? AppConstants.warningColor : AppConstants.successColor,
+                  color: muted
+                      ? AppConstants.warningColor
+                      : AppConstants.successColor,
                   boxShadow: !muted
                       ? [
                           BoxShadow(
-                            color: AppConstants.successColor.withOpacity(0.3),
+                            color: AppConstants.successColor
+                                .withOpacity(0.3),
                             blurRadius: 10,
                             spreadRadius: 1,
                           ),
@@ -383,15 +346,19 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
               child: Container(
                 constraints: const BoxConstraints(minHeight: 40),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                  color: isDark
+                      ? AppColors.surfaceDark
+                      : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
                   ),
                 ),
                 child: TextField(
-                  controller: _textCtrl,
-                  focusNode: _focusNode,
+                  controller: c.textCtrl,
+                  focusNode: c.focusNode,
                   textInputAction: TextInputAction.send,
                   maxLines: 3,
                   minLines: 1,
@@ -406,19 +373,21 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                     hintStyle: TextStyle(
                       color: !muted
                           ? statusColor.withOpacity(0.6)
-                          : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                          : (isDark
+                              ? AppColors.textMutedDark
+                              : AppColors.textMutedLight),
                     ),
                     border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                   ),
-                  onSubmitted: (_) => _sendText(),
+                  onSubmitted: (_) => c.sendTextFromInput(),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: _sendText,
+              onTap: c.sendTextFromInput,
               child: Container(
                 width: 40,
                 height: 40,
@@ -426,7 +395,8 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
                   shape: BoxShape.circle,
                   color: AppConstants.primaryColor,
                 ),
-                child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                child: const Icon(Icons.send_rounded,
+                    color: Colors.white, size: 18),
               ),
             ),
           ],
@@ -434,30 +404,7 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue>
       );
     });
   }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  void _sendText() {
-    final text = _textCtrl.text.trim();
-    if (text.isEmpty) return;
-    controller.sendText(text);
-    _textCtrl.clear();
-    _focusNode.unfocus();
-    _scrollToBottom();
-  }
 }
-
-// ── Chat bubbles ────────────────────────────────────────
 
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
@@ -541,11 +488,13 @@ class _UserBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           color: AppConstants.primaryColor,
-          borderRadius: BorderRadius.circular(16).copyWith(bottomRight: const Radius.circular(4)),
+          borderRadius: BorderRadius.circular(16)
+              .copyWith(bottomRight: const Radius.circular(4)),
         ),
         child: Text(
           text,
-          style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 14, height: 1.4),
         ),
       ),
     );
@@ -566,7 +515,8 @@ class _AssistantBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(16).copyWith(bottomLeft: const Radius.circular(4)),
+          borderRadius: BorderRadius.circular(16)
+              .copyWith(bottomLeft: const Radius.circular(4)),
           border: Border.all(
             color: isDark ? AppColors.borderDark : AppColors.borderLight,
           ),
@@ -574,7 +524,9 @@ class _AssistantBubble extends StatelessWidget {
         child: Text(
           text,
           style: TextStyle(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : AppColors.textPrimaryLight,
             fontSize: 14,
             height: 1.4,
           ),
@@ -596,7 +548,8 @@ class _ThinkingBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: AppConstants.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16).copyWith(bottomLeft: const Radius.circular(4)),
+          borderRadius: BorderRadius.circular(16)
+              .copyWith(bottomLeft: const Radius.circular(4)),
         ),
         child: const _ThinkingDots(),
       ),
@@ -663,8 +616,6 @@ class _ThinkingDotsState extends State<_ThinkingDots>
   }
 }
 
-// ── Error bar ───────────────────────────────────────────
-
 class _ErrorBar extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -680,23 +631,28 @@ class _ErrorBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppConstants.errorColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppConstants.errorColor.withOpacity(0.2)),
+        border:
+            Border.all(color: AppConstants.errorColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: AppConstants.errorColor, size: 16),
+          Icon(Icons.error_outline,
+              color: AppConstants.errorColor, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: AppConstants.errorColor, fontSize: 11),
+              style: TextStyle(
+                  color: AppConstants.errorColor, fontSize: 11),
             ),
           ),
           TextButton.icon(
             onPressed: onRetry,
-            icon: Icon(Icons.refresh, color: AppConstants.errorColor, size: 14),
+            icon: Icon(Icons.refresh,
+                color: AppConstants.errorColor, size: 14),
             label: Text('Retry',
-                style: TextStyle(color: AppConstants.errorColor, fontSize: 11)),
+                style: TextStyle(
+                    color: AppConstants.errorColor, fontSize: 11)),
           ),
         ],
       ),
