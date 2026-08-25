@@ -34,25 +34,26 @@ class StudyAssistantDialogue extends StatelessWidget {
     return AnimatedBuilder(
       animation: c.expandAnim!,
       builder: (context, _) {
-        final currentH = dialogueHNormal +
-            (dialogueHExpanded - dialogueHNormal) * c.expandAnim!.value;
         return Stack(
           children: [
-            Positioned(
-              left: c.dialogueOffset.value.dx,
-              top: c.dialogueOffset.value.dy,
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  c.updateDialogueOffset(
-                      details.delta, screenW, screenH, dialogueW, currentH);
-                },
-                child: Material(
-                  color: Colors.transparent,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 450),
-                    curve: Curves.easeInOutCubic,
-                    width: dialogueW,
-                    height: currentH,
+            Obx(() {
+              final currentH = dialogueHNormal +
+                  (dialogueHExpanded - dialogueHNormal) * c.expandAnim!.value;
+              return Positioned(
+                left: c.dialogueOffset.value.dx,
+                top: c.dialogueOffset.value.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    c.updateDialogueOffset(
+                        details.delta, screenW, screenH, dialogueW, currentH);
+                  },
+                  child: Material(
+                    color: Colors.transparent,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 450),
+                      curve: Curves.easeInOutCubic,
+                      width: dialogueW,
+                      height: currentH,
                     decoration: BoxDecoration(
                       color: isDark ? AppColors.bgDark : AppColors.bgLight,
                       borderRadius: BorderRadius.circular(20),
@@ -127,7 +128,8 @@ class StudyAssistantDialogue extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
+              );
+            }),
           ],
         );
       },
@@ -244,52 +246,50 @@ class StudyAssistantDialogue extends StatelessWidget {
   }
 
   Widget _buildMessages(VoiceAssistantController c, bool isDark) {
-    return Expanded(
-      child: Obx(() {
-        final msgs = c.messages;
-        final processing = c.isProcessing.value;
+    return Obx(() {
+      final msgs = c.messages;
+      final processing = c.isProcessing.value;
 
-        if (msgs.isEmpty &&
-            c.connectionState.value == ws.ConnectionState.connecting) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  color: AppConstants.primaryColor,
-                  strokeWidth: 3,
+      if (msgs.isEmpty &&
+          c.connectionState.value == ws.ConnectionState.connecting) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                color: AppConstants.primaryColor,
+                strokeWidth: 3,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Connecting...',
+                style: TextStyle(
+                  color: (isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight)
+                      .withOpacity(0.6),
+                  fontSize: 13,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Connecting...',
-                  style: TextStyle(
-                    color: (isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight)
-                        .withOpacity(0.6),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        c.scrollToBottom();
-        return ListView.builder(
-          controller: c.scrollCtrl,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          itemCount: msgs.length + (processing ? 1 : 0),
-          itemBuilder: (_, i) {
-            if (i == msgs.length && processing) {
-              return const _ThinkingBubble();
-            }
-            return _ChatBubble(message: msgs[i], isDark: isDark);
-          },
+              ),
+            ],
+          ),
         );
-      }),
-    );
+      }
+
+      c.scrollToBottom();
+      return ListView.builder(
+        controller: c.scrollCtrl,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        itemCount: msgs.length + (processing ? 1 : 0),
+        itemBuilder: (_, i) {
+          if (i == msgs.length && processing) {
+            return const _ThinkingBubble();
+          }
+          return _ChatBubble(message: msgs[i], isDark: isDark);
+        },
+      );
+    });
   }
 
   Widget _buildInputRow(VoiceAssistantController c, bool isDark) {
