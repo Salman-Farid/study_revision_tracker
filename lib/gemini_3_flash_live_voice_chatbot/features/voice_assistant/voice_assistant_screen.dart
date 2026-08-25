@@ -5,6 +5,7 @@ import '../../../app/core/constants/app_constants.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
+import '../../shared/widgets/thinking_dots.dart';
 import 'voice_assistant_controller.dart';
 
 class VoiceAssistantScreen extends StatelessWidget {
@@ -453,67 +454,8 @@ class _ThinkingBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(18)
               .copyWith(bottomLeft: const Radius.circular(4)),
         ),
-        child: const _ThinkingDots(),
+        child: const ThinkingDots(),
       ),
-    );
-  }
-}
-
-class _ThinkingDots extends StatefulWidget {
-  const _ThinkingDots();
-
-  @override
-  State<_ThinkingDots> createState() => _ThinkingDotsState();
-}
-
-class _ThinkingDotsState extends State<_ThinkingDots>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        final t = _ctrl.value;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            final delay = i * 0.15;
-            final v = ((t - delay) % 1.0);
-            final opacity = v < 0.5 ? (v * 2) : (2 - v * 2);
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: Opacity(
-                opacity: (opacity * 0.8 + 0.2).clamp(0.0, 1.0),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppConstants.primaryColor,
-                  ),
-                ),
-              ),
-            );
-          }),
-        );
-      },
     );
   }
 }

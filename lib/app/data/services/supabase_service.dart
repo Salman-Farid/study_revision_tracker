@@ -36,9 +36,10 @@ class SupabaseService extends GetxService {
   }
 
   Future<SubjectModel> createSubject({required String name, String? description,
-    String? colorHex, int? iconCodePoint}) async {
+    String? imageUrl, String? colorHex, int? iconCodePoint}) async {
     final data = {'id': _uuid.v4(), 'user_id': userId, 'name': name,
-      'description': description, 'color_hex': colorHex ?? '#6C63FF',
+      'description': description, 'image_url': imageUrl,
+      'color_hex': colorHex ?? '#6C63FF',
       'icon_code_point': iconCodePoint ?? 0xe8a1};
     final r = await client.from('subjects').insert(data).select().single();
     return SubjectModel.fromJson(r);

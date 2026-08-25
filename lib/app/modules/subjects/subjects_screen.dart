@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/widgets.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/size_constants.dart';
 import '../../data/models/subject_model.dart';
@@ -48,19 +49,34 @@ class SubjectsScreen extends GetView<SubjectsController> {
       controller.subjects.length,
       (index) {
         final sub = controller.subjects[index];
+        final hasImage = sub.imageUrl != null && sub.imageUrl!.isNotEmpty;
         return Container(
           key: Key(sub.id),
           child: GestureDetector(
             onTap: () => Get.toNamed('/subject/${sub.id}', arguments: sub),
-            child: Container(
-              padding: EdgeInsets.all(S.base),
-              decoration: BoxDecoration(
-                color: AppColors.surface(d),
-                borderRadius: BorderRadius.circular(S.radiusLg),
-                border: Border.all(color: AppColors.border(d)),
-                boxShadow: S.shadowSm,
-              ),
-              child: Column(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(S.radiusLg),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasImage) ...[
+                    Container(color: AppColors.surface(d)),
+                    Image.network(sub.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (ctx, child, progress) {
+                        if (progress == null) return child;
+                        return Shimmer.fromColors(
+                          baseColor: d ? const Color(0xFF232730) : Colors.grey[300]!,
+                          highlightColor: d ? const Color(0xFF2A2F3A) : Colors.grey[100]!,
+                          child: Container(color: d ? const Color(0xFF232730) : Colors.grey[300]),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => Container(color: AppColors.surface(d))),
+                  ],
+                  Container(
+                    padding: EdgeInsets.all(S.base),
+                    color: hasImage ? null : AppColors.surface(d),
+                    child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -70,12 +86,12 @@ class SubjectsScreen extends GetView<SubjectsController> {
                       Container(
                         padding: EdgeInsets.all(S.md),
                         decoration: BoxDecoration(
-                          color: sub.color.withOpacity(0.12),
+                          color: hasImage ? Colors.white24 : sub.color.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(S.radiusMd),
                         ),
                         child: Icon(
                           IconData(sub.iconCodePoint, fontFamily: 'MaterialIcons'),
-                          color: sub.color,
+                          color: hasImage ? Colors.white : sub.color,
                           size: S.iconLg,
                         ),
                       ),
@@ -95,7 +111,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
                         child: Container(
                           padding: EdgeInsets.all(S.sm),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.1),
+                            color: hasImage ? Colors.white30 : AppColors.error.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(S.radiusSm),
                           ),
                           child: Icon(Icons.delete_outline_rounded,
@@ -109,18 +125,18 @@ class SubjectsScreen extends GetView<SubjectsController> {
                     children: [
                       Text(sub.name,
                           style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary(d)),
+                              color: hasImage ? Colors.white : AppColors.textPrimary(d)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       SizedBox(height: S.xs),
                       Text('${sub.totalTopics} topics',
                           style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textMuted(d))),
+                              .copyWith(color: hasImage ? Colors.white70 : AppColors.textMuted(d))),
                       SizedBox(height: S.sm),
                       LinearProgressIndicator(
                         value: sub.progressPercent,
-                        backgroundColor: sub.color.withOpacity(0.12),
-                        valueColor: AlwaysStoppedAnimation(sub.color),
+                        backgroundColor: hasImage ? Colors.white30 : sub.color.withOpacity(0.12),
+                        valueColor: AlwaysStoppedAnimation(hasImage ? Colors.white : sub.color),
                         borderRadius: BorderRadius.circular(S.radiusFull),
                         minHeight: 4,
                       ),
@@ -129,14 +145,19 @@ class SubjectsScreen extends GetView<SubjectsController> {
                 ],
               ),
             ),
-          ),
-        );
+          ],
+        ),
+      ),
+    ),
+  );
       },
     );
 
     return ReorderableBuilder(
       children: generatedChildren,
       scrollController: scrollController,
+      onDragStarted: (_) => controller.isDragging.value = true,
+      onDragEnd: (_) => controller.isDragging.value = false,
       onReorder: (ReorderedListFunction reorderedListFunction) {
         final reordered = reorderedListFunction(controller.subjects.toList()).cast<SubjectModel>();
         controller.subjects.assignAll(reordered);

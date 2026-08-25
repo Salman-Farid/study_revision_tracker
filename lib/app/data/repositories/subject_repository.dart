@@ -8,8 +8,8 @@ class SubjectRepository {
   Stream<List<SubjectModel>> get stream => _s.subjectsStream;
   void refresh() => _s.refreshSubjects();
   Future<SubjectModel> create({required String name, String? description,
-    String? colorHex, int? iconCodePoint}) =>
-    _s.createSubject(name: name, description: description, colorHex: colorHex, iconCodePoint: iconCodePoint);
+    String? imageUrl, String? colorHex, int? iconCodePoint}) =>
+    _s.createSubject(name: name, description: description, imageUrl: imageUrl, colorHex: colorHex, iconCodePoint: iconCodePoint);
   Future<void> update(String id, Map<String, dynamic> u) => _s.updateSubject(id, u);
   Future<void> delete(String id) => _s.deleteSubject(id);
 }

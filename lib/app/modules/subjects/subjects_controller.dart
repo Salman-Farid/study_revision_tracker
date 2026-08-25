@@ -22,6 +22,7 @@ class SubjectsController extends GetxController {
   final isListening = false.obs;
   final chatMessages = <Map<String, dynamic>>[].obs;
   final showChat = false.obs;
+  final isDragging = false.obs;
   StreamSubscription<List<SubjectModel>>? _realtimeSub;
 
   // Global key for Study Assistant button to get its position
@@ -51,12 +52,12 @@ class SubjectsController extends GetxController {
     finally { isLoading.value = false; }
   }
 
-  Future<void> createSubject({required String name, String? colorHex, int? iconCodePoint}) async {
+  Future<void> createSubject({required String name, String? imageUrl, String? colorHex, int? iconCodePoint}) async {
     try {
       if (subjects.any((s) => s.name.toLowerCase() == name.toLowerCase())) {
         Get.snackbar('Duplicate', '"$name" already exists', snackPosition: SnackPosition.BOTTOM); return;
       }
-      final sub = await _repo.create(name: name, colorHex: colorHex, iconCodePoint: iconCodePoint);
+      final sub = await _repo.create(name: name, imageUrl: imageUrl, colorHex: colorHex, iconCodePoint: iconCodePoint);
       subjects.insert(0, sub);
       Get.back();
       Get.snackbar('Created', '"$name" added', snackPosition: SnackPosition.BOTTOM,
@@ -136,6 +137,7 @@ class SubjectsController extends GetxController {
 
   void showAddSheet() {
     final nc = TextEditingController();
+    final ic = TextEditingController();
     final sci = 0.obs;
     Get.bottomSheet(Container(padding: EdgeInsets.all(S.xl),
       decoration: BoxDecoration(color: AppColors.surface(Get.isDarkMode),
@@ -148,6 +150,11 @@ class SubjectsController extends GetxController {
         SizedBox(height: S.xl),
         TextField(controller: nc, decoration: const InputDecoration(
           labelText: 'Subject Name', prefixIcon: Icon(Icons.book_rounded)), autofocus: true),
+        SizedBox(height: S.base),
+        TextField(controller: ic, decoration: const InputDecoration(
+          labelText: 'Background Image URL (optional)',
+          prefixIcon: Icon(Icons.image_outlined),
+          hintText: 'https://images.unsplash.com/...')),
         SizedBox(height: S.base),
         Text('Color', style: AppTextStyles.labelLarge),
         SizedBox(height: S.sm),
@@ -164,7 +171,8 @@ class SubjectsController extends GetxController {
           final n = nc.text.trim();
           if (n.isNotEmpty) {
             final hex = '#${AppConstants.subjectColors[sci.value].value.toRadixString(16).substring(2)}';
-            createSubject(name: n, colorHex: hex);
+            final img = ic.text.trim();
+            createSubject(name: n, imageUrl: img.isNotEmpty ? img : null, colorHex: hex);
           }}, child: const Text('Create Subject'))),
         SizedBox(height: S.base),
       ])), isScrollControlled: true);

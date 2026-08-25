@@ -83,8 +83,10 @@ class GeminiSocket {
             'systemInstruction': {
               'parts': [{'text': systemPrompt}],
             },
-          if (tools != null && tools!.isNotEmpty)
-            'tools': [{'functionDeclarations': tools}],
+          'tools': [
+            if (tools != null && tools!.isNotEmpty)
+              {'functionDeclarations': tools},
+          ],
         },
       };
       final setupJson = jsonEncode(setupMsg);

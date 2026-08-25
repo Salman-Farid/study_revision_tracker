@@ -66,6 +66,16 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     padding: EdgeInsets.all(S.base),
     itemCount: controller.topics.length,
     onReorder: controller.reorderTopics,
+    proxyDecorator: (child, index, animation) {
+      return AnimatedBuilder(
+        animation: animation,
+        builder: (_, __) => Material(
+          color: Colors.transparent,
+          elevation: 0,
+          child: child,
+        ),
+      );
+    },
     itemBuilder: (_, i) {
       final t = controller.topics[i];
       return Container(

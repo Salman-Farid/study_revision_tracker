@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import '../../../app/data/repositories/subject_repository.dart';
 import '../../../app/data/repositories/topic_repository.dart';
 import '../../../app/data/repositories/revision_repository.dart';
+import '../../../app/data/services/image_search_service.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';
@@ -432,8 +433,8 @@ GREETING RULES:
     _service.sendText(text);
   }
 
-  // ── Find subject by name (fuzzy match) ──
-  Future<dynamic> _findSubjectByName(String name) async {
+  // ── Find subject by name (fuzzy match, with retry for concurrent batch ops) ──
+  Future<dynamic> _findSubjectByName(String name, {bool retry = false}) async {
     final subjects = await _subjectRepo.getAll();
     final lower = name.toLowerCase().trim();
     // Exact match first
@@ -443,6 +444,21 @@ GREETING RULES:
     // Partial match
     for (final s in subjects) {
       if (s.name.toLowerCase().contains(lower) || lower.contains(s.name.toLowerCase())) return s;
+    }
+    // In batch ops, addSubject and addMultipleTopics run concurrently.
+    // addSubject hits Unsplash HTTP (slow) while topics try to find it immediately.
+    // Retry with delay to wait for subject to be created.
+    if (retry) {
+      for (int i = 0; i < 5; i++) {
+        await Future.delayed(const Duration(seconds: 2));
+        final retrySubjects = await _subjectRepo.getAll();
+        for (final s in retrySubjects) {
+          if (s.name.toLowerCase() == lower) return s;
+        }
+        for (final s in retrySubjects) {
+          if (s.name.toLowerCase().contains(lower) || lower.contains(s.name.toLowerCase())) return s;
+        }
+      }
     }
     return null;
   }
@@ -679,9 +695,20 @@ GREETING RULES:
   Future<void> _addSubject(String callId, Map<String, dynamic> args) async {
     final name = args['name'] as String;
     final color = args['color'] as String?;
-    await _subjectRepo.create(name: name, colorHex: color ?? '#87CEEB');
+    // Create subject first (fast) — Unsplash image is fetched async by controller
+    final subject = await _subjectRepo.create(name: name, imageUrl: null, colorHex: color ?? '#87CEEB');
     _subjectRepo.refresh();
-    _respondToFunction(callId, 'addSubject', {'success': true, 'message': 'Subject "$name" added successfully'}, params: args);
+    // Fire-and-forget: fetch image in background, update subject when done
+    ImageSearchService.searchSubjectImage(name).then((imageUrl) async {
+      if (imageUrl != null) {
+        await _subjectRepo.update(subject.id, {'image_url': imageUrl});
+        _subjectRepo.refresh();
+      }
+    }).catchError((_) {});
+    _respondToFunction(callId, 'addSubject', {
+      'success': true,
+      'message': 'Subject "$name" added successfully'
+    }, params: args);
   }
 
   // ── ADD TOPIC (by subject name, with context fallback) ──
@@ -700,7 +727,7 @@ GREETING RULES:
       return;
     }
 
-    final subject = await _findSubjectByName(subjectName);
+    final subject = await _findSubjectByName(subjectName, retry: true);
     if (subject == null) {
       _respondToFunction(callId, 'addTopic', {'success': false, 'error': 'Subject "$subjectName" not found'}, params: args);
       return;
@@ -722,7 +749,7 @@ GREETING RULES:
     final subjectName = args['subjectName'] as String;
     final topicNames = (args['topics'] as List).cast<String>();
 
-    final subject = await _findSubjectByName(subjectName);
+    final subject = await _findSubjectByName(subjectName, retry: true);
     if (subject == null) {
       _respondToFunction(callId, 'addMultipleTopics', {'success': false, 'error': 'Subject "$subjectName" not found'}, params: args);
       return;

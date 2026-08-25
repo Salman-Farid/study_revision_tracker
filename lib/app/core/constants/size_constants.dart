@@ -31,7 +31,7 @@ class S {
   static double get cardMinHeight => Responsive.scale(120);
   static double get avatarSize => Responsive.scale(44);
   static int get gridCrossAxisCount => Responsive.isTablet ? 3 : 2;
-  static double get gridChildAspectRatio => Responsive.isTablet ? 1.3 : 1.1;
+  static double get gridChildAspectRatio => Responsive.isTablet ? 1.2 : 0.9;
   static double get gridSpacing => Responsive.scale(12);
 
   static List<BoxShadow> get shadowSm => [
