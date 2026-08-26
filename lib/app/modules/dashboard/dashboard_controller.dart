@@ -73,9 +73,8 @@ class DashboardController extends GetxController {
         Get.snackbar('Error', 'Subject not found');
         return;
       }
-      final schedules = await _repo.getSchedules(topicId: topic.id, status: 'pending');
-      Get.toNamed('/revision-session/${topic.id}',
-        arguments: {'topic': topic, 'subject': subject, 'schedules': schedules});
+      Get.toNamed('/topic/${topic.id}',
+        arguments: {'topic': topic, 'subject': subject});
     } catch (e) {
       Get.snackbar('Error', 'Failed to start revision');
     }

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:get/get.dart';
+import '../../data/models/revision_schedule_model.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/repositories/revision_repository.dart';
@@ -23,7 +23,6 @@ class HistoryController extends GetxController {
   final totalSubjects = 0.obs;
   final totalTopics = 0.obs;
   final completedTopics = 0.obs;
-  final avgMastery = 0.0.obs;
   final streakDays = 0.obs;
 
   StreamSubscription? _schedulesSub;
@@ -85,14 +84,23 @@ class HistoryController extends GetxController {
       // Calculate computed values
       totalSubjects.value = subjects.length;
       totalTopics.value = topics.length;
-      completedTopics.value = topics.where((t) => t.isCompleted).length;
+      completedTopics.value = topics.where((t) => t.totalRevisions >= 6).length;
 
-      if (topics.isNotEmpty) {
-        avgMastery.value = topics.map((t) => t.masteryLevel).sum / topics.length;
+      // Calculate streak: consecutive days with completed revisions
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final schedules = await _repo.getSchedules();
+      final completedDates = schedules
+          .where((s) => s.status == 'completed')
+          .map((s) => DateTime(s.updatedAt.year, s.updatedAt.month, s.updatedAt.day))
+          .toSet();
+      int streak = 0;
+      var checkDate = today;
+      while (completedDates.contains(checkDate)) {
+        streak++;
+        checkDate = checkDate.subtract(const Duration(days: 1));
       }
-
-      // Calculate streak from stats
-      streakDays.value = stats['current_streak'] ?? 0;
+      streakDays.value = streak;
     } catch (e) {
       // silent
     } finally {
@@ -104,33 +112,12 @@ class HistoryController extends GetxController {
   List<Map<String, dynamic>> get subjectProgress {
     return subjects.map((s) {
       final subjectTopics = topics.where((t) => t.subjectId == s.id).toList();
-      final completed = subjectTopics.where((t) => t.isCompleted).length;
-      final avgM = subjectTopics.isEmpty
-          ? 0.0
-          : subjectTopics.map((t) => t.masteryLevel).sum / subjectTopics.length;
+      final completed = subjectTopics.where((t) => t.totalRevisions >= 6).length;
       return {
         'subject': s,
         'total': subjectTopics.length,
         'completed': completed,
-        'mastery': avgM,
       };
     }).toList();
-  }
-
-  /// Mastery distribution
-  Map<String, int> get masteryDistribution {
-    int novice = 0, learning = 0, familiar = 0, mastered = 0;
-    for (final t in topics) {
-      if (t.masteryLevel < 0.25) {
-        novice++;
-      } else if (t.masteryLevel < 0.5) {
-        learning++;
-      } else if (t.masteryLevel < 0.75) {
-        familiar++;
-      } else {
-        mastered++;
-      }
-    }
-    return {'Novice': novice, 'Learning': learning, 'Familiar': familiar, 'Mastered': mastered};
   }
 }

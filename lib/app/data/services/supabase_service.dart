@@ -71,6 +71,69 @@ class SupabaseService extends GetxService {
 
   Future<void> updateTopic(String id, Map<String, dynamic> u) =>
     client.from('topics').update(u).eq('id', id);
+
+  Future<void> markFirstReadCompleted(String topicId) =>
+    client.from('topics').update({'first_read_completed': true}).eq('id', topicId);
+
+  Future<Map<String, dynamic>> getTopicFullStatus(String topicId) async {
+    final topicRow = await client.from('topics').select().eq('id', topicId).single();
+    final schedules = await client.from('revision_schedules').select()
+      .eq('topic_id', topicId).order('day_number', ascending: true);
+    final scheduleList = (schedules as List).map((j) => RevisionScheduleModel.fromJson(j)).toList();
+    final topic = TopicModel.fromJson(topicRow);
+
+    final completedSchedules = scheduleList.where((s) => s.status == 'completed').toList();
+    final pendingSchedules = scheduleList.where((s) => s.status == 'pending').toList();
+    final completedDays = completedSchedules.map((s) => s.dayNumber).toSet();
+    final allDays = AppConstants.revisionDays;
+
+    int nextPendingRevisionIndex = -1;
+    for (int i = 0; i < allDays.length; i++) {
+      if (!completedDays.contains(allDays[i])) {
+        nextPendingRevisionIndex = i;
+        break;
+      }
+    }
+
+    final pendingBeforeNext = <int>[];
+    if (nextPendingRevisionIndex > 0) {
+      for (int i = 0; i < nextPendingRevisionIndex; i++) {
+        if (!completedDays.contains(allDays[i])) {
+          pendingBeforeNext.add(allDays[i]);
+        }
+      }
+    }
+
+    return {
+      'topic': topic,
+      'schedules': scheduleList,
+      'totalRevisions': allDays.length,
+      'completedRevisionCount': completedSchedules.length,
+      'nextPendingRevisionIndex': nextPendingRevisionIndex,
+      'nextPendingRevisionDay': nextPendingRevisionIndex >= 0 ? allDays[nextPendingRevisionIndex] : null,
+      'pendingBeforeNext': pendingBeforeNext,
+      'completedDays': completedDays.toList()..sort(),
+      'pendingDays': pendingSchedules.map((s) => s.dayNumber).toList()..sort(),
+    };
+  }
+
+  Future<void> markNextRevisionCompleted(String topicId) async {
+    final status = await getTopicFullStatus(topicId);
+    final nextIndex = status['nextPendingRevisionIndex'] as int;
+    if (nextIndex < 0) return;
+
+    final allDays = AppConstants.revisionDays;
+    final nextDay = allDays[nextIndex];
+    final schedules = status['schedules'] as List<RevisionScheduleModel>;
+    final nextSchedule = schedules.firstWhere((s) => s.dayNumber == nextDay);
+
+    await updateScheduleStatus(nextSchedule.id, 'completed');
+    await updateTopic(topicId, {
+      'total_revisions': (status['completedRevisionCount'] as int) + 1,
+      'last_revised_at': DateTime.now().toIso8601String(),
+    });
+  }
+
   Future<void> deleteTopic(String id, {String? subjectId}) async {
     await client.from('topics').delete().eq('id', id);
     // Decrement subject's total_topics count if subjectId provided

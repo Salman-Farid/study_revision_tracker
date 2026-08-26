@@ -6,6 +6,5 @@ abstract class AppRoutes {
   static const topicDetail = '/topic/:id';
   static const history = '/history';
   static const settings = '/settings';
-  static const revisionSession = '/revision-session/:id';
   static const calendar = '/calendar';
 }

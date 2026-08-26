@@ -45,10 +45,6 @@ class HistoryScreen extends GetView<HistoryController> {
                 SizedBox(height: S.base),
                 _subjectProgressList(d),
                 SizedBox(height: S.xxl),
-                _sectionTitle('Mastery Breakdown', d),
-                SizedBox(height: S.base),
-                _masteryChart(d),
-                SizedBox(height: S.xxl),
                 _sectionTitle('Weekly Activity', d),
                 SizedBox(height: S.base),
                 _weeklyChart(d),
@@ -260,7 +256,6 @@ class HistoryScreen extends GetView<HistoryController> {
         final subject = item['subject'];
         final total = item['total'] as int;
         final completed = item['completed'] as int;
-        final mastery = item['mastery'] as double;
         final progress = total > 0 ? completed / total : 0.0;
         return Container(
           margin: EdgeInsets.only(bottom: S.md),
@@ -302,7 +297,7 @@ class HistoryScreen extends GetView<HistoryController> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      '$completed/$total topics · ${(mastery * 100).round()}% mastery',
+                      '$completed/$total topics',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textMuted(d),
                       ),
@@ -341,90 +336,6 @@ class HistoryScreen extends GetView<HistoryController> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  // ─── MASTERY CHART ────────────────────────────────────────────
-  Widget _masteryChart(bool d) {
-    final dist = controller.masteryDistribution;
-    final total = dist.values.fold(0, (a, b) => a + b);
-
-    if (total == 0) {
-      return _emptyState('No data yet', 'Complete revisions to see mastery breakdown', d);
-    }
-
-    final colors = [
-      AppColors.error, // Novice
-      AppColors.warning, // Learning
-      AppColors.info, // Familiar
-      AppColors.success, // Mastered
-    ];
-    final labels = ['Novice', 'Learning', 'Familiar', 'Mastered'];
-    final values = [dist['Novice']!, dist['Learning']!, dist['Familiar']!, dist['Mastered']!];
-
-    return Container(
-      padding: EdgeInsets.all(S.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface(d),
-        borderRadius: BorderRadius.circular(S.radiusLg),
-        border: Border.all(color: AppColors.border(d)),
-        boxShadow: S.shadowSm,
-      ),
-      child: Column(
-        children: [
-          // Pie chart
-          SizedBox(
-            height: 180,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 40,
-                sections: List.generate(4, (i) {
-                  final pct = total > 0 ? values[i] / total : 0.0;
-                  return PieChartSectionData(
-                    value: values[i].toDouble(),
-                    color: colors[i],
-                    radius: pct > 0 ? 30 : 0,
-                    title: pct > 0.05 ? '${(pct * 100).round()}%' : '',
-                    titleStyle: AppTextStyles.labelSmall.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-          SizedBox(height: S.md),
-          // Legend
-          Wrap(
-            spacing: S.base,
-            runSpacing: S.sm,
-            children: List.generate(4, (i) {
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: colors[i],
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  SizedBox(width: S.xs),
-                  Text(
-                    '${labels[i]} (${values[i]})',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary(d),
-                    ),
-                  ),
-                ],
-              );
-            }),
-          ),
-        ],
-      ),
     );
   }
 
@@ -531,7 +442,6 @@ class HistoryScreen extends GetView<HistoryController> {
   // ─── INSIGHTS ─────────────────────────────────────────────────
   Widget _insights(bool d) {
     final rate = (controller.stats['completion_rate'] as num?)?.toDouble() ?? 0;
-    final avgMastery = controller.avgMastery.value;
     final totalRevisions = controller.stats['total_completed'] ?? 0;
     final thisWeek = controller.stats['sessions_this_week'] ?? 0;
 
@@ -568,16 +478,6 @@ class HistoryScreen extends GetView<HistoryController> {
         'You have completed $thisWeek revision${thisWeek > 1 ? 's' : ''} this week.',
         Icons.local_fire_department_rounded,
         const Color(0xFFFF6B35),
-      ));
-    }
-
-    // Mastery
-    if (avgMastery > 0) {
-      insights.add(_InsightItem(
-        'Average Mastery',
-        'Your topics are at ${(avgMastery * 100).round()}% average mastery level.',
-        Icons.school_rounded,
-        AppColors.primary,
       ));
     }
 

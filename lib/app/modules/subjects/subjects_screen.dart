@@ -134,7 +134,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
                               .copyWith(color: hasImage ? Colors.white70 : AppColors.textMuted(d))),
                       SizedBox(height: S.sm),
                       LinearProgressIndicator(
-                        value: sub.progressPercent,
+                        value: 0,
                         backgroundColor: hasImage ? Colors.white30 : sub.color.withOpacity(0.12),
                         valueColor: AlwaysStoppedAnimation(hasImage ? Colors.white : sub.color),
                         borderRadius: BorderRadius.circular(S.radiusFull),

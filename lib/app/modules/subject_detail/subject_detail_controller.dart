@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
+import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/revision_repository.dart';
@@ -17,8 +18,27 @@ class SubjectDetailController extends GetxController {
   final _revRepo = Get.find<RevisionRepository>();
   late SubjectModel subject;
   final topics = <TopicModel>[].obs;
+  final schedulesByTopic = <String, List<RevisionScheduleModel>>{}.obs;
   final isLoading = true.obs;
+  final selectedFilter = 'firstRead'.obs;
   StreamSubscription<List<TopicModel>>? _realtimeSub;
+
+  List<TopicModel> get filteredTopics {
+    switch (selectedFilter.value) {
+      case 'firstRead':
+        return topics.where((t) => !t.firstReadCompleted).toList();
+      case 'inRevision':
+        return topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).toList();
+      case 'completed':
+        return topics.where((t) => t.totalRevisions >= 6).toList();
+      default:
+        return topics;
+    }
+  }
+
+  int get firstReadCount => topics.where((t) => !t.firstReadCompleted).length;
+  int get inRevisionCount => topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).length;
+  int get completedCount => topics.where((t) => t.totalRevisions >= 6).length;
 
   @override void onInit() {
     super.onInit();
@@ -41,8 +61,72 @@ class SubjectDetailController extends GetxController {
   }
 
   Future<void> load() async {
-    try { isLoading.value = true; topics.assignAll(await _topicRepo.getBySubject(subject.id)); }
-    catch (e) { Get.snackbar('Error', 'Failed'); } finally { isLoading.value = false; }
+    try {
+      isLoading.value = true;
+      topics.assignAll(await _topicRepo.getBySubject(subject.id));
+      await _loadSchedules();
+    } catch (e) {
+      Get.snackbar('Error', 'Failed');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _loadSchedules() async {
+    for (final topic in topics) {
+      try {
+        final schedules = await _revRepo.getSchedules(topicId: topic.id);
+        schedulesByTopic[topic.id] = schedules;
+      } catch (_) {}
+    }
+  }
+
+  List<RevisionScheduleModel> getSchedules(String topicId) {
+    return schedulesByTopic[topicId] ?? [];
+  }
+
+  Set<int> getCompletedDays(String topicId) {
+    final schedules = getSchedules(topicId);
+    return schedules
+        .where((s) => s.status == 'completed')
+        .map((s) => s.dayNumber)
+        .toSet();
+  }
+
+  Future<void> markRevisionComplete(String topicId, int dayNumber) async {
+    try {
+      final schedules = getSchedules(topicId);
+      final schedule = schedules.firstWhereOrNull((s) => s.dayNumber == dayNumber);
+      if (schedule == null) return;
+
+      // Mark ONLY this specific day's schedule as completed
+      await _revRepo.updateScheduleStatus(schedule.id, 'completed');
+
+      // Increment total_revisions by 1 directly (don't use markNextRevisionCompleted — it marks the NEXT pending one too)
+      final topic = topics.firstWhereOrNull((t) => t.id == topicId);
+      if (topic != null) {
+        await _topicRepo.update(topicId, {
+          'total_revisions': topic.totalRevisions + 1,
+          'last_revised_at': DateTime.now().toIso8601String(),
+        });
+      }
+      _topicRepo.refresh();
+
+      // Reload schedules for this topic
+      final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
+      schedulesByTopic[topicId] = updatedSchedules;
+
+      // Refresh topics to get updated totalRevisions
+      topics.assignAll(await _topicRepo.getBySubject(subject.id));
+
+      Get.snackbar('Done', 'Revision marked as completed',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success.withValues(alpha: 0.1));
+    } catch (e, st) {
+      print('[SubjectDetail] markRevisionComplete FAILED: $e');
+      print('[SubjectDetail] Stacktrace: $st');
+      Get.snackbar('Error', 'Failed to mark revision');
+    }
   }
 
   Future<void> createTopic({required String name, String? notes, String? refAnswer, DateTime? firstRead}) async {
@@ -114,6 +198,26 @@ class SubjectDetailController extends GetxController {
       topics.removeWhere((t) => t.id == id);
       _subjectRepo.refresh();
     } catch (e) { Get.snackbar('Error', 'Failed'); }
+  }
+
+  Future<void> markFirstRead(String topicId) async {
+    try {
+      await _topicRepo.markFirstReadCompleted(topicId);
+      _topicRepo.refresh();
+      // Refresh topics
+      topics.assignAll(await _topicRepo.getBySubject(subject.id));
+      // Reload schedules for this topic
+      final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
+      schedulesByTopic[topicId] = updatedSchedules;
+
+      Get.snackbar('Done', 'First read marked as completed',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success.withOpacity(0.1));
+    } catch (e, st) {
+      print('[SubjectDetail] markFirstRead FAILED: $e');
+      print('[SubjectDetail] Stacktrace: $st');
+      Get.snackbar('Error', 'Failed: $e');
+    }
   }
 
   void reorderTopics(int oldIndex, int newIndex) {

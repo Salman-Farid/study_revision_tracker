@@ -13,4 +13,7 @@ class TopicRepository {
       referenceAnswer: referenceAnswer, firstReadDate: firstReadDate);
   Future<void> update(String id, Map<String, dynamic> u) => _s.updateTopic(id, u);
   Future<void> delete(String id, {String? subjectId}) => _s.deleteTopic(id, subjectId: subjectId);
+  Future<void> markFirstReadCompleted(String id) => _s.markFirstReadCompleted(id);
+  Future<Map<String, dynamic>> getTopicFullStatus(String id) => _s.getTopicFullStatus(id);
+  Future<void> markNextRevisionCompleted(String id) => _s.markNextRevisionCompleted(id);
 }

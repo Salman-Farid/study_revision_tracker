@@ -10,8 +10,6 @@ import '../modules/topic_detail/topic_detail_binding.dart';
 import '../modules/statistics/statistics_screen.dart';
 import '../modules/statistics/statistics_binding.dart';
 import '../modules/settings/settings_screen.dart';
-import '../modules/revision_session/revision_session_screen.dart';
-import '../modules/revision_session/revision_session_binding.dart';
 import '../modules/calendar/calendar_screen.dart';
 import '../modules/calendar/calendar_binding.dart';
 import '../modules/dashboard/dashboard_binding.dart';
@@ -32,8 +30,6 @@ class AppPages {
     GetPage(name: AppRoutes.history, page: () => const HistoryScreen(),
       binding: HistoryBinding()),
     GetPage(name: AppRoutes.settings, page: () => const SettingsScreen()),
-    GetPage(name: AppRoutes.revisionSession, page: () => const RevisionSessionScreen(),
-      binding: RevisionSessionBinding()),
     GetPage(name: AppRoutes.calendar, page: () => const CalendarScreen()),
   ];
 }

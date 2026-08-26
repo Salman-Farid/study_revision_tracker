@@ -28,13 +28,6 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
             Text('Revision Schedule', style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary(d))),
             SizedBox(height: S.base),
             RevisionScheduleTimeline(schedules: controller.schedules),
-            SizedBox(height: S.xl),
-            SizedBox(width: double.infinity, height: S.buttonHeight, child: ElevatedButton.icon(
-              onPressed: () => Get.toNamed('/revision-session/${controller.topic.id}',
-                arguments: {'topic': controller.topic, 'subject': controller.subject,
-                  'schedules': controller.schedules.toList()}),
-              icon: const Icon(Icons.play_arrow_rounded), label: const Text('Start Revision'),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white))),
             if (controller.topic.notes?.isNotEmpty == true) ...[SizedBox(height: S.xl),
               Text('Notes', style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
               SizedBox(height: S.sm),
@@ -49,28 +42,6 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
                 decoration: BoxDecoration(color: AppColors.success.withOpacity(0.05), borderRadius: BorderRadius.circular(S.radiusMd),
                   border: Border.all(color: AppColors.success.withOpacity(0.2))),
                 child: Text(controller.topic.referenceAnswer!, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary(d))))],
-            SizedBox(height: S.xl),
-            Text('History', style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary(d))),
-            SizedBox(height: S.base),
-            ...controller.sessions.map((s) {
-              final col = s.recallRating != null ? AppColors.ratingColor(s.recallRating!) : AppColors.textMuted(d);
-              return Container(margin: EdgeInsets.only(bottom: S.sm), padding: EdgeInsets.all(S.md),
-                decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusMd),
-                  border: Border.all(color: AppColors.border(d))),
-                child: Row(children: [
-                  Container(padding: EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xs),
-                    decoration: BoxDecoration(color: col.withOpacity(0.12), borderRadius: BorderRadius.circular(S.radiusSm)),
-                    child: Text(s.recallRating?.toUpperCase() ?? 'N/A', style: AppTextStyles.labelSmall.copyWith(color: col))),
-                  SizedBox(width: S.md),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s.durationFormatted, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
-                    Text('${s.startedAt.day}/${s.startedAt.month}/${s.startedAt.year}',
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted(d))),
-                  ])),
-                ]));
-            }),
-            if (controller.sessions.isEmpty) Text('No sessions yet',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted(d))),
             SizedBox(height: S.xxxl),
           ]));
       }),
@@ -81,9 +52,6 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
     decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusLg),
       border: Border.all(color: AppColors.border(d)), boxShadow: S.shadowSm),
     child: Row(children: [
-      _infoTile('Mastery', '${(controller.topic.masteryLevel * 100).round()}%',
-        controller.topic.masteryLevel >= 0.75 ? AppColors.success : AppColors.warning),
-      _infoTile('Confidence', '${(controller.topic.confidence * 100).round()}%', AppColors.info),
       _infoTile('Revisions', '${controller.topic.totalRevisions}', AppColors.primary),
     ]));
 

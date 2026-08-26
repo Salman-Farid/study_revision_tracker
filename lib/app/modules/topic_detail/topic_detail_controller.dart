@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/revision_schedule_model.dart';
-import '../../data/models/revision_session_model.dart';
 import '../../data/repositories/revision_repository.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
@@ -14,7 +13,6 @@ class TopicDetailController extends GetxController {
   late TopicModel topic;
   late SubjectModel subject;
   final schedules = <RevisionScheduleModel>[].obs;
-  final sessions = <RevisionSessionModel>[].obs;
   final isLoading = true.obs;
   StreamSubscription<List<RevisionScheduleModel>>? _realtimeSub;
 
@@ -42,7 +40,6 @@ class TopicDetailController extends GetxController {
     try {
       isLoading.value = true;
       schedules.assignAll(await _repo.getSchedules(topicId: topic.id));
-      sessions.assignAll(await _repo.getSessions(topicId: topic.id));
     } catch (_) {} finally { isLoading.value = false; }
   }
 
