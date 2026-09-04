@@ -77,7 +77,7 @@ class SubjectDetailController extends GetxController {
       try {
         final schedules = await _revRepo.getSchedules(topicId: topic.id);
         schedulesByTopic[topic.id] = schedules;
-      } catch (_) {}
+      } catch (e) { Get.snackbar('Error', 'Failed to load revisions for "${topics.where((t) => t.id == topic.id).firstOrNull?.name}": $e', snackPosition: SnackPosition.BOTTOM); }
     }
   }
 

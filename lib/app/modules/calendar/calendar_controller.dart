@@ -42,7 +42,7 @@ class CalendarController extends GetxController {
         final k = DateTime(s.scheduledDate.year, s.scheduledDate.month, s.scheduledDate.day);
         events.putIfAbsent(k, () => []).add(s);
       }
-    } catch (_) {} finally {
+    } catch (e) { Get.snackbar('Error', 'Failed to load calendar: $e', snackPosition: SnackPosition.BOTTOM); } finally {
       isLoading.value = false;
     }
   }

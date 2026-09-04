@@ -49,7 +49,7 @@ class DashboardController extends GetxController {
       final overdue = await _repo.getSchedules(status: 'pending', toDate: ts);
       final today = await _repo.getSchedules(status: 'pending', fromDate: ts, toDate: te);
       pendingSchedules.assignAll([...overdue, ...today]);
-    } catch (e) { /* silent */ }
+    } catch (e) { Get.snackbar('Error', 'Failed to load dashboard: $e', snackPosition: SnackPosition.BOTTOM); }
     finally { isLoading.value = false; }
   }
 

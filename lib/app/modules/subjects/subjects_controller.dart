@@ -61,7 +61,7 @@ class SubjectsController extends GetxController {
       isLoading.value = true;
       subjects.assignAll(await _repo.getAll());
       await _recomputeProgress();
-    } catch (e) { /* silent */ }
+    } catch (e) { Get.snackbar('Error', 'Failed to load subjects: $e', snackPosition: SnackPosition.BOTTOM); }
     finally { isLoading.value = false; }
   }
 

@@ -293,7 +293,7 @@ class SupabaseService extends GetxService {
     try {
       final subjects = await fetchSubjects();
       _subjectsController.add(subjects);
-    } catch (_) {}
+    } catch (e) { print('[Supabase] ❌ _refreshSubjects failed: $e'); }
   }
 
   Future<void> _refreshTopics() async {
@@ -305,14 +305,14 @@ class SupabaseService extends GetxService {
         allTopics.addAll(await fetchTopics(sub.id));
       }
       _topicsController.add(allTopics);
-    } catch (_) {}
+    } catch (e) { print('[Supabase] ❌ _refreshTopics failed: $e'); }
   }
 
   Future<void> _refreshSchedules() async {
     try {
       final schedules = await fetchSchedules();
       _schedulesController.add(schedules);
-    } catch (_) {}
+    } catch (e) { print('[Supabase] ❌ _refreshSchedules failed: $e'); }
   }
 
   Future<void> _refreshClassRoutines() async {
@@ -323,7 +323,7 @@ class SupabaseService extends GetxService {
       final rows = await fetchClassRoutines(fromDate: from, toDate: to);
       final models = rows.map((j) => ClassRoutineModel.fromJson(j)).toList();
       _classRoutinesController.add(models);
-    } catch (_) {}
+    } catch (e) { print('[Supabase] ❌ _refreshClassRoutines failed: $e'); }
   }
 
   Future<void> _refreshDailyRoutines() async {
@@ -334,7 +334,7 @@ class SupabaseService extends GetxService {
       final rows = await fetchDailyRoutines(fromDate: from, toDate: to);
       final models = rows.map((j) => DailyRoutineModel.fromJson(j)).toList();
       _dailyRoutinesController.add(models);
-    } catch (_) {}
+    } catch (e) { print('[Supabase] ❌ _refreshDailyRoutines failed: $e'); }
   }
 
   /// Manually trigger a refresh

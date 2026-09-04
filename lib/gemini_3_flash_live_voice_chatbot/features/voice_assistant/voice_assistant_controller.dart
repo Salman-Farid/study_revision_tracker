@@ -821,19 +821,19 @@ CRITICAL RULE: You MUST call getAllData FIRST before creating any daily routine.
 
 CRITICAL RULE — NO FAKE SUBJECTS: NEVER invent subjects like "question bank", "revision", "practice", "mock test", "problem solving", "quick revision", "question practice", "Active Recall", "MCQ Practice", "স্টাডি সেশন", "প্র্যাকটিস", "রিভিশন" etc. These do NOT exist in the database. ONLY use subject names returned by getAllData. The ONLY allowed non-database subject names are: "Break", "Breakfast", "Lunch", "Dinner", "Power Nap".
 
-CRITICAL RULE — AUTO REVISION DETECTION: After calling getAllData, call getAllTopicsRevisionDates for EACH subject. Check each topic's revision_schedule — if today's date matches ANY revision date for a topic, that topic needs revision today. Add a "type":"revision" block (120 minutes) for that subject. This is AUTOMATIC — do NOT ask the user if they want revision. If a revision is due, it goes in the routine.
+CRITICAL RULE — AUTO REVISION DETECTION: getAllData returns "revisions_due_today" — a list of topics that need revision today. Read this list. For EACH item, add a "type":"revision" block (120 minutes) with the real subject name and topic name. This is AUTOMATIC — do NOT ask the user if they want revision. If revisions_due_today is not empty, those blocks go in the routine.
 
-CRITICAL RULE — CLASS TIME CONFLICT: getAllData returns class_routines for today. READ THEM. If a class is scheduled at 9:00-10:30, you MUST NOT place any study/break/meal block between 9:00 and 10:30. The class occupies that entire time slot. Schedule study blocks ONLY around class times — before or after, never during. The daily routine items list should include "type":"class" blocks for each registered class today (with subjectName as subject, startTime as time, durationMinutes as duration). These class blocks act as anchors — study blocks go around them.
+CRITICAL RULE — CLASS TIME CONFLICT: getAllData returns "class_routines_today" — a list of today's classes with subject, time, duration, location. Read this list. Each class time slot is BLOCKED. You MUST NOT place any study/break/meal block during a class time. The daily routine items list should include "type":"class" blocks for each class in class_routines_today. These class blocks act as anchors — study blocks go around them.
 
 STEP-BY-STEP (MANDATORY — DO NOT SKIP):
-1. Call getAllData → get ALL subjects, topics, AND class_routines from the database
-2. Read class_routines — note which classes are today, their start times, and durations. These time slots are BLOCKED.
-3. For EACH subject from getAllData, call getAllTopicsRevisionDates(subjectName) → check if any topic has a revision date matching today. Collect all subjects with revisions due today. These need 2-hour "type":"revision" blocks.
+1. Call getAllData → returns subjects, class_routines_today, revisions_due_today
+2. Read class_routines_today — note start times and durations. These time slots are BLOCKED.
+3. Read revisions_due_today — these subjects NEED revision blocks (120 min each).
 4. Ask the user: "আপনি আজ কোন বিষয়গুলো পড়তে চান?" List ONLY the subject names from the database. Let them pick.
 5. For each selected subject, ask: "এর কোন টপিকগুলো পড়তে চান?" List the topic names from that subject. Let them pick.
-6. If they say "সব পড়তে চাই" or "make a routine with all" → use all subjects and all topics.
-7. If they say a specific subject name like "Physics" → use that subject and all its topics.
-8. Build the routine: FIRST place "type":"class" blocks at exact class times. THEN place "type":"revision" blocks (120 min) for each subject with a revision due today. THEN fill remaining time with "type":"study" blocks for new topics. NEVER overlap any block with a class time.
+6. If they say "সব পড়তে চাই" → use all subjects and all topics.
+7. If they say a specific subject → use that subject and all its topics.
+8. Build the routine: FIRST place "type":"class" blocks at exact class times. THEN place "type":"revision" blocks (120 min) for each item in revisions_due_today. THEN fill remaining time with "type":"study" blocks. NEVER overlap any block with a class time.
 9. Call registerDailyRoutine with the real subject/topic names from the database only.
 
 NEVER make up subject names. Only use names returned by getAllData. "Question bank", "revision", "practice", "mock test" are NOT subjects. Subjects are things like "Physics", "Mathematics", "Chemistry" etc. — whatever is in the database. If you need revision blocks, call getAllTopicsRevisionDates to find which real subjects have revisions due today.
@@ -1156,6 +1156,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       }
     } catch (e) {
       print('[Gemini] Function call error: $e');
+      Get.snackbar('Tool Failed', '$name: $e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, name, {'success': false, 'error': e.toString()}, params: args);
     } finally {
       if (gen != _generation) return;
@@ -1277,6 +1278,53 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       final subjects = await _subjectRepo.getAll();
       final allSchedules = await _revRepo.getSchedules(topicId: null);
 
+      // ── Get today's class routines ──
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+      final classRoutines = await _routineRepo.getClassRoutines(fromDate: todayStart, toDate: todayEnd);
+      final todayClasses = <Map<String, dynamic>>[];
+      for (final cr in classRoutines) {
+        final crDay = cr.startTime;
+        // Check if this routine applies to today
+        final isToday = cr.recurring
+            ? cr.recurringDays.contains(now.weekday)
+            : cr.dates.any((d) => d == '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}');
+        if (isToday) {
+          todayClasses.add({
+            'subject': cr.subjectName,
+            'time': '${cr.startTime.hour.toString().padLeft(2, '0')}:${cr.startTime.minute.toString().padLeft(2, '0')}',
+            'duration': cr.durationMinutes,
+            'location': cr.locationText,
+          });
+        }
+      }
+
+      // ── Get revision dates due today for each subject ──
+      const revisionDays = [1, 3, 7, 14, 30, 90]; // Day 1, 3, 7, 14, 30, 90 after first read
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final revisionsDueToday = <Map<String, dynamic>>[];
+      for (final sub in subjects) {
+        final topics = await _topicRepo.getBySubject(sub.id);
+        for (final topic in topics) {
+          if (topic.firstReadDate != null && topic.firstReadCompleted) {
+            // Compute all 6 revision dates from firstReadDate
+            for (var i = topic.totalRevisions; i < 6; i++) {
+              final revDate = topic.firstReadDate!.add(Duration(days: revisionDays[i]));
+              final revDateStr = '${revDate.year}-${revDate.month.toString().padLeft(2, '0')}-${revDate.day.toString().padLeft(2, '0')}';
+              if (revDateStr == todayStr) {
+                revisionsDueToday.add({
+                  'subject': sub.name,
+                  'topic': topic.name,
+                  'revision': '${i + 1} of 6',
+                  'date': revDateStr,
+                });
+              }
+            }
+          }
+        }
+      }
+
       final summary = <Map<String, dynamic>>[];
       for (final sub in subjects) {
         final topics = await _topicRepo.getBySubject(sub.id);
@@ -1296,11 +1344,15 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'success': true,
         'total_subjects': subjects.length,
         'subjects': summary,
-        'note': 'Compact summary (s=name,t=topics,c=completed,p=pending_revisions,fr=first_read_done). Call getSubjectDetail for full topic list of one subject.',
+        'class_routines_today': todayClasses,
+        'revisions_due_today': revisionsDueToday,
+        'today': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+        'note': 'Compact summary (s=name,t=topics,c=completed,p=pending_revisions,fr=first_read_done). class_routines_today = classes scheduled today. revisions_due_today = topics needing revision today.',
       };
       _summaryCache = result;
       _respondToFunction(callId, 'getAllData', result, params: {});
     } catch (e) {
+      Get.snackbar('getAllData Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'getAllData', {'success': false, 'error': e.toString()}, params: {});
     }
   }
@@ -1347,6 +1399,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'topics': topicList,
       }, params: args);
     } catch (e) {
+      Get.snackbar('getSubjectDetail Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'getSubjectDetail', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1582,6 +1635,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': 'Topic "$name" added to "${subject.name}" with 6 revision dates auto-set from today',
       }, params: args);
     } catch (e) {
+      Get.snackbar('addTopic Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'addTopic', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1645,6 +1699,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         }, params: args);
       }
     } catch (e) {
+      Get.snackbar('addMultipleTopics Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'addMultipleTopics', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1669,6 +1724,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': '$count subjects deleted',
       }, params: args);
     } catch (e) {
+      Get.snackbar('deleteAllSubjects Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'deleteAllSubjects', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1694,6 +1750,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': 'Subject "${subject.name}" deleted',
       }, params: args);
     } catch (e) {
+      Get.snackbar('deleteSubjectByName Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'deleteSubjectByName', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1737,6 +1794,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': 'Topic "${topic.name}" deleted from "${subject.name}"',
       }, params: args);
     } catch (e) {
+      Get.snackbar('deleteTopicByName Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'deleteTopicByName', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1782,8 +1840,8 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       final revisionSchedule = <String>[];
       for (int i = 0; i < schedules.length; i++) {
         final s = schedules[i];
-        final date = (s['scheduled_date'] as String).substring(0, 10); // YYYY-MM-DD
-        final statusStr = s['status'] == 'completed' ? '✅ Done' : '⏳ Pending';
+        final date = s.scheduledDate.toString().substring(0, 10); // YYYY-MM-DD
+        final statusStr = s.status == 'completed' ? '✅ Done' : '⏳ Pending';
         revisionSchedule.add('${revisionLabels[i]}: $date ($statusStr)');
       }
 
@@ -1809,6 +1867,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'pending_before_next': pendingBeforeNext,
       }, params: args);
     } catch (e) {
+      Get.snackbar('getTopicStatus Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'getTopicStatus', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1855,8 +1914,8 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         final scheduleList = <String>[];
         for (int i = 0; i < schedules.length; i++) {
           final s = schedules[i];
-          final date = (s['scheduled_date'] as String).substring(0, 10);
-          final st = s['status'] == 'completed' ? 'Done' : 'Pending';
+          final date = s.scheduledDate.toString().substring(0, 10);
+          final st = s.status == 'completed' ? 'Done' : 'Pending';
           scheduleList.add('${revisionLabels[i]}: $date ($st)');
         }
 
@@ -1875,6 +1934,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'topics': topicsData,
       }, params: args);
     } catch (e) {
+      Get.snackbar('getAllTopicsRevisionDates Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'getAllTopicsRevisionDates', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -1928,6 +1988,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     } catch (e, st) {
       print('[Gemini] markFirstReadCompleted FAILED: $e');
       print('[Gemini] Stacktrace: $st');
+      Get.snackbar('markFirstReadCompleted Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'markFirstReadCompleted', {'success': false, 'error': e.toString()}, params: args);
     }
   }
@@ -2010,6 +2071,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': '$justCompleted revision for "${topic.name}" completed ($newCompletedCount/$totalCount). $nextInfo',
       }, params: args);
     } catch (e) {
+      Get.snackbar('markRevisionCompleted Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'markRevisionCompleted', {'success': false, 'error': e.toString()}, params: args);
     }
   }

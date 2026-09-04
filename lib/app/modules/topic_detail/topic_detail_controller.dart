@@ -40,7 +40,7 @@ class TopicDetailController extends GetxController {
     try {
       isLoading.value = true;
       schedules.assignAll(await _repo.getSchedules(topicId: topic.id));
-    } catch (_) {} finally { isLoading.value = false; }
+    } catch (e) { Get.snackbar('Error', 'Failed to load revision dates: $e', snackPosition: SnackPosition.BOTTOM); } finally { isLoading.value = false; }
   }
 
   void openVoiceAssistant() {

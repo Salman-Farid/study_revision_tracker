@@ -38,7 +38,7 @@ class TodayController extends GetxController {
       final te = ts.add(const Duration(days: 1));
       overdue.assignAll(await _repo.getSchedules(status: 'pending', toDate: ts));
       today.assignAll(await _repo.getSchedules(status: 'pending', fromDate: ts, toDate: te));
-    } catch (_) {} finally { isLoading.value = false; }
+    } catch (e) { Get.snackbar('Error', 'Failed to load today\'s revisions: $e', snackPosition: SnackPosition.BOTTOM); } finally { isLoading.value = false; }
   }
 
   Future<void> markDone(String id) async {
