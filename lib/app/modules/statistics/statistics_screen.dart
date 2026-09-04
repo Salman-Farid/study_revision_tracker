@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/stat_card.dart';
@@ -15,7 +16,7 @@ class HistoryScreen extends GetView<HistoryController> {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: Text('History', style: AppTextStyles.headlineMedium),
+        title: Text('history'.tr, style: AppTextStyles.headlineMedium),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh_rounded, color: AppColors.textMuted(d)),
@@ -37,19 +38,19 @@ class HistoryScreen extends GetView<HistoryController> {
               children: [
                 _streakCard(d),
                 SizedBox(height: S.xl),
-                _sectionTitle('Overview', d),
+                _sectionTitle('overview'.tr, d),
                 SizedBox(height: S.base),
                 _statsGrid(d),
                 SizedBox(height: S.xxl),
-                _sectionTitle('Subject Progress', d),
+                _sectionTitle('subjectProgress'.tr, d),
                 SizedBox(height: S.base),
                 _subjectProgressList(d),
                 SizedBox(height: S.xxl),
-                _sectionTitle('Weekly Activity', d),
+                _sectionTitle('weeklyActivity'.tr, d),
                 SizedBox(height: S.base),
                 _weeklyChart(d),
                 SizedBox(height: S.xxl),
-                _sectionTitle('Performance Insights', d),
+                _sectionTitle('performanceInsights'.tr, d),
                 SizedBox(height: S.base),
                 _insights(d),
                 SizedBox(height: S.xxxl),
@@ -75,7 +76,7 @@ class HistoryScreen extends GetView<HistoryController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Streak card shimmer
-            Container(width: double.infinity, height: 110,
+            Container(width: double.infinity, height: S.streakCardHeight,
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusXl))),
             SizedBox(height: S.xl),
             // Overview title
@@ -83,7 +84,8 @@ class HistoryScreen extends GetView<HistoryController> {
             SizedBox(height: S.base),
             // Stats grid shimmer
             GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2, crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.3,
+              crossAxisCount: 2, crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing,
+              childAspectRatio: S.statCardAspectRatio,
               children: List.generate(4, (_) => Container(
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))))),
             SizedBox(height: S.xxl),
@@ -99,14 +101,14 @@ class HistoryScreen extends GetView<HistoryController> {
             Container(height: 18, width: 140, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9))),
             SizedBox(height: S.base),
             // Mastery chart shimmer
-            Container(width: double.infinity, height: 250,
+            Container(width: double.infinity, height: S.chartHeight + S.xxxl,
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))),
             SizedBox(height: S.xxl),
             // Weekly title
             Container(height: 18, width: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9))),
             SizedBox(height: S.base),
             // Weekly chart shimmer
-            Container(width: double.infinity, height: 220,
+            Container(width: double.infinity, height: S.chartHeight,
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))),
             SizedBox(height: S.xxl),
             // Insights title
@@ -166,7 +168,7 @@ class HistoryScreen extends GetView<HistoryController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  streak > 0 ? '$streak Day Streak!' : 'Start Your Streak',
+                  streak > 0 ? 'dayStreak'.tr.replaceAll('{n}', '$streak') : 'startYourStreak'.tr,
                   style: AppTextStyles.headlineSmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -175,8 +177,8 @@ class HistoryScreen extends GetView<HistoryController> {
                 SizedBox(height: S.xs),
                 Text(
                   streak > 0
-                      ? 'Keep the momentum going!'
-                      : 'Revise today to build consistency',
+                      ? 'keepMomentum'.tr
+                      : 'reviseToday'.tr,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: Colors.white.withOpacity(0.85),
                   ),
@@ -186,8 +188,8 @@ class HistoryScreen extends GetView<HistoryController> {
           ),
           // Streak number
           Container(
-            width: 64,
-            height: 64,
+            width: S.avatarSize * 1.45,
+            height: S.avatarSize * 1.45,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
@@ -219,13 +221,26 @@ class HistoryScreen extends GetView<HistoryController> {
   }
 
   // ─── STATS GRID ───────────────────────────────────────────────
+  // All values are REAL: revision-weighted completion (X of Y), completed
+  // revision count, topics and subjects straight from the database.
   Widget _statsGrid(bool d) {
-    final rate = (controller.stats['completion_rate'] as num?)?.toDouble() ?? 0;
+    final done = controller.revisionsDone.value;
+    final planned = controller.revisionsTotal.value;
     final items = [
-      _StatItem('Completion', '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success),
-      _StatItem('Completed', '${controller.completedTopics.value}', Icons.done_all_rounded, AppColors.primary),
-      _StatItem('Total Topics', '${controller.totalTopics.value}', Icons.topic_rounded, AppColors.info),
-      _StatItem('Subjects', '${controller.totalSubjects.value}', Icons.book_rounded, AppColors.warning),
+      _StatItem('statCompletion'.tr,
+          planned == 0 ? '0%' : '${(controller.completionFraction * 100).round()}%',
+          Icons.check_circle_rounded, AppColors.success,
+          subtitle: 'doneOfTotal'.tr
+              .replaceAll('{done}', '$done')
+              .replaceAll('{total}', '$planned')),
+      _StatItem('revisionsDone'.tr, '$done',
+          Icons.done_all_rounded, AppColors.primary,
+          subtitle: '$done/$planned'),
+      _StatItem('statTotalTopics'.tr, '${controller.totalTopics.value}',
+          Icons.topic_rounded, AppColors.info,
+          subtitle: '${controller.completedTopics.value}/${controller.totalTopics.value}'),
+      _StatItem('statSubjects'.tr, '${controller.totalSubjects.value}',
+          Icons.book_rounded, AppColors.warning),
     ];
     return GridView.count(
       shrinkWrap: true,
@@ -233,30 +248,35 @@ class HistoryScreen extends GetView<HistoryController> {
       crossAxisCount: 2,
       crossAxisSpacing: S.gridSpacing,
       mainAxisSpacing: S.gridSpacing,
-      childAspectRatio: 1.3,
+      // Taller cards (was 1.3) so localized text + subtitles never overflow.
+      childAspectRatio: S.statCardAspectRatio,
       children: items
           .map((item) => StatCard(
                 title: item.title,
                 value: item.value,
                 icon: item.icon,
                 color: item.color,
+                subtitle: item.subtitle,
               ))
           .toList(),
     );
   }
 
   // ─── SUBJECT PROGRESS ─────────────────────────────────────────
+  // Real revision-weighted progress per subject card: e.g. "1/30 revisions
+  // • 5 topics" with the % computed from actual completed revisions.
   Widget _subjectProgressList(bool d) {
     final data = controller.subjectProgress;
     if (data.isEmpty) {
-      return _emptyState('No subjects yet', 'Add subjects to see progress', d);
+      return _emptyState('noSubjectsProgress'.tr, 'addSubjectsProgress'.tr, d);
     }
     return Column(
-      children: data.take(5).map((item) {
+      children: data.map((item) {
         final subject = item['subject'];
         final total = item['total'] as int;
-        final completed = item['completed'] as int;
-        final progress = total > 0 ? completed / total : 0.0;
+        final revDone = item['revisionsDone'] as int;
+        final revPlanned = item['revisionsPlanned'] as int;
+        final progress = item['progress'] as double;
         return Container(
           margin: EdgeInsets.only(bottom: S.md),
           padding: EdgeInsets.all(S.base),
@@ -270,8 +290,8 @@ class HistoryScreen extends GetView<HistoryController> {
             children: [
               // Subject color circle
               Container(
-                width: 48,
-                height: 48,
+                width: S.avatarSize,
+                height: S.avatarSize,
                 decoration: BoxDecoration(
                   color: subject.color.withOpacity(0.15),
                   shape: BoxShape.circle,
@@ -296,8 +316,9 @@ class HistoryScreen extends GetView<HistoryController> {
                       ),
                     ),
                     SizedBox(height: 2),
+                    // Real revision counts: "1/30 revisions • 5 topics"
                     Text(
-                      '$completed/$total topics',
+                      '$revDone/$revPlanned ${'revisionsLabel'.tr} • ${'topicsLabel'.tr.replaceAll('{n}', '$total')}',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textMuted(d),
                       ),
@@ -341,17 +362,20 @@ class HistoryScreen extends GetView<HistoryController> {
 
   // ─── WEEKLY CHART ─────────────────────────────────────────────
   Widget _weeklyChart(bool d) {
+    // REAL data: completed revisions per weekday (Mon→Sun) this week.
+    final activity = controller.weeklyActivity.toList();
+    final today = DateTime.now().weekday - 1;
+    final maxY = <int>[3, ...activity].reduce((a, b) => a > b ? a : b).toDouble();
     final spots = List.generate(7, (i) {
-      final val = (3 + (i * 1.7) % 8).toDouble();
       return BarChartGroupData(
         x: i,
         barRods: [
           BarChartRodData(
-            toY: val,
-            color: i < DateTime.now().weekday
+            toY: activity[i].toDouble(),
+            color: i <= today
                 ? AppColors.primary
                 : AppColors.primary.withOpacity(0.3),
-            width: 20,
+            width: Responsive.isTablet ? 28 : 20,
             borderRadius: BorderRadius.vertical(top: Radius.circular(S.radiusSm)),
           ),
         ],
@@ -359,7 +383,7 @@ class HistoryScreen extends GetView<HistoryController> {
     });
 
     return Container(
-      height: 220,
+      height: S.chartHeight,
       padding: EdgeInsets.all(S.base),
       decoration: BoxDecoration(
         color: AppColors.surface(d),
@@ -382,7 +406,7 @@ class HistoryScreen extends GetView<HistoryController> {
               ),
               SizedBox(width: S.sm),
               Text(
-                'This Week',
+                'thisWeek'.tr,
                 style: AppTextStyles.labelMedium.copyWith(
                   color: AppColors.textMuted(d),
                 ),
@@ -394,7 +418,7 @@ class HistoryScreen extends GetView<HistoryController> {
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 10,
+                maxY: maxY,
                 barTouchData: BarTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   leftTitles: const AxisTitles(),
@@ -406,7 +430,7 @@ class HistoryScreen extends GetView<HistoryController> {
                       getTitlesWidget: (v, _) {
                         final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
                         final idx = v.toInt() % 7;
-                        final isToday = idx == DateTime.now().weekday - 1;
+                        final isToday = idx == today;
                         return Text(
                           days[idx],
                           style: AppTextStyles.labelSmall.copyWith(
@@ -440,59 +464,64 @@ class HistoryScreen extends GetView<HistoryController> {
   }
 
   // ─── INSIGHTS ─────────────────────────────────────────────────
+  // All insights are computed from REAL revision-weighted data.
   Widget _insights(bool d) {
-    final rate = (controller.stats['completion_rate'] as num?)?.toDouble() ?? 0;
-    final totalRevisions = controller.stats['total_completed'] ?? 0;
-    final thisWeek = controller.stats['sessions_this_week'] ?? 0;
+    final rate = controller.completionFraction;
+    final totalRevisions = controller.revisionsDone.value;
+    final planned = controller.revisionsTotal.value;
+    final thisWeek = controller.weeklyActivity.fold<int>(0, (a, b) => a + b);
+    final streak = controller.streakDays.value;
 
     final insights = <_InsightItem>[];
 
     // Performance rating
     if (rate >= 0.8) {
       insights.add(_InsightItem(
-        'Excellent Progress',
-        'You have a ${(rate * 100).round()}% completion rate. Outstanding work!',
+        'keepMomentum'.tr,
+        'doneOfTotal'.tr.replaceAll('{done}', '$totalRevisions').replaceAll('{total}', '$planned') +
+            ' — ${(rate * 100).round()}%',
         Icons.emoji_events_rounded,
         AppColors.success,
       ));
     } else if (rate >= 0.5) {
       insights.add(_InsightItem(
-        'Good Momentum',
-        'You are at ${(rate * 100).round()}% completion. Keep pushing forward!',
+        'statCompletion'.tr,
+        'doneOfTotal'.tr.replaceAll('{done}', '$totalRevisions').replaceAll('{total}', '$planned') +
+            ' — ${(rate * 100).round()}%',
         Icons.trending_up_rounded,
         AppColors.info,
       ));
     } else {
       insights.add(_InsightItem(
-        'Building Habits',
-        'You have started ${controller.totalTopics.value} topics. Consistency is key!',
+        'startYourStreak'.tr,
+        'doneOfTotal'.tr.replaceAll('{done}', '$totalRevisions').replaceAll('{total}', '$planned'),
         Icons.psychology_rounded,
         AppColors.warning,
       ));
     }
 
-    // Weekly activity
+    // Weekly activity (real completed revisions this week)
     if (thisWeek > 0) {
       insights.add(_InsightItem(
-        'Active This Week',
-        'You have completed $thisWeek revision${thisWeek > 1 ? 's' : ''} this week.',
+        'weeklyActivity'.tr,
+        'revisionsOfDone'.tr.replaceAll('{n}', '$thisWeek'),
         Icons.local_fire_department_rounded,
         const Color(0xFFFF6B35),
       ));
     }
 
-    // Total revisions
-    if (totalRevisions > 0) {
+    // Streak
+    if (streak > 1) {
       insights.add(_InsightItem(
-        'Total Revisions',
-        'You have completed $totalRevisions revision${totalRevisions > 1 ? 's' : ''} in total.',
-        Icons.auto_stories_rounded,
-        AppColors.secondary,
+        'dayStreak'.tr.replaceAll('{n}', '$streak'),
+        'keepMomentum'.tr,
+        Icons.local_fire_department_rounded,
+        const Color(0xFFFF6B35),
       ));
     }
 
     if (insights.isEmpty) {
-      return _emptyState('No insights yet', 'Start revising to see your progress insights', d);
+      return _emptyState('noInsightsYet'.tr, 'insightsEmptySub'.tr, d);
     }
 
     return Column(
@@ -588,9 +617,10 @@ class HistoryScreen extends GetView<HistoryController> {
 
 class _StatItem {
   final String title, value;
+  final String? subtitle;
   final IconData icon;
   final Color color;
-  _StatItem(this.title, this.value, this.icon, this.color);
+  _StatItem(this.title, this.value, this.icon, this.color, {this.subtitle});
 }
 
 class _InsightItem {

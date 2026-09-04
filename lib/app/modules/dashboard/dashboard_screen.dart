@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
@@ -85,34 +86,47 @@ class DashboardScreen extends GetView<DashboardController> {
       ])),
     ]));
 
+  // Bug-06 FIX: Frosted glass hero card using ClipRRect + BackdropFilter.
   Widget _heroCard(bool d) {
     final today = controller.stats['today_count'] ?? 0;
     final overdue = controller.stats['overdue_count'] ?? 0;
-    return Container(margin: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
-      padding: EdgeInsets.all(S.xl),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFF6C63FF), Color(0xFF9D97FF)]),
-        borderRadius: BorderRadius.circular(S.radiusLg),
-        boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(today > 0 ? '$today revision${today > 1 ? 's' : ''} due today' : 'No revisions due today',
-          style: AppTextStyles.headlineSmall.copyWith(color: Colors.white)),
-        if (overdue > 0) ...[SizedBox(height: S.sm),
-          Container(padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(S.radiusSm)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.warning_rounded, color: Colors.white, size: S.iconSm), SizedBox(width: S.sm),
-              Text('$overdue overdue', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
-            ])),
-        ],
-        SizedBox(height: S.base),
-        ElevatedButton(onPressed: controller.startRevising,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white, foregroundColor: AppColors.primary,
-            minimumSize: Size(S.avatarSize * 2, S.buttonHeight * 0.75)),
-          child: const Text('Start Revising')),
-      ]));
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(S.radiusLg),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
+          padding: EdgeInsets.all(S.xl),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF6C63FF).withValues(alpha: 0.88),
+                const Color(0xFF9D97FF).withValues(alpha: 0.88),
+              ]),
+            borderRadius: BorderRadius.circular(S.radiusLg),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+            boxShadow: [
+              BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.25),
+                blurRadius: 20, offset: const Offset(0, 8)),
+            ]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(today > 0 ? '$today revision${today > 1 ? 's' : ''} due today' : 'No revisions due today',
+              style: AppTextStyles.headlineSmall.copyWith(color: Colors.white)),
+            if (overdue > 0) ...[SizedBox(height: S.sm),
+              Container(padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(S.radiusSm)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.warning_rounded, color: Colors.white, size: S.iconSm), SizedBox(width: S.sm),
+                  Text('$overdue overdue', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+                ])),
+            ],
+            SizedBox(height: S.base),
+            ElevatedButton(onPressed: controller.startRevising,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white, foregroundColor: AppColors.primary,
+                minimumSize: Size(S.avatarSize * 2, S.buttonHeight * 0.75)),
+child: const Text('Start Revising')),
+          ]))));
   }
 
   Widget _statsGrid(bool d) {
@@ -123,15 +137,28 @@ class DashboardScreen extends GetView<DashboardController> {
       ['Upcoming', '${controller.stats['upcoming_count'] ?? 0}', Icons.upcoming_rounded, AppColors.info],
       ['Completion', '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success],
     ];
-    return Padding(padding: EdgeInsets.all(S.xl), child: GridView.builder(
-      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2,
-        crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.25),
-      itemCount: items.length, itemBuilder: (_, i) {
-        final it = items[i];
-        return StatCard(title: it[0] as String, value: it[1] as String,
-          icon: it[2] as IconData, color: it[3] as Color);
-      }));
+    return Padding(
+      padding: EdgeInsets.all(S.xl),
+      child: GridView.builder(
+        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: S.gridSpacing,
+          mainAxisSpacing: S.gridSpacing,
+          childAspectRatio: 1.25,
+        ),
+        itemCount: items.length,
+        itemBuilder: (_, i) {
+          final it = items[i];
+          return StatCard(
+            title: it[0] as String,
+            value: it[1] as String,
+            icon: it[2] as IconData,
+            color: it[3] as Color,
+          );
+        },
+      ),
+    );
   }
 
   Widget _actions(bool d) => Padding(padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:get/get.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/revision_repository.dart';
@@ -56,7 +55,7 @@ class DashboardController extends GetxController {
 
   Future<void> startRevising() async {
     if (pendingSchedules.isEmpty) {
-      Get.snackbar('All caught up', 'No pending revisions', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('allCaughtUp'.tr, 'noPendingRevisions'.tr, snackPosition: SnackPosition.BOTTOM);
       return;
     }
     final schedule = pendingSchedules.first;
@@ -64,19 +63,19 @@ class DashboardController extends GetxController {
       final topics = await _topicRepo.getBySubject(schedule.subjectId);
       final topic = topics.firstWhereOrNull((t) => t.id == schedule.topicId);
       if (topic == null) {
-        Get.snackbar('Error', 'Topic not found');
+        Get.snackbar('error'.tr, 'topicNotFound'.tr);
         return;
       }
       final subjects = await _subjectRepo.getAll();
       final subject = subjects.firstWhereOrNull((s) => s.id == schedule.subjectId);
       if (subject == null) {
-        Get.snackbar('Error', 'Subject not found');
+        Get.snackbar('error'.tr, 'subjectNotFound'.tr);
         return;
       }
       Get.toNamed('/topic/${topic.id}',
         arguments: {'topic': topic, 'subject': subject});
     } catch (e) {
-      Get.snackbar('Error', 'Failed to start revision');
+      Get.snackbar('error'.tr, 'startRevisionFailed'.tr);
     }
   }
 }

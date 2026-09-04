@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'responsive.dart';
 
 class S {
   S._();
+  // GetX-based viewport shortcuts (responsive width/height via Get).
+  static double get w => Get.width;
+  static double get h => Get.height;
+
   static double get xs => Responsive.scale(4);
   static double get sm => Responsive.scale(8);
   static double get md => Responsive.scale(12);
@@ -34,6 +39,15 @@ class S {
   static double get gridChildAspectRatio => Responsive.isTablet ? 1.2 : 0.9;
   static double get gridSpacing => Responsive.scale(12);
 
+  // ── Metric/stat cards (history + dashboard) ──
+  /// Wider-taller ratio so text never overflows on small screens.
+  static double get statCardAspectRatio =>
+      Responsive.isTablet ? 1.55 : (Get.height < 700 ? 1.05 : 1.15);
+  /// Fixed minimum height fallback for metric cards.
+  static double get statCardMinHeight => Responsive.scale(128);
+  static double get streakCardHeight => Responsive.scale(110);
+  static double get chartHeight => Responsive.scale(220);
+
   static List<BoxShadow> get shadowSm => [
     BoxShadow(color: Colors.black.withOpacity(0.04),
       blurRadius: Responsive.scale(6), offset: Offset(0, Responsive.scale(2))),
@@ -43,3 +57,4 @@ class S {
       blurRadius: Responsive.scale(16), offset: Offset(0, Responsive.scale(4))),
   ];
 }
+

@@ -27,7 +27,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               padding: EdgeInsets.zero,
               onPressed: controller.openVoiceAssistant,
               icon: Icon(Icons.mic_rounded, color: AppConstants.primaryColor),
-              tooltip: 'Voice Assistant',
+              tooltip: 'studyRoutine'.tr,
             ),
           ),
         ],
@@ -47,9 +47,9 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               if (controller.topics.isEmpty) {
                 return EmptyState(
                   icon: Icons.topic_rounded,
-                  title: 'No Topics Yet',
+                  title: 'noTopicsYet'.tr,
                   subtitle: 'Add topics to "${controller.subject.name}"',
-                  actionLabel: 'Add Topic',
+                  actionLabel: 'addTopic'.tr,
                   onAction: controller.showAddSheet,
                 );
               }
@@ -57,7 +57,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               if (filtered.isEmpty) {
                 return EmptyState(
                   icon: Icons.filter_list_off_rounded,
-                  title: 'No topics here',
+                  title: 'noTopicsYet'.tr,
                   subtitle: 'No topics match this filter',
                 );
               }
@@ -78,19 +78,19 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _chip(d, 'All', controller.topics.length, selected == 'all', () {
+              _chip(d, 'all'.tr, controller.topics.length, selected == 'all', () {
                 controller.selectedFilter.value = 'all';
               }),
               SizedBox(width: S.sm),
-              _chip(d, 'First Read', controller.firstReadCount, selected == 'firstRead', () {
+              _chip(d, 'firstRead'.tr, controller.firstReadCount, selected == 'firstRead', () {
                 controller.selectedFilter.value = 'firstRead';
               }),
               SizedBox(width: S.sm),
-              _chip(d, 'In Revision', controller.inRevisionCount, selected == 'inRevision', () {
+              _chip(d, 'inRevision'.tr, controller.inRevisionCount, selected == 'inRevision', () {
                 controller.selectedFilter.value = 'inRevision';
               }),
               SizedBox(width: S.sm),
-              _chip(d, 'Done', controller.completedCount, selected == 'completed', () {
+              _chip(d, 'done'.tr, controller.completedCount, selected == 'completed', () {
                 controller.selectedFilter.value = 'completed';
               }),
             ],
@@ -216,7 +216,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                   style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d)),
                 ),
                 SizedBox(height: S.xs),
-                _badge(d, 'First Read', AppColors.warning),
+                _badge(d, 'firstRead'.tr, AppColors.warning),
               ],
             ),
           ),
@@ -430,8 +430,8 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
         SizedBox(height: S.md),
         Text(
           isCompleted
-              ? 'All 6 revisions completed!'
-              : '$completedCount of 6 revisions done',
+              ? 'allRevisionsDone'.tr
+              : 'revisionsOfDone'.tr.replaceAll('{n}', '$completedCount'),
           style: AppTextStyles.labelMedium.copyWith(
             color: isCompleted ? AppColors.success : AppColors.textMuted(d),
             fontWeight: FontWeight.w600,
@@ -624,10 +624,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   // ══════════════════════════════════════════════════════════════
   void _confirmFirstRead(bool d, dynamic t) {
     Get.defaultDialog(
-      title: 'First Read Done?',
+      title: 'firstRead'.tr,
       middleText: 'Mark "${t.name}" as first read completed?',
-      textConfirm: 'Yes',
-      textCancel: 'Cancel',
+      textConfirm: 'ok'.tr,
+      textCancel: 'cancel'.tr,
       confirmTextColor: Colors.white,
       buttonColor: AppColors.warning,
       onConfirm: () {
@@ -640,10 +640,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   void _confirmRevision(bool d, dynamic t, String dayLabel) {
     final dayNumber = int.parse(dayLabel);
     Get.defaultDialog(
-      title: 'Revision Complete?',
+      title: 'markDone'.tr,
       middleText: 'Mark Day $dayNumber revision for "${t.name}" as done?',
-      textConfirm: 'Yes',
-      textCancel: 'Cancel',
+      textConfirm: 'ok'.tr,
+      textCancel: 'cancel'.tr,
       confirmTextColor: Colors.white,
       buttonColor: AppColors.info,
       onConfirm: () {
@@ -656,10 +656,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   Widget _deleteButton(bool d, dynamic t) {
     return GestureDetector(
       onTap: () => Get.defaultDialog(
-        title: 'Delete?',
+        title: 'deleteQ'.tr,
         middleText: 'Delete "${t.name}"?',
-        textConfirm: 'Delete',
-        textCancel: 'Cancel',
+        textConfirm: 'delete'.tr,
+        textCancel: 'cancel'.tr,
         confirmTextColor: Colors.white,
         buttonColor: AppColors.error,
         onConfirm: () {
@@ -688,9 +688,9 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   // ══════════════════════════════════════════════════════════════
   Widget _statusBadge(bool d, dynamic t, List<String> dayLabels) {
     if (!t.firstReadCompleted) {
-      return _badge(d, 'First Read', AppColors.warning);
+      return _badge(d, 'firstRead'.tr, AppColors.warning);
     } else if (t.totalRevisions >= 6) {
-      return _badge(d, 'Completed', AppColors.success);
+      return _badge(d, 'statCompleted'.tr, AppColors.success);
     } else {
       return _badge(d, 'Day ${dayLabels[t.totalRevisions]} • ${t.totalRevisions + 1}/6', AppColors.info);
     }

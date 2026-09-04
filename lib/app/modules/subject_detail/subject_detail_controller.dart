@@ -66,7 +66,7 @@ class SubjectDetailController extends GetxController {
       topics.assignAll(await _topicRepo.getBySubject(subject.id));
       await _loadSchedules();
     } catch (e) {
-      Get.snackbar('Error', 'Failed');
+      Get.snackbar('error'.tr, 'error'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -142,7 +142,7 @@ class SubjectDetailController extends GetxController {
       _subjectRepo.refresh();
       Get.snackbar('Created', '"$name" with schedule', snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.success.withOpacity(0.1));
-    } catch (e) { Get.snackbar('Error', 'Failed: $e'); }
+    } catch (e) { Get.snackbar('error'.tr, e.toString()); }
   }
 
   void showAddSheet() {
@@ -182,12 +182,12 @@ class SubjectDetailController extends GetxController {
           SizedBox(height: S.xl),
           SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () {
             final n = nc.text.trim();
-            if (n.isEmpty) { Get.snackbar('Required', 'Topic name needed'); return; }
+            if (n.isEmpty) { Get.snackbar('required'.tr, 'required'.tr); return; }
             final dt = DateTime(sd.value.year, sd.value.month, sd.value.day, st.value.hour, st.value.minute);
             createTopic(name: n, notes: nsc.text.trim().isEmpty ? null : nsc.text.trim(),
               refAnswer: rfc.text.trim().isEmpty ? null : rfc.text.trim(), firstRead: dt);
             Get.back();
-          }, child: const Text('Create Topic with Schedule'))),
+          }, child: Text('createSubject'.tr))),
           SizedBox(height: S.base),
         ]))), isScrollControlled: true);
   }
@@ -197,7 +197,7 @@ class SubjectDetailController extends GetxController {
       await _topicRepo.delete(id, subjectId: subject.id);
       topics.removeWhere((t) => t.id == id);
       _subjectRepo.refresh();
-    } catch (e) { Get.snackbar('Error', 'Failed'); }
+    } catch (e) { Get.snackbar('error'.tr, 'error'.tr); }
   }
 
   Future<void> markFirstRead(String topicId) async {
@@ -210,13 +210,13 @@ class SubjectDetailController extends GetxController {
       final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
       schedulesByTopic[topicId] = updatedSchedules;
 
-      Get.snackbar('Done', 'First read marked as completed',
+      Get.snackbar('save'.tr, 'firstReadDone'.tr,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.success.withOpacity(0.1));
     } catch (e, st) {
       print('[SubjectDetail] markFirstRead FAILED: $e');
       print('[SubjectDetail] Stacktrace: $st');
-      Get.snackbar('Error', 'Failed: $e');
+      Get.snackbar('error'.tr, e.toString());
     }
   }
 

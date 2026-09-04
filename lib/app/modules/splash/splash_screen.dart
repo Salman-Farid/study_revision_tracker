@@ -71,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           Text(AppConstants.appName, style: AppTextStyles.headlineLarge.copyWith(
             color: AppColors.primary, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text('Smart Spaced Repetition', style: AppTextStyles.bodyMedium.copyWith(
+          Text('startRevisionJourney'.tr, style: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textMuted(Theme.of(context).brightness == Brightness.dark))),
         ]))))));
 }

@@ -37,7 +37,7 @@ class AuthController extends GetxController {
         final res = await s.auth.signUp(
             email: emailCtrl.text.trim(), password: passCtrl.text);
         if (res.user != null && res.session == null) {
-          Get.snackbar('Info', 'Account created. Try signing in.',
+          Get.snackbar('info'.tr, 'accountCreated'.tr,
               snackPosition: SnackPosition.BOTTOM);
           isLogin.value = true;
           return;
@@ -51,18 +51,18 @@ class AuthController extends GetxController {
     } on AuthException catch (e) {
       String msg = e.message;
       if (msg.toLowerCase().contains('email not confirmed')) {
-        msg = 'Email not confirmed. Please check your inbox or contact support.';
+        msg = 'emailNotConfirmed'.tr;
       }
       if (msg.toLowerCase().contains('rate limit')) {
-        msg = 'Too many attempts. Wait a few minutes and try again.';
+        msg = 'tooManyAttempts'.tr;
       }
-      Get.snackbar('Error', msg,
+      Get.snackbar('error'.tr, msg,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white,
           duration: const Duration(seconds: 5));
     } catch (e) {
-      Get.snackbar('Error', e.toString(),
+      Get.snackbar('error'.tr, e.toString(),
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white);
@@ -86,7 +86,7 @@ class AuthController extends GetxController {
       }
       final googleAuth = await googleUser.authentication;
       if (googleAuth.idToken == null) {
-        Get.snackbar('Error', 'Failed to get Google credentials.',
+        Get.snackbar('error'.tr, 'error'.tr,
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: AppColors.error,
             colorText: Colors.white);
@@ -104,13 +104,13 @@ class AuthController extends GetxController {
       Get.find<SupabaseService>().initRealtime();
       Get.offAllNamed(AppRoutes.home);
     } on AuthException catch (e) {
-      Get.snackbar('Error', e.message,
+      Get.snackbar('error'.tr, e.message,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white,
           duration: const Duration(seconds: 5));
     } catch (e) {
-      Get.snackbar('Error', 'Google sign-in failed: ${e.toString()}',
+      Get.snackbar('error'.tr, e.toString(),
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white);

@@ -5,7 +5,9 @@ import 'package:get/get.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/subject_model.dart';
+import '../../data/models/topic_model.dart';
 import '../../data/repositories/subject_repository.dart';
+import '../../data/repositories/topic_repository.dart';
 import '../../data/services/supabase_service.dart';
 import '../../data/services/gemini_service.dart';
 import '../../core/constants/size_constants.dart';
@@ -15,6 +17,7 @@ import '../../../gemini_3_flash_live_voice_chatbot/features/voice_assistant/stud
 
 class SubjectsController extends GetxController {
   final _repo = Get.find<SubjectRepository>();
+  final _topicRepo = Get.find<TopicRepository>();
   final _gemini = GeminiService();
   final _stt = SpeechToText();
   final subjects = <SubjectModel>[].obs;
@@ -24,6 +27,10 @@ class SubjectsController extends GetxController {
   final showChat = false.obs;
   final isDragging = false.obs;
   StreamSubscription<List<SubjectModel>>? _realtimeSub;
+  StreamSubscription<List<TopicModel>>? _topicsSub;
+
+  // Real per-subject progress: subjectId → {topics, revisionsDone, revisionsPlanned}
+  final topicsProgress = <String, Map<String, int>>{}.obs;
 
   // Global key for Study Assistant button to get its position
   final studyAssistantButtonKey = GlobalKey();
@@ -34,12 +41,15 @@ class SubjectsController extends GetxController {
     _realtimeSub = _repo.stream.listen((list) {
       subjects.assignAll(list);
       isLoading.value = false;
+      _recomputeProgress();
     });
+    _topicsSub = _topicRepo.stream.listen((_) => _recomputeProgress());
   }
 
   @override
   void onClose() {
     _realtimeSub?.cancel();
+    _topicsSub?.cancel();
     super.onClose();
   }
 
@@ -48,26 +58,60 @@ class SubjectsController extends GetxController {
       if (Get.find<SupabaseService>().currentUser == null) return;
       isLoading.value = true;
       subjects.assignAll(await _repo.getAll());
+      await _recomputeProgress();
     } catch (e) { /* silent */ }
     finally { isLoading.value = false; }
   }
 
+  /// Computes REAL revision-weighted progress per subject from the DB:
+  /// revisionsDone = Σ topic.totalRevisions, revisionsPlanned = 6 × topic count.
+  Future<void> _recomputeProgress() async {
+    final map = <String, Map<String, int>>{};
+    await Future.wait(subjects.map((s) async {
+      try {
+        final topics = await _topicRepo.getBySubject(s.id)
+            .timeout(const Duration(seconds: 5));
+        final done = topics.fold<int>(0, (sum, t) => sum + t.totalRevisions.clamp(0, 6));
+        map[s.id] = {
+          'topics': topics.length,
+          'revisionsDone': done,
+          'revisionsPlanned': topics.length * 6,
+        };
+      } catch (_) {
+        map[s.id] = {'topics': s.totalTopics, 'revisionsDone': 0, 'revisionsPlanned': s.totalTopics * 6};
+      }
+    }));
+    topicsProgress.assignAll(map);
+  }
+
+  /// Real completion fraction (0..1) for a subject card's progress bar.
+  double progressFor(String subjectId) {
+    final p = topicsProgress[subjectId];
+    if (p == null || (p['revisionsPlanned'] ?? 0) == 0) return 0;
+    return (p['revisionsDone'] ?? 0) / (p['revisionsPlanned'] ?? 1);
+  }
+
+  /// Real topic count for a subject card (falls back to the DB column).
+  int topicCountFor(SubjectModel subject) =>
+      topicsProgress[subject.id]?['topics'] ?? subject.totalTopics;
+
+
   Future<void> createSubject({required String name, String? imageUrl, String? colorHex, int? iconCodePoint}) async {
     try {
       if (subjects.any((s) => s.name.toLowerCase() == name.toLowerCase())) {
-        Get.snackbar('Duplicate', '"$name" already exists', snackPosition: SnackPosition.BOTTOM); return;
+        Get.snackbar('error'.tr, 'duplicateSubject'.tr.replaceAll('{name}', name), snackPosition: SnackPosition.BOTTOM); return;
       }
       final sub = await _repo.create(name: name, imageUrl: imageUrl, colorHex: colorHex, iconCodePoint: iconCodePoint);
       subjects.insert(0, sub);
       Get.back();
-      Get.snackbar('Created', '"$name" added', snackPosition: SnackPosition.BOTTOM,
+      Get.snackbar('save'.tr, 'subjectAdded'.tr.replaceAll('{name}', name), snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.success.withOpacity(0.1));
-    } catch (e) { Get.snackbar('Error', 'Failed to create'); }
+    } catch (e) { Get.snackbar('error'.tr, 'error'.tr); }
   }
 
   Future<void> deleteSubject(String id) async {
     try { await _repo.delete(id); subjects.removeWhere((s) => s.id == id); }
-    catch (e) { Get.snackbar('Error', 'Failed'); }
+    catch (e) { Get.snackbar('error'.tr, 'error'.tr); }
   }
 
   void reorderSubjects(int oldIndex, int newIndex) {
@@ -78,12 +122,12 @@ class SubjectsController extends GetxController {
 
   Future<void> toggleChat() async {
     showChat.value = !showChat.value;
-    if (showChat.value) chatMessages.add({'t': 'Subject names in Bengali/English. "Bangla, English, Math"', 'u': false});
+    if (showChat.value) chatMessages.add({'t': 'subjectNamesHint'.tr, 'u': false});
   }
 
   Future<void> startListening() async {
     final ok = await _stt.initialize();
-    if (!ok) { Get.snackbar('Error', 'Speech not available'); return; }
+    if (!ok) { Get.snackbar('error'.tr, 'error'.tr); return; }
     isListening.value = true;
     await _stt.listen(onResult: (r) { if (r.finalResult) _onVoice(r.recognizedWords); },
       localeId: 'bn_BD', listenFor: const Duration(seconds: 30), pauseFor: const Duration(seconds: 3));
@@ -146,17 +190,17 @@ class SubjectsController extends GetxController {
         Center(child: Container(width: 40, height: 4,
           decoration: BoxDecoration(color: AppColors.textMuted(Get.isDarkMode), borderRadius: BorderRadius.circular(2)))),
         SizedBox(height: S.xl),
-        Text('Add Subject', style: AppTextStyles.headlineSmall),
+        Text('addSubject'.tr, style: AppTextStyles.headlineSmall),
         SizedBox(height: S.xl),
-        TextField(controller: nc, decoration: const InputDecoration(
-          labelText: 'Subject Name', prefixIcon: Icon(Icons.book_rounded)), autofocus: true),
+        TextField(controller: nc, decoration: InputDecoration(
+          labelText: 'subjectName'.tr, prefixIcon: Icon(Icons.book_rounded)), autofocus: true),
         SizedBox(height: S.base),
-        TextField(controller: ic, decoration: const InputDecoration(
-          labelText: 'Background Image URL (optional)',
+        TextField(controller: ic, decoration: InputDecoration(
+          labelText: 'imageUrlOptional'.tr,
           prefixIcon: Icon(Icons.image_outlined),
           hintText: 'https://images.unsplash.com/...')),
         SizedBox(height: S.base),
-        Text('Color', style: AppTextStyles.labelLarge),
+        Text('color'.tr, style: AppTextStyles.labelLarge),
         SizedBox(height: S.sm),
         Obx(() => Wrap(spacing: S.sm, runSpacing: S.sm,
           children: List.generate(AppConstants.subjectColors.length, (i) => GestureDetector(
@@ -173,7 +217,7 @@ class SubjectsController extends GetxController {
             final hex = '#${AppConstants.subjectColors[sci.value].value.toRadixString(16).substring(2)}';
             final img = ic.text.trim();
             createSubject(name: n, imageUrl: img.isNotEmpty ? img : null, colorHex: hex);
-          }}, child: const Text('Create Subject'))),
+          }}, child: Text('createSubject'.tr))),
         SizedBox(height: S.base),
       ])), isScrollControlled: true);
   }

@@ -59,4 +59,8 @@ class AppConstants {
   // ── ALIASES ──
   static const Color primaryColorLight = Color(0xFFB8E0F7);
   static const Color accentColorLight = Color(0xFFFFCDD2);
+  // Centralized day-key list used across calendar, class routine, and edit sheets.
+  // Use getter instead of const to avoid runtime locale lookup issues.
+  static List<String> get dayKeys => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
 }

@@ -17,7 +17,7 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
         IconButton(
           onPressed: controller.openVoiceAssistant,
           icon: Icon(Icons.mic_rounded, color: AppConstants.primaryColor),
-          tooltip: 'Voice Assistant',
+          tooltip: 'studyRoutine'.tr,
         ),
       ]),
       body: Obx(() {
@@ -25,11 +25,11 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
         return SingleChildScrollView(physics: const BouncingScrollPhysics(), padding: EdgeInsets.all(S.xl),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _infoCard(d), SizedBox(height: S.xl),
-            Text('Revision Schedule', style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary(d))),
+            Text('revisionsLabel'.tr, style: AppTextStyles.headlineSmall.copyWith(color: AppColors.textPrimary(d))),
             SizedBox(height: S.base),
             RevisionScheduleTimeline(schedules: controller.schedules),
             if (controller.topic.notes?.isNotEmpty == true) ...[SizedBox(height: S.xl),
-              Text('Notes', style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
+              Text('notes'.tr, style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
               SizedBox(height: S.sm),
               Container(width: double.infinity, padding: EdgeInsets.all(S.base),
                 decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusMd),

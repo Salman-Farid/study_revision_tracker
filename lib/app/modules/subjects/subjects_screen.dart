@@ -17,16 +17,17 @@ class SubjectsScreen extends GetView<SubjectsController> {
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: Text('Subjects', style: AppTextStyles.headlineMedium), actions: [
+      appBar: AppBar(title: Text('subjects'.tr, style: AppTextStyles.headlineMedium), actions: [
         IconButton(onPressed: controller.showAddSheet,
           icon: Icon(Icons.add_rounded, color: AppConstants.primaryColor),
-          tooltip: 'Add Subject'),
+          tooltip: 'addSubject'.tr),
         IconButton(onPressed: controller.toggleChat, icon: Obx(() => Icon(
           controller.showChat.value ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
           color: controller.showChat.value ? AppColors.primary : null))),
       ]),
       floatingActionButton: FloatingActionButton(
         key: controller.studyAssistantButtonKey,
+        heroTag: 'fab-subjects',
         onPressed: controller.openStudyAssistantDialogue,
         backgroundColor: AppConstants.primaryColor,
         child: const Icon(Icons.mic_rounded, color: Colors.white),
@@ -36,8 +37,8 @@ class SubjectsScreen extends GetView<SubjectsController> {
         Expanded(child: Obx(() {
           if (controller.isLoading.value) return const SkeletonGrid();
           if (controller.subjects.isEmpty) return EmptyState(icon: Icons.menu_book_rounded,
-            title: 'No Subjects Yet', subtitle: 'Add your first subject to start tracking',
-            actionLabel: 'Add Subject', onAction: controller.showAddSheet);
+            title: 'noSubjectsYet'.tr, subtitle: 'addFirstSubject'.tr,
+            actionLabel: 'addSubject'.tr, onAction: controller.showAddSheet);
           return _grid(d);
         })),
       ]));
@@ -97,10 +98,10 @@ class SubjectsScreen extends GetView<SubjectsController> {
                       ),
                       GestureDetector(
                         onTap: () => Get.defaultDialog(
-                          title: 'Delete?',
-                          middleText: 'Delete "${sub.name}" and all its topics?',
-                          textConfirm: 'Delete',
-                          textCancel: 'Cancel',
+                          title: 'deleteQ'.tr,
+                          middleText: 'deleteSubjectBody'.tr.replaceAll('{name}', sub.name),
+                          textConfirm: 'delete'.tr,
+                          textCancel: 'cancel'.tr,
                           confirmTextColor: Colors.white,
                           buttonColor: AppColors.error,
                           onConfirm: () {
@@ -129,17 +130,29 @@ class SubjectsScreen extends GetView<SubjectsController> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       SizedBox(height: S.xs),
-                      Text('${sub.totalTopics} topics',
+                      // REAL topic count from the topics table.
+                      Obx(() => Text('${'topicsCount'.tr.replaceAll('{n}', '${controller.topicCountFor(sub)}')}',
                           style: AppTextStyles.bodySmall
-                              .copyWith(color: hasImage ? Colors.white70 : AppColors.textMuted(d))),
+                              .copyWith(color: hasImage ? Colors.white70 : AppColors.textMuted(d)))),
                       SizedBox(height: S.sm),
-                      LinearProgressIndicator(
-                        value: 0,
-                        backgroundColor: hasImage ? Colors.white30 : sub.color.withOpacity(0.12),
-                        valueColor: AlwaysStoppedAnimation(hasImage ? Colors.white : sub.color),
-                        borderRadius: BorderRadius.circular(S.radiusFull),
-                        minHeight: 4,
-                      ),
+                      // REAL revision-weighted progress (was hardcoded to 0).
+                      Obx(() {
+                        final p = controller.progressFor(sub.id);
+                        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          LinearProgressIndicator(
+                            value: p,
+                            backgroundColor: hasImage ? Colors.white30 : sub.color.withOpacity(0.12),
+                            valueColor: AlwaysStoppedAnimation(hasImage ? Colors.white : sub.color),
+                            borderRadius: BorderRadius.circular(S.radiusFull),
+                            minHeight: 4,
+                          ),
+                          SizedBox(height: S.xs),
+                          Text('${(p * 100).round()}%',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: hasImage ? Colors.white : sub.color,
+                              fontWeight: FontWeight.w700)),
+                        ]);
+                      }),
                     ],
                   ),
                 ],

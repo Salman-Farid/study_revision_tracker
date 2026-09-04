@@ -30,14 +30,14 @@ class AuthScreen extends StatelessWidget {
                                   color: AppColors.primary, size: S.iconXl)),
                           SizedBox(height: S.xxl),
                           Obx(() => Text(
-                              c.isLogin.value ? 'Welcome Back' : 'Create Account',
+                              c.isLogin.value ? 'welcomeBack'.tr : 'createAccount'.tr,
                               style: AppTextStyles.displaySmall
                                   .copyWith(color: AppColors.textPrimary(d)))),
                           SizedBox(height: S.sm),
                           Obx(() => Text(
                               c.isLogin.value
-                                  ? 'Sign in to continue'
-                                  : 'Start your revision journey',
+                                  ? 'signInToContinue'.tr
+                                  : 'startRevisionJourney'.tr,
                               style: AppTextStyles.bodyLarge
                                   .copyWith(color: AppColors.textMuted(d)))),
                           SizedBox(height: S.xxxl),
@@ -55,7 +55,7 @@ class AuthScreen extends StatelessWidget {
                                               strokeWidth: 2))
                                       : const Icon(Icons.g_mobiledata_rounded,
                                           size: 24),
-                                  label: Text('Continue with Google',
+                                  label: Text('continueWithGoogle'.tr,
                                       style: AppTextStyles.labelLarge),
                                   style: OutlinedButton.styleFrom(
                                       side: BorderSide(
@@ -70,7 +70,7 @@ class AuthScreen extends StatelessWidget {
                             Padding(
                                 padding:
                                     EdgeInsets.symmetric(horizontal: S.base),
-                                child: Text('OR',
+                                child: Text('or'.tr,
                                     style: AppTextStyles.bodySmall.copyWith(
                                         color: AppColors.textMuted(d)))),
                             Expanded(
@@ -80,26 +80,26 @@ class AuthScreen extends StatelessWidget {
                           TextFormField(
                               controller: c.emailCtrl,
                               keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(
-                                  labelText: 'Email',
+                              decoration: InputDecoration(
+                                  labelText: 'email'.tr,
                                   prefixIcon:
                                       Icon(Icons.email_outlined)),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Required';
-                                if (!v.contains('@')) return 'Invalid';
+                                if (v == null || v.isEmpty) return 'required'.tr;
+                                if (!v.contains('@')) return 'invalid'.tr;
                                 return null;
                               }),
                           SizedBox(height: S.base),
                           TextFormField(
                               controller: c.passCtrl,
                               obscureText: true,
-                              decoration: const InputDecoration(
-                                  labelText: 'Password',
+                              decoration: InputDecoration(
+                                  labelText: 'password'.tr,
                                   prefixIcon:
                                       Icon(Icons.lock_outline)),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Required';
-                                if (v.length < 6) return 'Min 6 chars';
+                                if (v == null || v.isEmpty) return 'required'.tr;
+                                if (v.length < 6) return 'minChars'.tr;
                                 return null;
                               }),
                           SizedBox(height: S.xxl),
@@ -115,15 +115,15 @@ class AuthScreen extends StatelessWidget {
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2,
                                               color: Colors.white))
-                                      : Text(c.isLogin.value ? 'Sign In' : 'Sign Up')))),
+                                      : Text(c.isLogin.value ? 'signIn'.tr : 'signUp'.tr)))),
                           SizedBox(height: S.base),
                           Center(
                               child: TextButton(
                                   onPressed: c.toggleMode,
                                   child: Obx(() => Text(
                                       c.isLogin.value
-                                          ? "Don't have an account? Sign Up"
-                                          : 'Already have an account? Sign In',
+                                          ? 'noAccount'.tr
+                                          : 'haveAccount'.tr,
                                       style: AppTextStyles.bodyMedium
                                           .copyWith(
                                               color: AppColors.primary))))),
