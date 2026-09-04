@@ -106,13 +106,13 @@ class FirstReadCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      item.sessionTypeIcon,
+                      item.sessionTypeIcon ?? Icons.menu_book_rounded,
                       size: 14,
                       color: AppConstants.primaryColor,
                     ),
                     SizedBox(width: 4),
                     Text(
-                      item.sessionTypeLabel,
+                      item.sessionTypeLabel ?? '',
                       style: AppTextStyles.labelSmall.copyWith(
                         color: AppColors.textSecondary(d),
                         fontWeight: FontWeight.w500,

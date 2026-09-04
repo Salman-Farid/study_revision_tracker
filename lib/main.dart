@@ -10,6 +10,7 @@ import 'app/core/services/notification_service.dart';
 import 'app/data/repositories/revision_repository.dart';
 import 'app/data/repositories/subject_repository.dart';
 import 'app/data/repositories/topic_repository.dart';
+import 'app/data/repositories/routine_repository.dart';
 import 'app/data/services/supabase_service.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
@@ -33,6 +34,7 @@ void main() async {
   Get.put(SubjectRepository(), permanent: true);
   Get.put(TopicRepository(), permanent: true);
   Get.put(RevisionRepository(), permanent: true);
+  Get.put(RoutineRepository(), permanent: true);
   Get.put(ConnectivityService(), permanent: true);
   Get.put(GeminiLiveService(), permanent: true);
   Get.put(VoiceAssistantController(), permanent: true);

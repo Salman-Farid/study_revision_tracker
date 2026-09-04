@@ -8,6 +8,8 @@ import '../models/subject_model.dart';
 import '../models/topic_model.dart';
 import '../models/revision_schedule_model.dart';
 import '../models/revision_session_model.dart';
+import '../models/class_routine_model.dart';
+import '../models/daily_routine_model.dart';
 
 class SupabaseService extends GetxService {
   final client = Supabase.instance.client;
@@ -19,14 +21,20 @@ class SupabaseService extends GetxService {
   final _subjectsController = StreamController<List<SubjectModel>>.broadcast();
   final _topicsController = StreamController<List<TopicModel>>.broadcast();
   final _schedulesController = StreamController<List<RevisionScheduleModel>>.broadcast();
+  final _classRoutinesController = StreamController<List<ClassRoutineModel>>.broadcast();
+  final _dailyRoutinesController = StreamController<List<DailyRoutineModel>>.broadcast();
 
   Stream<List<SubjectModel>> get subjectsStream => _subjectsController.stream;
   Stream<List<TopicModel>> get topicsStream => _topicsController.stream;
   Stream<List<RevisionScheduleModel>> get schedulesStream => _schedulesController.stream;
+  Stream<List<ClassRoutineModel>> get classRoutinesStream => _classRoutinesController.stream;
+  Stream<List<DailyRoutineModel>> get dailyRoutinesStream => _dailyRoutinesController.stream;
 
   RealtimeChannel? _subjectsChannel;
   RealtimeChannel? _topicsChannel;
   RealtimeChannel? _schedulesChannel;
+  RealtimeChannel? _classRoutinesChannel;
+  RealtimeChannel? _dailyRoutinesChannel;
 
   // ── SUBJECTS ──
   Future<List<SubjectModel>> fetchSubjects() async {
@@ -259,6 +267,26 @@ class SupabaseService extends GetxService {
         callback: (_) => _refreshSchedules(),
       )
       ..subscribe();
+
+    // Class routines table changes
+    _classRoutinesChannel = client.channel('class-routines-realtime')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'class_routines',
+        callback: (_) => _refreshClassRoutines(),
+      )
+      ..subscribe();
+
+    // Daily routines table changes
+    _dailyRoutinesChannel = client.channel('daily-routines-realtime')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'daily_routines',
+        callback: (_) => _refreshDailyRoutines(),
+      )
+      ..subscribe();
   }
 
   Future<void> _refreshSubjects() async {
@@ -287,19 +315,131 @@ class SupabaseService extends GetxService {
     } catch (_) {}
   }
 
+  Future<void> _refreshClassRoutines() async {
+    try {
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month, 1);
+      final to = from.add(const Duration(days: 60));
+      final rows = await fetchClassRoutines(fromDate: from, toDate: to);
+      final models = rows.map((j) => ClassRoutineModel.fromJson(j)).toList();
+      _classRoutinesController.add(models);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshDailyRoutines() async {
+    try {
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month, now.day);
+      final to = from.add(const Duration(days: 30));
+      final rows = await fetchDailyRoutines(fromDate: from, toDate: to);
+      final models = rows.map((j) => DailyRoutineModel.fromJson(j)).toList();
+      _dailyRoutinesController.add(models);
+    } catch (_) {}
+  }
+
   /// Manually trigger a refresh
   void refreshSubjects() => _refreshSubjects();
   void refreshTopics() => _refreshTopics();
   void refreshSchedules() => _refreshSchedules();
+  void refreshClassRoutines() => _refreshClassRoutines();
+  void refreshDailyRoutines() => _refreshDailyRoutines();
+
+  // ── CLASS ROUTINES ──
+
+  Future<List<Map<String, dynamic>>> fetchClassRoutines({DateTime? fromDate, DateTime? toDate}) async {
+    var query = client.from('class_routines').select().eq('user_id', userId);
+    if (fromDate != null) {
+      query = query.gte('start_time', fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      query = query.lte('start_time', toDate.toIso8601String());
+    }
+    final r = await query.order('start_time', ascending: true);
+    return (r as List).map((j) => Map<String, dynamic>.from(j as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createClassRoutine({
+    required String subjectName,
+    required DateTime startTime,
+    required int durationMinutes,
+    required List<String> dates,
+    String? location,
+    bool recurring = false,
+    List<int> recurringDays = const [],
+    String? notes,
+  }) async {
+    final data = {
+      'id': _uuid.v4(),
+      'user_id': userId,
+      'subject_name': subjectName,
+      'start_time': startTime.toIso8601String(),
+      'duration_minutes': durationMinutes,
+      'dates': dates,
+      'location': location,
+      'recurring': recurring,
+      'recurring_days': recurringDays,
+      'notes': notes,
+    };
+    final r = await client.from('class_routines').insert(data).select().single();
+    return Map<String, dynamic>.from(r as Map);
+  }
+
+  Future<void> deleteClassRoutine(String id) =>
+      client.from('class_routines').delete().eq('id', id);
+
+  // ── DAILY ROUTINES ──
+
+  Future<List<Map<String, dynamic>>> fetchDailyRoutines({DateTime? fromDate, DateTime? toDate}) async {
+    var query = client.from('daily_routines').select().eq('user_id', userId);
+    if (fromDate != null) {
+      query = query.gte('date', fromDate.toIso8601String().substring(0, 10));
+    }
+    if (toDate != null) {
+      query = query.lte('date', toDate.toIso8601String().substring(0, 10));
+    }
+    final r = await query.order('date', ascending: true);
+    return (r as List).map((j) => Map<String, dynamic>.from(j as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createDailyRoutine({
+    required DateTime date,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final data = {
+      'id': _uuid.v4(),
+      'user_id': userId,
+      'date': date.toIso8601String().substring(0, 10),
+      'items': items,
+    };
+    final r = await client.from('daily_routines').insert(data).select().single();
+    return Map<String, dynamic>.from(r as Map);
+  }
+
+  Future<void> deleteDailyRoutine(String id) =>
+      client.from('daily_routines').delete().eq('id', id);
+
+  Future<int> deleteDailyRoutinesByDate(DateTime date) async {
+    final from = DateTime(date.year, date.month, date.day);
+    final to = from.add(const Duration(days: 1));
+    final result = await client.from('daily_routines').delete()
+        .gte('date', from.toIso8601String().substring(0, 10))
+        .lt('date', to.toIso8601String().substring(0, 10))
+        .select('id');
+    return (result as List).length;
+  }
 
   @override
   void onClose() {
     _subjectsChannel?.unsubscribe();
     _topicsChannel?.unsubscribe();
     _schedulesChannel?.unsubscribe();
+    _classRoutinesChannel?.unsubscribe();
+    _dailyRoutinesChannel?.unsubscribe();
     _subjectsController.close();
     _topicsController.close();
     _schedulesController.close();
+    _classRoutinesController.close();
+    _dailyRoutinesController.close();
     super.onClose();
   }
 }

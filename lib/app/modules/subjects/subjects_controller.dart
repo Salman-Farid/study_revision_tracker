@@ -31,6 +31,8 @@ class SubjectsController extends GetxController {
 
   // Real per-subject progress: subjectId → {topics, revisionsDone, revisionsPlanned}
   final topicsProgress = <String, Map<String, int>>{}.obs;
+  // Topic names per subject: subjectId → [topicName1, topicName2, ...]
+  final topicNames = <String, List<String>>{}.obs;
 
   // Global key for Study Assistant button to get its position
   final studyAssistantButtonKey = GlobalKey();
@@ -67,6 +69,7 @@ class SubjectsController extends GetxController {
   /// revisionsDone = Σ topic.totalRevisions, revisionsPlanned = 6 × topic count.
   Future<void> _recomputeProgress() async {
     final map = <String, Map<String, int>>{};
+    final namesMap = <String, List<String>>{};
     await Future.wait(subjects.map((s) async {
       try {
         final topics = await _topicRepo.getBySubject(s.id)
@@ -77,11 +80,16 @@ class SubjectsController extends GetxController {
           'revisionsDone': done,
           'revisionsPlanned': topics.length * 6,
         };
-      } catch (_) {
+        namesMap[s.id] = topics.map((t) => t.name).toList();
+        print('[Subjects] Progress ${s.name}: ${topics.length} topics, $done revisions done');
+      } catch (e) {
+        print('[Subjects] Progress error for ${s.name}: $e');
         map[s.id] = {'topics': s.totalTopics, 'revisionsDone': 0, 'revisionsPlanned': s.totalTopics * 6};
+        namesMap[s.id] = [];
       }
     }));
     topicsProgress.assignAll(map);
+    topicNames.assignAll(namesMap);
   }
 
   /// Real completion fraction (0..1) for a subject card's progress bar.
@@ -94,6 +102,10 @@ class SubjectsController extends GetxController {
   /// Real topic count for a subject card (falls back to the DB column).
   int topicCountFor(SubjectModel subject) =>
       topicsProgress[subject.id]?['topics'] ?? subject.totalTopics;
+
+  /// Topic names for a subject card.
+  List<String> topicNamesFor(SubjectModel subject) =>
+      topicNames[subject.id] ?? [];
 
 
   Future<void> createSubject({required String name, String? imageUrl, String? colorHex, int? iconCodePoint}) async {
@@ -162,6 +174,8 @@ class SubjectsController extends GetxController {
     try { Get.find<VoiceAssistantController>(); } catch (_) {
       Get.put(VoiceAssistantController(), permanent: true);
     }
+    final vc = Get.find<VoiceAssistantController>();
+    vc.showDialogue.value = true;
 
     showGeneralDialog(
       context: Get.context!,
@@ -176,7 +190,9 @@ class SubjectsController extends GetxController {
         );
       },
       pageBuilder: (_, __, ___) => const StudyAssistantDialogue(),
-    );
+    ).then((_) {
+      vc.showDialogue.value = false;
+    });
   }
 
   void showAddSheet() {

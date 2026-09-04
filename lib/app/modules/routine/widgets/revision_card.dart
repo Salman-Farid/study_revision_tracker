@@ -109,13 +109,13 @@ class RevisionCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  item.sessionTypeIcon,
+                  item.sessionTypeIcon ?? Icons.help_outline_rounded,
                   size: 14,
                   color: AppConstants.infoColor,
                 ),
                 SizedBox(width: 4),
                 Text(
-                  item.sessionTypeLabel,
+                  item.sessionTypeLabel ?? '',
                   style: AppTextStyles.labelSmall.copyWith(
                     color: AppConstants.infoColor,
                     fontWeight: FontWeight.w600,

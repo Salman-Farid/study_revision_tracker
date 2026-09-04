@@ -15,6 +15,7 @@ import '../modules/calendar/calendar_binding.dart';
 import '../modules/dashboard/dashboard_binding.dart';
 import '../modules/subjects/subjects_binding.dart';
 import '../modules/today/today_binding.dart';
+import '../modules/routine/routine_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -22,7 +23,7 @@ class AppPages {
     GetPage(name: AppRoutes.splash, page: () => const SplashScreen()),
     GetPage(name: AppRoutes.auth, page: () => const AuthScreen(), binding: AuthBinding()),
     GetPage(name: AppRoutes.home, page: () => const MainNavigation(),
-      bindings: [DashboardBinding(), SubjectsBinding(), TodayBinding(), CalendarBinding()]),
+      bindings: [DashboardBinding(), SubjectsBinding(), TodayBinding(), RoutineBinding(), CalendarBinding()]),
     GetPage(name: AppRoutes.subjectDetail, page: () => const SubjectDetailScreen(),
       binding: SubjectDetailBinding()),
     GetPage(name: AppRoutes.topicDetail, page: () => const TopicDetailScreen(),

@@ -130,10 +130,16 @@ class SubjectsScreen extends GetView<SubjectsController> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       SizedBox(height: S.xs),
-                      // REAL topic count from the topics table.
-                      Obx(() => Text('${'topicsCount'.tr.replaceAll('{n}', '${controller.topicCountFor(sub)}')}',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: hasImage ? Colors.white70 : AppColors.textMuted(d)))),
+                      // REAL topic names from the topics table.
+                      Obx(() {
+                        final count = controller.topicCountFor(sub);
+                        return Text(
+                          count == 1 ? '1 Topic' : '$count Topics',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: hasImage ? Colors.white70 : AppColors.textMuted(d),
+                          ),
+                        );
+                      }),
                       SizedBox(height: S.sm),
                       // REAL revision-weighted progress (was hardcoded to 0).
                       Obx(() {

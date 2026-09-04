@@ -68,7 +68,7 @@ class StudyAssistantDialogue extends StatelessWidget {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        _buildHeader(c, isDark),
+                        _buildHeader(c, isDark, context),
                         Expanded(child: _buildMessages(c, isDark)),
                         Obx(() {
                           final st = c.connectionState.value;
@@ -136,7 +136,7 @@ class StudyAssistantDialogue extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(VoiceAssistantController c, bool isDark) {
+  Widget _buildHeader(VoiceAssistantController c, bool isDark, BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -233,7 +233,13 @@ class StudyAssistantDialogue extends StatelessWidget {
                     size: 20),
                 onPressed: () {
                   try { c.stopSession(); } catch (_) {}
-                  Get.back();
+                  c.showDialogue.value = false;
+                  // Pop only if this is a dialog route (subjects screen).
+                  // In routine screen it's embedded — Obx hides it.
+                  final route = ModalRoute.of(context);
+                  if (route is PopupRoute) {
+                    Navigator.of(context).pop();
+                  }
                 },
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -495,7 +501,7 @@ class _UserBubble extends StatelessWidget {
         child: Text(
           text,
           style: const TextStyle(
-              color: Colors.white, fontSize: 14, height: 1.4),
+              color: Colors.white, fontSize: 14, height: 1.4, fontFamily: 'NotoSansBengali'),
         ),
       ),
     );
@@ -530,6 +536,7 @@ class _AssistantBubble extends StatelessWidget {
                 : AppColors.textPrimaryLight,
             fontSize: 14,
             height: 1.4,
+            fontFamily: 'NotoSansBengali',
           ),
         ),
       ),

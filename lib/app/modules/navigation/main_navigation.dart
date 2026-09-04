@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../subjects/subjects_screen.dart';
 import '../today/today_revisions_screen.dart';
+import '../routine/routine_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -14,7 +15,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _idx = 0;
   final _pages = const [
     DashboardScreen(), SubjectsScreen(), TodayRevisionsScreen(),
-    CalendarScreen(), SettingsScreen(),
+    RoutineScreen(), CalendarScreen(), SettingsScreen(),
   ];
 
   @override
@@ -33,6 +34,8 @@ class _MainNavigationState extends State<MainNavigation> {
             selectedIcon: Icon(Icons.menu_book_rounded), label: 'Subjects'),
           NavigationDestination(icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today_rounded), label: 'Today'),
+          NavigationDestination(icon: Icon(Icons.event_note_outlined),
+            selectedIcon: Icon(Icons.event_note_rounded), label: 'Routine'),
           NavigationDestination(icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Calendar'),
           NavigationDestination(icon: Icon(Icons.settings_outlined),

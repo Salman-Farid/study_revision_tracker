@@ -9,6 +9,9 @@ import 'package:get/get.dart';
 import '../../../app/data/repositories/subject_repository.dart';
 import '../../../app/data/repositories/topic_repository.dart';
 import '../../../app/data/repositories/revision_repository.dart';
+import '../../../app/data/repositories/routine_repository.dart';
+import '../../../app/data/models/daily_routine_model.dart';
+import '../../../app/data/services/supabase_service.dart';
 import '../../../app/data/services/image_search_service.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
@@ -27,8 +30,21 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   SubjectRepository get _subjectRepo => Get.find<SubjectRepository>();
   TopicRepository get _topicRepo => Get.find<TopicRepository>();
   RevisionRepository get _revRepo => Get.find<RevisionRepository>();
+  RoutineRepository get _routineRepo => Get.find<RoutineRepository>();
+
+  void refreshClassRoutines() {
+    final s = Get.find<SupabaseService>();
+    s.refreshClassRoutines();
+  }
+
+  void refreshDailyRoutines() {
+    final s = Get.find<SupabaseService>();
+    s.refreshDailyRoutines();
+  }
 
   String? currentSubjectName;
+  String? currentRoutineMode; // 'daily' or 'class' — set by RoutineController
+  String toolMode = 'full'; // 'full' or 'routine' — filters available tools
 
   // ── UI controllers ──
   final textCtrl = TextEditingController();
@@ -119,6 +135,9 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   bool get isMuted => _micMuted.value;
   bool _mutedByFunctionCall = false;
 
+  /// Controls visibility of the StudyAssistantDialogue overlay.
+  final RxBool showDialogue = false.obs;
+
   int _generation = 0;
 
   StreamSubscription? _connectionSub;
@@ -175,6 +194,13 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   // making it dead code. Now: cache hit → return immediately (no DB scan);
   // any write op (add/delete) sets _summaryCache = null to invalidate.
   Map<String, dynamic>? _summaryCache;
+
+  // Tools blocked in routine mode — routine can only fetch data, never modify subjects/topics
+  static const _routineBlockedTools = {
+    'addSubjectsBulk', 'addSubject', 'addTopic', 'addMultipleTopics',
+    'deleteAllSubjects', 'deleteSubjectByName', 'deleteTopicByName',
+    'markFirstReadCompleted', 'markRevisionCompleted',
+  };
 
   final List<Map<String, dynamic>> _tools = [
     {
@@ -339,6 +365,84 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
           'subjectName': {'type': 'string', 'description': 'Subject name'},
         },
         'required': ['subjectName'],
+      },
+    },
+    {
+      'name': 'registerClassRoutine',
+      'description': 'Register a class routine / timetable entry. Use when user says "I have class", "add my class schedule", "my class is at...", "I have a lecture in room...", or wants to set up their class timetable. Location is optional — user can say it however they want like "UB43A" or "UB20A 3rd floor room 301". If they give a single word like "UB43A", use the "location" field. Do NOT ask separately for building/floor/room.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name for the class'},
+          'startTime': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "09:00" or "14:30"'},
+          'endTime': {'type': 'string', 'description': 'End time in HH:MM 24h format. Auto-calculate if user gives duration (e.g. 9:00 + 1.5h = 10:30).'},
+          'durationMinutes': {'type': 'integer', 'description': 'Duration of the class in minutes, e.g. 60, 90, 120'},
+          'dates': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'List of dates for the class in YYYY-MM-DD format, e.g. ["2026-09-05","2026-09-08"]. For recurring classes, use recurringDays instead.',
+          },
+          'recurringDays': {
+            'type': 'array',
+            'items': {'type': 'integer'},
+            'description': 'Recurring days of week (1=Mon...7=Sun). Use this OR dates, not both. e.g. [1,3,5] for Mon/Wed/Fri.',
+          },
+          'location': {'type': 'string', 'description': 'Location as a single string, e.g. "UB43A", "UB20A 3rd floor room 301", "Science Block". Use this instead of separate building/floor/room when user gives a single location string.'},
+          'building': {'type': 'string', 'description': 'Building name/code (optional). Use "location" field instead if user gives a single string.'},
+          'floor': {'type': 'string', 'description': 'Floor number (optional).'},
+          'room': {'type': 'string', 'description': 'Room number (optional).'},
+          'notes': {'type': 'string', 'description': 'Optional notes about the class'},
+        },
+        'required': ['subjectName', 'startTime', 'durationMinutes'],
+      },
+    },
+    {
+      'name': 'registerDailyRoutine',
+      'description': 'Register a daily study routine / plan. CRITICAL: You MUST call getAllData FIRST to get real subjects/topics. The handler VALIDATES that every study subject exists in the database — fake/made-up names WILL FAIL. Use when user says "create my daily routine", "plan my day", "build my routine". Start from EXACT current time (given in system prompt). End at 23:30. Study blocks: 50 min study → 10 min break. Include meals, power nap (20-25 min, once), active recall (15 min after every 2 blocks), question practice (2×30 min). Do NOT use generic names like "নাস্তা", "খাবার" — use REAL subject names from getAllData.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
+          'items': {
+            'type': 'array',
+            'description': 'Ordered list of study blocks for the day',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'time': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "14:30"'},
+                'subject': {'type': 'string', 'description': 'Subject name'},
+                'topic': {'type': 'string', 'description': 'Topic name within the subject'},
+                'type': {'type': 'string', 'description': 'Block type: "class", "first_read", "revision", "break", "review", "recall", "question_practice", "meal", "nap", "study"'},
+                'durationMinutes': {'type': 'integer', 'description': 'Duration in minutes. Study=50, break=10, meal=20-25, nap=20-25, recall=15, question_practice=30'},
+                'notes': {'type': 'string', 'description': 'Optional notes'},
+              },
+              'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],
+            },
+          },
+        },
+        'required': ['items'],
+      },
+    },
+    {
+      'name': 'deleteClassRoutine',
+      'description': 'Delete a class routine. Use when user says "delete my class routine", "remove this class", "cancel my class schedule". The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. If context is "class", delete from class routines directly. Ask for subject name to identify which one to delete if multiple exist.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name of the class routine to delete'},
+        },
+        'required': ['subjectName'],
+      },
+    },
+    {
+      'name': 'deleteDailyRoutine',
+      'description': 'Delete ALL daily routine items for a given date. Use when user says "delete my daily routine", "remove today\'s plan", "clear my routine", "delete today". This removes the ENTIRE day\'s routine in one operation — not individual items. The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. Use today\'s date unless user specifies otherwise.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'date': {'type': 'string', 'description': 'Date of the daily routine to delete in YYYY-MM-DD format. Use today if not specified.'},
+        },
+        'required': [],
       },
     },
   ];
@@ -524,6 +628,12 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       _clearThinking();
       print('[Gemini] 🔚 Turn complete');
 
+      // Cancel batch safety timer — Gemini responded
+      _batchFlushTimer?.cancel();
+      if (_batchJustCompleted) {
+        _finishBatchUi();
+      }
+
       _unmuteDebounceTimer?.cancel();
       _unmuteDebounceTimer = Timer(_unmuteDebounce, () {
         if (gen != _generation) return;
@@ -641,13 +751,41 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       }
       _triggerUiUpdate();
 
+      final now = DateTime.now();
+      final currentHour = now.hour;
+      final currentMinute = now.minute;
+      final currentTimeStr = '${currentHour.toString().padLeft(2, '0')}:${currentMinute.toString().padLeft(2, '0')}';
+      final currentDateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final currentDayName = daysOfWeek[now.weekday - 1];
+
       final contextInfo = currentSubjectName != null
           ? ' IMPORTANT: User is currently viewing subject "$currentSubjectName". For ALL operations (add topic, mark revision, get status, get dates), ALWAYS use this subject automatically. NEVER ask the user to name the subject — it is already known. Only ask if multiple subjects match.'
           : '';
 
+      final routineContextInfo = currentRoutineMode != null
+          ? 'SCREEN CONTEXT: User is on the "$currentRoutineMode" routine screen right now.\n'
+              '- If user says "add class", "I have class", "register class", "set class schedule" → call registerClassRoutine. NEVER ask "daily or class?"\n'
+              '- If user says "build my routine", "plan my day", "create routine" → if mode is "class" use registerClassRoutine. If mode is "daily" use registerDailyRoutine.\n'
+              '- If user says "delete my routine" → delete from the $currentRoutineMode routine. NEVER ask which type.\n'
+          : '';
+
       final systemPrompt = '''
 You are StudyBot, a study revision assistant with full data access via tools.
-Reply in the same language the user uses (English/Bengali/Banglish).
+Reply ONLY in the same language the user uses (English/Bengali/Banglish). NEVER mix languages. If user speaks Bengali → reply 100% Bengali. If user speaks English → reply 100% English. If user speaks Banglish → reply in Banglish. NEVER switch to English if user is speaking Bengali.
+
+CURRENT TIME: $currentTimeStr ($currentDayName, $currentDateStr).
+The user's device clock is always correct. NEVER question or ask about the current time — just use it.
+When user says "now", "from now", "starting now", "ekhuni", "akhon" — use $currentTimeStr as the start time.
+
+PERSONALITY — BE DECISIVE:
+$routineContextInfo- DO NOT ask unnecessary questions. Auto-understand what the user wants.
+- When user says "build my routine" → build it immediately. Do NOT ask "do you have class today?", "will you study now?", "why not today?". Just build it.
+- When user says "plan my day" → create the plan from NOW ($currentTimeStr) to 11:30 PM. Auto-include registered classes. Include subject+topic on every block. Done.
+- When user says "I have class" → ask ONLY: subject, time, duration, dates/days, building/room. Nothing else.
+- When user says "delete my routine" or "remove this" → Delete ALL items for that day at once (not one by one). Do NOT ask "daily or class?" — it is already known.
+- When user says "clear today's routine", "delete today's plan" → call deleteDailyRoutine for today's date. This removes the ENTIRE day's routine in one go.
+- Be confident. Be fast. No back-and-forth. ONE response should do the whole job.
 
 DATA:
 - "what subjects/overview/counts" → call getAllData (summary only).
@@ -665,8 +803,75 @@ FIRST READ & REVISION WORKFLOW:
 - When user asks "when is my next revision?", "what dates are my revisions?", "when are the revision dates?" → call getTopicStatus. It returns `revision_schedule` with ACTUAL dates (YYYY-MM-DD) for all 6 revisions and `first_read_date`. Always read the dates from revision_schedule and tell the user. Never guess dates.
 - When user asks "what are all the revision dates?", "show me all revision dates for all topics", "when are all revisions due?" → call getAllTopicsRevisionDates(subjectName). It returns each topic with its 6 revision dates and status. Read ALL dates and tell the user for each topic.
 
-ACTIONS: addSubjectsBulk(subjects:[{name,topics?,color?}]) · addSubject(name,color?) · addTopic(subjectName?,name) · addMultipleTopics(subjectName,topics[]) · deleteAllSubjects() · deleteSubjectByName(name) · deleteTopicByName(subjectName,topicName) · getTopicStatus(subjectName,topicName) · getAllTopicsRevisionDates(subjectName) · markFirstReadCompleted(subjectName,topicName) · markRevisionCompleted(subjectName,topicName).
+ACTIONS: addSubjectsBulk(subjects:[{name,topics?,color?}]) · addSubject(name,color?) · addTopic(subjectName?,name) · addMultipleTopics(subjectName,topics[]) · deleteAllSubjects() · deleteSubjectByName(name) · deleteTopicByName(subjectName,topicName) · getTopicStatus(subjectName,topicName) · getAllTopicsRevisionDates(subjectName) · markFirstReadCompleted(subjectName,topicName) · markRevisionCompleted(subjectName,topicName) · registerClassRoutine(subjectName,startTime,durationMinutes,dates?,recurringDays?,building?,room?,notes?) · registerDailyRoutine(date?,items[{time,subject,topic,type,durationMinutes,notes?}]) · deleteClassRoutine(subjectName) · deleteDailyRoutine(date?).
 New topics get revision dates auto-set (Day 1,3,7,14,30,90) from today.
+
+CLASS ROUTINE WORKFLOW:
+- When user mentions classes, lectures, or wants to set up a class timetable → call registerClassRoutine.
+- Location is OPTIONAL. User can say it however they want: "UB43A", "UB20A 3rd floor room 301", "Science Block".
+- If user gives a single word like "UB43A" → use location:"UB43A". Do NOT ask for floor/room separately.
+- If user gives full detail like "UB20A 3rd floor room 301" → use location:"UB20A 3rd floor room 301".
+- If user says nothing about location → just skip it, do NOT ask.
+- When user says "9 ta theke 1.5 ghonta" → calculate end time automatically: 9:00 + 1h30m = 10:30. Set endTime to "10:30".
+- Do NOT ask "do you have class today?", "which days?", "are you sure?", "where is the class?" — just collect the essential details (subject, time, duration, days) and create it.
+- Example: "I have Physics class at 9 AM in UB43A every Mon/Wed/Fri" → registerClassRoutine(subjectName:"Physics", startTime:"09:00", durationMinutes:90, recurringDays:[1,3,5], location:"UB43A")
+
+DAILY ROUTINE WORKFLOW — COMPETITIVE EXAM FOCUS:
+CRITICAL RULE: You MUST call getAllData FIRST before creating any daily routine. The registerDailyRoutine handler VALIDATES that every study subject exists in the database. If you use fake/made-up subject names, the call will FAIL with "Subjects not found in database" error.
+
+CRITICAL RULE — NO FAKE SUBJECTS: NEVER invent subjects like "question bank", "revision", "practice", "mock test", "problem solving", "quick revision", "question practice", "Active Recall", "MCQ Practice", "স্টাডি সেশন", "প্র্যাকটিস", "রিভিশন" etc. These do NOT exist in the database. ONLY use subject names returned by getAllData. The ONLY allowed non-database subject names are: "Break", "Breakfast", "Lunch", "Dinner", "Power Nap".
+
+CRITICAL RULE — AUTO REVISION DETECTION: After calling getAllData, call getAllTopicsRevisionDates for EACH subject. Check each topic's revision_schedule — if today's date matches ANY revision date for a topic, that topic needs revision today. Add a "type":"revision" block (120 minutes) for that subject. This is AUTOMATIC — do NOT ask the user if they want revision. If a revision is due, it goes in the routine.
+
+CRITICAL RULE — CLASS TIME CONFLICT: getAllData returns class_routines for today. READ THEM. If a class is scheduled at 9:00-10:30, you MUST NOT place any study/break/meal block between 9:00 and 10:30. The class occupies that entire time slot. Schedule study blocks ONLY around class times — before or after, never during. The daily routine items list should include "type":"class" blocks for each registered class today (with subjectName as subject, startTime as time, durationMinutes as duration). These class blocks act as anchors — study blocks go around them.
+
+STEP-BY-STEP (MANDATORY — DO NOT SKIP):
+1. Call getAllData → get ALL subjects, topics, AND class_routines from the database
+2. Read class_routines — note which classes are today, their start times, and durations. These time slots are BLOCKED.
+3. For EACH subject from getAllData, call getAllTopicsRevisionDates(subjectName) → check if any topic has a revision date matching today. Collect all subjects with revisions due today. These need 2-hour "type":"revision" blocks.
+4. Ask the user: "আপনি আজ কোন বিষয়গুলো পড়তে চান?" List ONLY the subject names from the database. Let them pick.
+5. For each selected subject, ask: "এর কোন টপিকগুলো পড়তে চান?" List the topic names from that subject. Let them pick.
+6. If they say "সব পড়তে চাই" or "make a routine with all" → use all subjects and all topics.
+7. If they say a specific subject name like "Physics" → use that subject and all its topics.
+8. Build the routine: FIRST place "type":"class" blocks at exact class times. THEN place "type":"revision" blocks (120 min) for each subject with a revision due today. THEN fill remaining time with "type":"study" blocks for new topics. NEVER overlap any block with a class time.
+9. Call registerDailyRoutine with the real subject/topic names from the database only.
+
+NEVER make up subject names. Only use names returned by getAllData. "Question bank", "revision", "practice", "mock test" are NOT subjects. Subjects are things like "Physics", "Mathematics", "Chemistry" etc. — whatever is in the database. If you need revision blocks, call getAllTopicsRevisionDates to find which real subjects have revisions due today.
+
+If the user says something vague like "আমার রুটিন বানাও" → still follow the steps: getAllData → check revisions → ask which subjects → build routine. Don't auto-pick everything.
+
+BLOCK TYPES:
+- "study" = first read of a new topic (50 min study → 10 min break). subject = real subject name, topic = real topic name.
+- "revision" = reviewing a previously read topic (120 min). subject = real subject name (the one with revision due today), topic = that topic.
+- "first_read" = same as study
+- "review" = quick recall of yesterday's topics (10 min). subject = real subject name, topic = real topic name.
+- "recall" = active recall session (15 min, after every 2 study blocks). subject = real subject name, topic = real topic name.
+- "question_practice" = solving problems/MCQs (30 min). subject = real subject name, topic = real topic name.
+- "break" = short break (10 min). subject = "Break", topic = "".
+- "meal" = breakfast/lunch/dinner. subject = "Breakfast"/"Lunch"/"Dinner", topic = "".
+- "nap" = power nap (20-25 min, only once between 2-3 PM). subject = "Power Nap", topic = "".
+- "class" = registered class routine. subject = class subject name, topic = "".
+
+SUBJECT FIELD RULE: The "subject" field in EVERY block must be a REAL subject name from the database (e.g. "Physics", "Mathematics"). NEVER put block type names like "quick revision", "question practice", "Active Recall", "MCQ Practice" as the subject. Those are NOT subjects. Only "Break", "Lunch", "Dinner", "Breakfast", "Power Nap" are allowed as non-database subject names for break/meal/nap blocks.
+
+TIME RULES:
+- START: Use EXACT current time $currentTimeStr. END: 23:30 (11:30 PM).
+- Study blocks: 50 min study → 10 min break (NOT 45 min!)
+- Breaks: 10 min between study blocks
+- Meals: Breakfast 20 min, Lunch 25 min, Dinner 20 min
+- Power nap: ONE 20-25 min between 2-3 PM
+- Active recall: 15 min after every 2 study blocks
+- Question practice: 2 blocks of 30 min each in evening
+- Quick revision: 10 min before 11:30 PM
+
+DAILY STRUCTURE (competitive exam):
+Morning: Wake up → 15-min review → Breakfast (20 min) → Study block 1 (50 min) → Break (10 min) → Study block 2 (50 min) → Active recall (15 min) → Break (10 min)
+Midday: Study block 3 (50 min) → Break (10 min) → Study block 4 (50 min) → Lunch (25 min)
+Afternoon: Power nap (20 min) → Study block 5 (50 min) → Break (10 min) → Study block 6 (50 min) → Active recall (15 min)
+Evening: Question practice 1 (30 min) → Break (10 min) → Question practice 2 (30 min) → Dinner (20 min)
+Night: Quick revision (10 min) → Done by 23:30
+
+Auto-incorporate registered class routines for today. If a class is scheduled, replace that time block with the class instead of study. DO NOT schedule study during class hours.
 
 BATCHING:
 - ANY request that adds subjects — one or many, with or without topics (e.g. "add Physics with 5 topics" or "add 30 subjects with 10 topics each") → ONE addSubjectsBulk call with one array entry per subject. NEVER loop it or split it across multiple calls, no matter how many subjects.
@@ -689,10 +894,15 @@ REVISION FEEDBACK:
 Greetings → greet back, ask how to help, do NOT call getAllData.
 ''';
 
+      // Filter tools based on mode — routine mode blocks subject/topic modification
+      final activeTools = toolMode == 'routine'
+          ? _tools.where((t) => !_routineBlockedTools.contains(t['name'])).toList()
+          : _tools;
+
       await _service.startSession(
         voice: 'Kore',
         systemPrompt: systemPrompt,
-        tools: _tools,
+        tools: activeTools,
       );
 
       if (gen != _generation) return;
@@ -932,6 +1142,14 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           await _markRevisionCompleted(callId, args);
         case 'getAllTopicsRevisionDates':
           await _getAllTopicsRevisionDates(callId, args);
+        case 'registerClassRoutine':
+          await _registerClassRoutine(callId, args);
+        case 'registerDailyRoutine':
+          await _registerDailyRoutine(callId, args);
+        case 'deleteClassRoutine':
+          await _deleteClassRoutine(callId, args);
+        case 'deleteDailyRoutine':
+          await _deleteDailyRoutine(callId, args);
         default:
           print('[Gemini] ⚠️ Unknown function: $name');
           _respondToFunction(callId, name, {'success': false, 'error': 'Unknown function "$name"'}, params: args);
@@ -1009,9 +1227,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     _batchTotal = 0;
     _batchCompleted = 0;
     _batchFlushTimer?.cancel();
-    _batchFlushTimer = Timer(const Duration(seconds: 5), () {
+    // Safety: if Gemini doesn't respond within 8s, force unmute and finish
+    _batchFlushTimer = Timer(const Duration(seconds: 8), () {
       if (gen != _generation) return;
       if (_batchJustCompleted) {
+        print('[Gemini] ⚠️ Batch safety timeout — forcing unmute');
         _finishBatchUi();
         _unmuteAfterFunctionCall();
       }
@@ -1804,6 +2024,334 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       if (t.name.toLowerCase().contains(lower) || lower.contains(t.name.toLowerCase())) return t;
     }
     return null;
+  }
+
+  Future<void> _registerClassRoutine(String callId, Map<String, dynamic> args) async {
+    final subjectName = (args['subjectName'] as String?)?.trim();
+    final startTimeStr = (args['startTime'] as String?)?.trim();
+    final durationMinutes = (args['durationMinutes'] as num?)?.toInt();
+    final dates = (args['dates'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final recurringDays = (args['recurringDays'] as List<dynamic>?)?.map((e) => (e as num).toInt()).toList() ?? [];
+    // Accept single "location" field
+    final location = (args['location'] as String?)?.trim();
+    final notes = (args['notes'] as String?)?.trim();
+
+    if (subjectName == null || subjectName.isEmpty) {
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': false, 'error': 'Subject name is required',
+      }, params: args);
+      return;
+    }
+    if (startTimeStr == null || startTimeStr.isEmpty) {
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': false, 'error': 'Start time is required (HH:MM format)',
+      }, params: args);
+      return;
+    }
+    if (durationMinutes == null || durationMinutes <= 0) {
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': false, 'error': 'Duration in minutes is required',
+      }, params: args);
+      return;
+    }
+    if (dates.isEmpty && recurringDays.isEmpty) {
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': false, 'error': 'At least one date (YYYY-MM-DD) or recurring days (1-7) is required',
+      }, params: args);
+      return;
+    }
+
+    // Location is optional — pass the single location field
+    final finalLocation = location;
+
+    try {
+      final now = DateTime.now();
+      // Parse time — handle "9:00", "09:00", "9:00 AM", "14:00" etc.
+      var cleanTime = startTimeStr.replaceAll(RegExp(r'\s*(?:am|pm)\s*$', caseSensitive: false), '').trim();
+      final parts = cleanTime.split(':');
+      var hour = int.tryParse(parts[0]) ?? 0;
+      final minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      // Handle AM/PM
+      if (startTimeStr.toLowerCase().contains('pm') && hour < 12) hour += 12;
+      if (startTimeStr.toLowerCase().contains('am') && hour == 12) hour = 0;
+      final startTime = DateTime(now.year, now.month, now.day, hour, minute);
+      print('[Gemini] Class routine: subject=$subjectName, time=$startTime, dur=$durationMinutes, dates=$dates, location=$finalLocation');
+
+      final routine = await _routineRepo.createClassRoutine(
+        subjectName: subjectName,
+        startTime: startTime,
+        durationMinutes: durationMinutes,
+        dates: dates,
+        location: finalLocation,
+        recurring: recurringDays.isNotEmpty,
+        recurringDays: recurringDays,
+        notes: notes,
+      );
+
+      final locationText = routine.locationText.isNotEmpty ? ' at ${routine.locationText}' : '';
+      final dateText = dates.isNotEmpty
+          ? ' on ${dates.join(", ")}'
+          : recurringDays.isNotEmpty
+              ? ' every ${recurringDays.map((d) => ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d]).join(", ")}'
+              : '';
+
+      Get.snackbar('Success', 'Class routine saved: $subjectName at ${routine.timeText}$locationText$dateText',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 3));
+
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': true,
+        'routine_id': routine.id,
+        'subject': subjectName,
+        'time': routine.timeText,
+        'duration': routine.durationText,
+        'location': routine.locationText,
+        'message': 'Class routine registered: $subjectName at ${routine.timeText} ($durationMinutes min)$locationText$dateText.',
+      }, params: args);
+
+      // Force refresh so RoutineController picks it up immediately
+      refreshClassRoutines();
+    } catch (e, stack) {
+      print('[Gemini] ❌ registerClassRoutine FAILED: $e');
+      print('[Gemini] Stack: $stack');
+      Get.snackbar('Error', 'Class routine save failed: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 5));
+      _respondToFunction(callId, 'registerClassRoutine', {
+        'success': false, 'error': 'Failed to save class routine: $e',
+      }, params: args);
+    }
+  }
+
+  Future<void> _registerDailyRoutine(String callId, Map<String, dynamic> args) async {
+    final itemsRaw = args['items'] as List<dynamic>?;
+    final dateStr = (args['date'] as String?)?.trim();
+
+    if (itemsRaw == null || itemsRaw.isEmpty) {
+      _respondToFunction(callId, 'registerDailyRoutine', {
+        'success': false, 'error': 'At least one study block item is required',
+      }, params: args);
+      return;
+    }
+
+    try {
+      final now = DateTime.now();
+      final date = dateStr != null && dateStr.isNotEmpty
+          ? DateTime.parse(dateStr)
+          : DateTime(now.year, now.month, now.day);
+
+      // ── Validate: every study/revision/first_read/review block must reference
+      //    a subject that actually exists in the DB ──
+      final allSubjects = await _subjectRepo.getAll();
+      final validNames = allSubjects.map((s) => s.name.toLowerCase()).toSet();
+      final invalidSubjects = <String>{};
+
+      for (final raw in itemsRaw) {
+        final m = raw as Map<String, dynamic>;
+        final type = (m['type'] as String?) ?? 'study';
+        final subject = (m['subject'] as String?) ?? '';
+
+        // Allowed non-database subject names for non-study blocks
+        const allowedNonDb = {'break', 'breakfast', 'lunch', 'dinner', 'power nap'};
+
+        // Only validate study-related blocks — breaks, meals, naps, recall don't need real subjects
+        if (type == 'study' || type == 'first_read' || type == 'revision' ||
+            type == 'review' || type == 'question_practice') {
+          if (subject.isNotEmpty &&
+              !validNames.contains(subject.toLowerCase()) &&
+              !allowedNonDb.contains(subject.toLowerCase())) {
+            invalidSubjects.add(subject);
+          }
+        }
+      }
+
+      if (invalidSubjects.isNotEmpty) {
+        final validList = allSubjects.map((s) => s.name).join(', ');
+        Get.snackbar('Error', 'Subjects not found: ${invalidSubjects.join(", ")}. Valid: $validList',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.shade700,
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 5));
+        _respondToFunction(callId, 'registerDailyRoutine', {
+          'success': false,
+          'error': 'Subjects not found in database: ${invalidSubjects.join(", ")}. '
+              'Valid subjects: $validList. '
+              'Use getAllData first to see available subjects and topics.',
+        }, params: args);
+        return;
+      }
+
+      final items = itemsRaw.map((raw) {
+        final m = raw as Map<String, dynamic>;
+        // Check both camelCase and snake_case — Gemini sends camelCase
+        final dur = (m['durationMinutes'] as num?)?.toInt()
+            ?? (m['duration_minutes'] as num?)?.toInt()
+            ?? 45;
+        return DailyRoutineItem(
+          time: m['time'] as String? ?? '',
+          subject: m['subject'] as String? ?? '',
+          topic: m['topic'] as String? ?? '',
+          type: m['type'] as String? ?? 'study',
+          durationMinutes: dur,
+          notes: m['notes'] as String?,
+        );
+      }).toList();
+
+      final routine = await _routineRepo.createDailyRoutine(
+        date: date,
+        items: items,
+      );
+
+      final summary = items.map((it) => '${it.time} ${it.subject}→${it.topic}').join('; ');
+
+      Get.snackbar('Success', 'Daily routine saved: ${items.length} blocks for ${date.toIso8601String().substring(0, 10)}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 3));
+
+      _respondToFunction(callId, 'registerDailyRoutine', {
+        'success': true,
+        'routine_id': routine.id,
+        'date': date.toIso8601String().substring(0, 10),
+        'blocks_count': items.length,
+        'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} with ${items.length} blocks: $summary',
+      }, params: args);
+
+      // Force refresh so RoutineController picks it up immediately
+      refreshDailyRoutines();
+    } catch (e) {
+      Get.snackbar('Error', 'Daily routine save failed: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 5));
+      _respondToFunction(callId, 'registerDailyRoutine', {
+        'success': false, 'error': e.toString(),
+      }, params: args);
+    }
+  }
+
+  Future<void> _deleteClassRoutine(String callId, Map<String, dynamic> args) async {
+    final subjectName = args['subjectName'] as String?;
+    if (subjectName == null || subjectName.trim().isEmpty) {
+      _respondToFunction(callId, 'deleteClassRoutine', {
+        'success': false, 'error': 'Subject name is required to identify which class routine to delete.',
+      }, params: args);
+      return;
+    }
+
+    try {
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month, 1);
+      final to = from.add(const Duration(days: 60));
+      final routines = await _routineRepo.getClassRoutines(fromDate: from, toDate: to);
+
+      final matched = routines.where(
+        (r) => r.subjectName.toLowerCase().contains(subjectName.toLowerCase()),
+      ).toList();
+
+      if (matched.isEmpty) {
+        Get.snackbar('Not Found', 'No class routine found for "$subjectName"',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange.shade700,
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 3));
+        _respondToFunction(callId, 'deleteClassRoutine', {
+          'success': false, 'error': 'No class routine found for "$subjectName".',
+        }, params: args);
+        return;
+      }
+
+      for (final r in matched) {
+        await _routineRepo.deleteClassRoutine(r.id);
+      }
+
+      refreshClassRoutines();
+
+      Get.snackbar('Deleted', 'Class routine removed: ${matched.first.subjectName}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 3));
+
+      _respondToFunction(callId, 'deleteClassRoutine', {
+        'success': true,
+        'message': 'Deleted ${matched.length} class routine(s) for "${matched.first.subjectName}".',
+        'deleted_count': matched.length,
+      }, params: args);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to delete class routine: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 5));
+      _respondToFunction(callId, 'deleteClassRoutine', {
+        'success': false, 'error': e.toString(),
+      }, params: args);
+    }
+  }
+
+  Future<void> _deleteDailyRoutine(String callId, Map<String, dynamic> args) async {
+    final dateStr = args['date'] as String?;
+    final now = DateTime.now();
+    final date = dateStr != null && dateStr.isNotEmpty
+        ? DateTime.parse(dateStr)
+        : DateTime(now.year, now.month, now.day);
+
+    try {
+      final deletedCount = await _routineRepo.deleteDailyRoutinesByDate(date);
+
+      if (deletedCount == 0) {
+        Get.snackbar('Not Found', 'No daily routine for ${date.toIso8601String().substring(0, 10)}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange.shade700,
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 3));
+        _respondToFunction(callId, 'deleteDailyRoutine', {
+          'success': false, 'error': 'No daily routine found for ${date.toIso8601String().substring(0, 10)}.',
+        }, params: args);
+        return;
+      }
+
+      refreshDailyRoutines();
+
+      Get.snackbar('Deleted', 'Daily routine removed: ${date.toIso8601String().substring(0, 10)} ($deletedCount items)',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 3));
+
+      _respondToFunction(callId, 'deleteDailyRoutine', {
+        'success': true,
+        'message': 'Deleted daily routine for ${date.toIso8601String().substring(0, 10)} ($deletedCount items).',
+        'deleted_count': deletedCount,
+      }, params: args);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to delete daily routine: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade700,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 5));
+      _respondToFunction(callId, 'deleteDailyRoutine', {
+        'success': false, 'error': e.toString(),
+      }, params: args);
+    }
   }
 
   Future<void> stopSession({bool userInitiated = true}) async {
