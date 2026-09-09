@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import 'calendar_controller.dart';
+import '../../data/models/revision_schedule_model.dart';
 
 class CalendarScreen extends StatelessWidget {
   const CalendarScreen({super.key});
@@ -60,27 +61,53 @@ class CalendarScreen extends StatelessWidget {
     return ListView.builder(
       padding: EdgeInsets.all(S.base),
       itemCount: evts.length,
-      itemBuilder: (_, i) {
-        final e = evts[i];
-        final sc = e.status == 'completed' ? AppColors.success : e.status == 'missed' ? AppColors.error : AppColors.primary;
-        return Container(
-          margin: EdgeInsets.only(bottom: S.sm),
-          padding: EdgeInsets.all(S.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface(d),
-            borderRadius: BorderRadius.circular(S.radiusMd),
-            border: Border.all(color: AppColors.border(d)),
-          ),
-          child: Row(children: [
-            Container(width: 4, height: 40, decoration: BoxDecoration(color: sc, borderRadius: BorderRadius.circular(2))),
-            SizedBox(width: S.md),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Day ${e.dayNumber} Revision', style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
-              Text(e.status.toUpperCase(), style: AppTextStyles.labelSmall.copyWith(color: sc)),
-            ])),
+      itemBuilder: (_, i) => _eventTile(evts[i], d),
+    );
+  }
+
+  Widget _eventTile(RevisionScheduleModel e, bool d) {
+    final isMissed = e.status == 'missed';
+    final isCompleted = e.status == 'completed';
+    final sc = isCompleted ? AppColors.success : isMissed ? AppColors.error : AppColors.primary;
+    final subjectLabel = e.subjectName ?? 'Subject';
+    final topicLabel = e.topicName ?? 'Topic';
+    final dateStr = '${e.scheduledDate.day}/${e.scheduledDate.month}/${e.scheduledDate.year}';
+    final statusLabel = isMissed ? 'Missed' : isCompleted ? 'Completed' : 'Pending';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: S.sm),
+      padding: EdgeInsets.all(S.md),
+      decoration: BoxDecoration(
+        color: isMissed ? AppColors.error.withOpacity(0.06) : AppColors.surface(d),
+        borderRadius: BorderRadius.circular(S.radiusMd),
+        border: Border.all(color: isMissed ? AppColors.error.withOpacity(0.3) : AppColors.border(d)),
+      ),
+      child: Row(children: [
+        Container(width: 4, height: 48, decoration: BoxDecoration(color: sc, borderRadius: BorderRadius.circular(2))),
+        SizedBox(width: S.md),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Subject name
+          Text(subjectLabel, style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted(d))),
+          SizedBox(height: 2),
+          // Topic name
+          Text(topicLabel, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
+          SizedBox(height: 4),
+          // Day label + date + status badge
+          Row(children: [
+            Text('Day ${e.dayNumber}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+            SizedBox(width: S.sm),
+            Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+            SizedBox(width: S.sm),
+            Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+            SizedBox(width: S.sm),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(color: sc, borderRadius: BorderRadius.circular(4)),
+              child: Text(statusLabel, style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
+            ),
           ]),
-        );
-      },
+        ])),
+      ]),
     );
   }
 }

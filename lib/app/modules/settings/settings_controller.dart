@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/notification_service.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../core/localization/language_controller.dart';
@@ -109,6 +110,15 @@ class SettingsController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_notifKey, value);
+    } catch (_) {}
+    // Reschedule or cancel all notifications
+    try {
+      final notif = Get.find<NotificationService>();
+      if (value) {
+        notif.rescheduleAll();
+      } else {
+        notif.cancelAll();
+      }
     } catch (_) {}
   }
 

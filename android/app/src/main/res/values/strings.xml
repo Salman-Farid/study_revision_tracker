@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Revision Tracker</string>
+    <string name="widget_daily_routine_description">Shows your current daily routine activity with time remaining and next scheduled block.</string>
+    <string name="widget_revision_description">Shows overdue, today\'s, and upcoming revision tasks at a glance.</string>
+    <string name="widget_class_routine_description">Shows your current or next class with subject, time, and location details.</string>
+</resources>

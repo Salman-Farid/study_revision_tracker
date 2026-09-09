@@ -5,10 +5,15 @@ class RevisionScheduleModel {
   final String? rescheduledTo;
   final DateTime createdAt, updatedAt;
 
+  // Enriched names (populated after fetch, not persisted)
+  final String? topicName;
+  final String? subjectName;
+
   RevisionScheduleModel({
     required this.id, required this.userId, required this.topicId, required this.subjectId,
     required this.scheduledDate, required this.dayNumber, this.status = 'pending',
     this.rescheduledTo, required this.createdAt, required this.updatedAt,
+    this.topicName, this.subjectName,
   });
 
   factory RevisionScheduleModel.fromJson(Map<String, dynamic> j) => RevisionScheduleModel(
@@ -16,6 +21,7 @@ class RevisionScheduleModel {
     scheduledDate: DateTime.parse(j['scheduled_date']), dayNumber: j['day_number'],
     status: j['status'] ?? 'pending', rescheduledTo: j['rescheduled_to'],
     createdAt: DateTime.parse(j['created_at']), updatedAt: DateTime.parse(j['updated_at']),
+    topicName: j['topic_name'], subjectName: j['subject_name'],
   );
 
   Map<String, dynamic> toJson() => {
@@ -25,9 +31,11 @@ class RevisionScheduleModel {
     'created_at': createdAt.toIso8601String(), 'updated_at': updatedAt.toIso8601String(),
   };
 
-  RevisionScheduleModel copyWith({String? status, String? rescheduledTo}) =>
+  RevisionScheduleModel copyWith({String? status, String? rescheduledTo,
+    String? topicName, String? subjectName}) =>
     RevisionScheduleModel(id: id, userId: userId, topicId: topicId, subjectId: subjectId,
       scheduledDate: scheduledDate, dayNumber: dayNumber, status: status ?? this.status,
       rescheduledTo: rescheduledTo ?? this.rescheduledTo,
-      createdAt: createdAt, updatedAt: DateTime.now());
+      createdAt: createdAt, updatedAt: DateTime.now(),
+      topicName: topicName ?? this.topicName, subjectName: subjectName ?? this.subjectName);
 }

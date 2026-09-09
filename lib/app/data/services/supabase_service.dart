@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/widget_data_service.dart';
 import '../models/subject_model.dart';
 import '../models/topic_model.dart';
 import '../models/revision_schedule_model.dart';
@@ -165,7 +167,35 @@ class SupabaseService extends GetxService {
     if (fromDate != null) q = q.gte('scheduled_date', fromDate.toIso8601String());
     if (toDate != null) q = q.lte('scheduled_date', toDate.toIso8601String());
     final r = await q.order('scheduled_date', ascending: true);
-    return (r as List).map((j) => RevisionScheduleModel.fromJson(j)).toList();
+    final schedules = (r as List).map((j) => RevisionScheduleModel.fromJson(j)).toList();
+    return _enrichSchedules(schedules);
+  }
+
+  /// Bulk-fetch topic and subject names for a list of schedules.
+  Future<List<RevisionScheduleModel>> _enrichSchedules(
+      List<RevisionScheduleModel> schedules) async {
+    if (schedules.isEmpty) return schedules;
+    // Collect unique IDs
+    final topicIds = schedules.map((s) => s.topicId).toSet();
+    final subjectIds = schedules.map((s) => s.subjectId).toSet();
+    // Fetch names in parallel
+    final results = await Future.wait([
+      _fetchNames('topics', topicIds),
+      _fetchNames('subjects', subjectIds),
+    ]);
+    final topicNames = results[0];
+    final subjectNames = results[1];
+    return schedules.map((s) => s.copyWith(
+      topicName: topicNames[s.topicId],
+      subjectName: subjectNames[s.subjectId],
+    )).toList();
+  }
+
+  /// Fetch name column for a set of IDs from a table.
+  Future<Map<String, String>> _fetchNames(String table, Set<String> ids) async {
+    if (ids.isEmpty) return {};
+    final rows = await client.from(table).select('id, name').inFilter('id', ids.toList());
+    return {for (final r in rows as List) r['id'] as String: r['name'] as String};
   }
 
   Future<List<RevisionScheduleModel>> createRevisionSchedules({
@@ -312,6 +342,10 @@ class SupabaseService extends GetxService {
     try {
       final schedules = await fetchSchedules();
       _schedulesController.add(schedules);
+      // Update home widgets when schedules change
+      _debouncedWidgetUpdate();
+      // Reschedule revision notifications
+      _debouncedNotificationUpdate();
     } catch (e) { print('[Supabase] ❌ _refreshSchedules failed: $e'); }
   }
 
@@ -323,6 +357,10 @@ class SupabaseService extends GetxService {
       final rows = await fetchClassRoutines(fromDate: from, toDate: to);
       final models = rows.map((j) => ClassRoutineModel.fromJson(j)).toList();
       _classRoutinesController.add(models);
+      // Update home widgets when class routines change
+      _debouncedWidgetUpdate();
+      // Reschedule class notifications
+      _debouncedNotificationUpdate();
     } catch (e) { print('[Supabase] ❌ _refreshClassRoutines failed: $e'); }
   }
 
@@ -334,7 +372,33 @@ class SupabaseService extends GetxService {
       final rows = await fetchDailyRoutines(fromDate: from, toDate: to);
       final models = rows.map((j) => DailyRoutineModel.fromJson(j)).toList();
       _dailyRoutinesController.add(models);
+      // Update home widgets when daily routines change
+      _debouncedWidgetUpdate();
+      // Reschedule daily routine notifications
+      _debouncedNotificationUpdate();
     } catch (e) { print('[Supabase] ❌ _refreshDailyRoutines failed: $e'); }
+  }
+
+  // Debounced widget update to avoid excessive refreshes
+  DateTime? _lastWidgetUpdate;
+  void _debouncedWidgetUpdate() {
+    final now = DateTime.now();
+    if (_lastWidgetUpdate != null && now.difference(_lastWidgetUpdate!).inSeconds < 10) return;
+    _lastWidgetUpdate = now;
+    Future.microtask(() {
+      try { WidgetDataProvider.updateAllWidgets(); } catch (_) {}
+    });
+  }
+
+  // Debounced notification reschedule to avoid excessive refreshes
+  DateTime? _lastNotificationUpdate;
+  void _debouncedNotificationUpdate() {
+    final now = DateTime.now();
+    if (_lastNotificationUpdate != null && now.difference(_lastNotificationUpdate!).inSeconds < 15) return;
+    _lastNotificationUpdate = now;
+    Future.microtask(() {
+      try { NotificationService.to.rescheduleAll(); } catch (_) {}
+    });
   }
 
   /// Manually trigger a refresh

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -7,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/core/constants/app_constants.dart';
 import 'app/core/services/connectivity_service.dart';
 import 'app/core/services/notification_service.dart';
+import 'app/core/services/widget_data_service.dart';
 import 'app/data/repositories/revision_repository.dart';
 import 'app/data/repositories/subject_repository.dart';
 import 'app/data/repositories/topic_repository.dart';
@@ -43,6 +46,23 @@ void main() async {
   // Start realtime subscriptions after login
   if (Get.find<SupabaseService>().currentUser != null) {
     Get.find<SupabaseService>().initRealtime();
+    // Schedule all notifications from existing data
+    Get.find<NotificationService>().rescheduleAll();
+  }
+
+  // Initialize home screen widgets
+  await WidgetDataProvider.init();
+  // Share data with iOS widget extension via App Group
+  await WidgetDataProvider.setAppGroupId('group.HOMEWIDGET');
+  if (Get.find<SupabaseService>().currentUser != null) {
+    // Update widgets with current data on app start
+    WidgetDataProvider.updateAllWidgets();
+    // Periodic widget refresh every 15 minutes (foreground only)
+    Timer.periodic(const Duration(minutes: 15), (_) {
+      if (Get.find<SupabaseService>().currentUser != null) {
+        WidgetDataProvider.updateAllWidgets();
+      }
+    });
   }
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

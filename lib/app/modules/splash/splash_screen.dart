@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/widget_data_service.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 
@@ -28,9 +29,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _go() async {
     await Future.delayed(const Duration(milliseconds: 1800));
     final user = Supabase.instance.client.auth.currentUser;
+
+    // Determine the deep link target route
+    String? targetRoute;
+    try {
+      final initialLink = await WidgetDataProvider.getInitialLink();
+      if (initialLink != null) {
+        targetRoute = _resolveDeepLink(initialLink);
+      }
+    } catch (_) {}
+
     if (user != null) {
-      // Session exists — go straight to home
-      Get.offAllNamed(AppRoutes.home);
+      // Session exists — go straight to home (or deep link target)
+      if (targetRoute != null) {
+        Get.offAllNamed(targetRoute);
+      } else {
+        Get.offAllNamed(AppRoutes.home);
+      }
       return;
     }
     // No active session — check SharedPreferences for "remember me" login
@@ -42,19 +57,40 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       try {
         final session = Supabase.instance.client.auth.currentSession;
         if (session != null && !session.isExpired) {
-          Get.offAllNamed(AppRoutes.home);
+          if (targetRoute != null) {
+            Get.offAllNamed(targetRoute);
+          } else {
+            Get.offAllNamed(AppRoutes.home);
+          }
           return;
         }
         // Refresh token might be expired — still go home, user is remembered
-        Get.offAllNamed(AppRoutes.home);
+        if (targetRoute != null) {
+          Get.offAllNamed(targetRoute);
+        } else {
+          Get.offAllNamed(AppRoutes.home);
+        }
         return;
       } catch (_) {
         // Fallback: go home anyway, app will work offline-ish
-        Get.offAllNamed(AppRoutes.home);
+        if (targetRoute != null) {
+          Get.offAllNamed(targetRoute);
+        } else {
+          Get.offAllNamed(AppRoutes.home);
+        }
         return;
       }
     }
     Get.offAllNamed(AppRoutes.auth);
+  }
+
+  /// Resolve a deep link URI to a GetX route.
+  String? _resolveDeepLink(Uri uri) {
+    final path = uri.path;
+    if (path.contains('routine')) return AppRoutes.home;
+    if (path.contains('today')) return AppRoutes.home;
+    if (path.contains('subject')) return AppRoutes.home;
+    return AppRoutes.home;
   }
 
   @override void dispose() { _c.dispose(); super.dispose(); }
