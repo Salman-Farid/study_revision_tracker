@@ -63,8 +63,8 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.example.study_revision_tracker.UPDATE_WIDGETS" />
-                <action android:name="com.example.study_revision_tracker.TOGGLE_OVERDUE" />
-                <action android:name="com.example.study_revision_tracker.TOGGLE_UPCOMING" />
+                <action android:name="com.example.study_revision_tracker.TOGGLE_MODE" />
+                <action android:name="com.example.study_revision_tracker.REFRESH_REVISION" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

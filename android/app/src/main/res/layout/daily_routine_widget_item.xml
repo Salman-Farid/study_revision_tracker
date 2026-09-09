@@ -1,58 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
     android:paddingTop="5dp"
-    android:paddingBottom="5dp"
-    android:gravity="center_vertical">
+    android:paddingBottom="5dp">
 
-    <!-- Time text on left -->
-    <TextView
-        android:id="@+id/item_time"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#80FFFFFF"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        android:layout_marginEnd="8dp" />
-
+    <!-- Timeline row: time (left) + type (right) -->
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="0dp"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1">
+        android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/item_subject"
-            android:layout_width="match_parent"
+            android:id="@+id/item_time"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textColor="#DEFFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:singleLine="true"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/item_topic"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#66FFFFFF"
+            android:layout_weight="1"
+            android:textColor="#1A73E8"
             android:textSize="10sp"
-            android:singleLine="true"
-            android:ellipsize="end"
-            android:layout_marginTop="1dp" />
+            android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/item_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#80000000"
+            android:textSize="9sp"
+            android:layout_marginStart="6dp" />
     </LinearLayout>
 
+    <!-- Subject under the timeline -->
     <TextView
-        android:id="@+id/item_type"
-        android:layout_width="wrap_content"
+        android:id="@+id/item_subject"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#66FFFFFF"
+        android:textColor="#DE000000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:layout_marginTop="1dp" />
+
+    <!-- Topic under the subject -->
+    <TextView
+        android:id="@+id/item_topic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#66000000"
         android:textSize="10sp"
-        android:layout_marginStart="6dp" />
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:layout_marginTop="1dp" />
 
 </LinearLayout>

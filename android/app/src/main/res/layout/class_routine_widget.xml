@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Class Routine"
-            android:textColor="#DEFFFFFF"
+            android:textColor="#DE000000"
             android:textSize="13sp"
             android:textStyle="bold"
             android:letterSpacing="0.04" />
@@ -70,7 +70,7 @@
                 android:id="@+id/widget_current_timer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#80FFFFFF"
+                android:textColor="#80000000"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:fontFamily="monospace" />
@@ -80,7 +80,7 @@
             android:id="@+id/widget_current_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#F0FFFFFF"
+            android:textColor="#DE000000"
             android:textSize="14sp"
             android:textStyle="bold"
             android:singleLine="true" />
@@ -96,14 +96,14 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#99FFFFFF"
+                android:textColor="#99000000"
                 android:textSize="11sp" />
 
             <TextView
                 android:id="@+id/widget_current_location"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#99FFFFFF"
+                android:textColor="#99000000"
                 android:textSize="11sp"
                 android:layout_marginStart="8dp" />
         </LinearLayout>
@@ -115,23 +115,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="TODAY"
-        android:textColor="#80FFFFFF"
+        android:textColor="#80000000"
         android:textSize="10sp"
         android:textStyle="bold"
         android:letterSpacing="0.08"
         android:layout_marginBottom="4dp"
         android:visibility="gone" />
 
-    <!-- Class list ListView -->
-    <ListView
+    <!-- Class list (rendered directly via RemoteViews.addView — no adapter,
+         no service, no "Loading…" placeholder) -->
+    <LinearLayout
         android:id="@+id/widget_class_list"
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@android:color/transparent"
-        android:dividerHeight="0dp"
-        android:clipToPadding="false"
-        android:scrollbars="none" />
+        android:clipToPadding="false" />
 
     <!-- Empty state -->
     <LinearLayout
@@ -148,7 +147,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="}"
-            android:textColor="#66FFFFFF"
+            android:textColor="#66000000"
             android:textSize="24sp"
             android:layout_marginBottom="6dp" />
 
@@ -157,7 +156,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No classes today"
-            android:textColor="#99FFFFFF"
+            android:textColor="#99000000"
             android:textSize="13sp"
             android:textStyle="italic" />
     </LinearLayout>
@@ -167,7 +166,7 @@
         android:id="@+id/widget_updated"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#40FFFFFF"
+        android:textColor="#40000000"
         android:textSize="9sp"
         android:layout_marginTop="4dp" />
 

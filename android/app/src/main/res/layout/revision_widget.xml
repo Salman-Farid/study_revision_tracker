@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Revision"
-            android:textColor="#DEFFFFFF"
+            android:textColor="#DE000000"
             android:textSize="13sp"
             android:textStyle="bold"
             android:letterSpacing="0.04" />
@@ -48,7 +48,7 @@
             android:layout_height="30dp"
             android:layout_weight="1"
             android:text="MISSED"
-            android:textColor="#E0FFFFFF"
+            android:textColor="#DE000000"
             android:textSize="11sp"
             android:textStyle="bold"
             android:gravity="center"
@@ -61,7 +61,7 @@
             android:layout_height="30dp"
             android:layout_weight="1"
             android:text="COMING SOON"
-            android:textColor="#80FFFFFF"
+            android:textColor="#80000000"
             android:textSize="11sp"
             android:textStyle="bold"
             android:gravity="center"
@@ -78,22 +78,21 @@
         android:paddingTop="3dp"
         android:paddingBottom="3dp"
         android:background="@drawable/badge_overdue_bg"
-        android:textColor="#E0FFFFFF"
+        android:textColor="#DE000000"
         android:textSize="10sp"
         android:textStyle="bold"
         android:layout_marginBottom="6dp"
         android:visibility="gone" />
 
-    <!-- ListView -->
-    <ListView
+    <!-- Content rows (rendered directly via RemoteViews.addView — no adapter,
+         no service, no "Loading…" placeholder) -->
+    <LinearLayout
         android:id="@+id/widget_list"
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@android:color/transparent"
-        android:dividerHeight="0dp"
-        android:clipToPadding="false"
-        android:scrollbars="none" />
+        android:clipToPadding="false" />
 
     <!-- Empty state -->
     <LinearLayout
@@ -110,7 +109,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="✓"
-            android:textColor="#66FFFFFF"
+            android:textColor="#66000000"
             android:textSize="24sp"
             android:layout_marginBottom="6dp" />
 
@@ -119,7 +118,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="All caught up!"
-            android:textColor="#99FFFFFF"
+            android:textColor="#99000000"
             android:textSize="13sp"
             android:textStyle="italic" />
     </LinearLayout>
@@ -129,7 +128,7 @@
         android:id="@+id/widget_updated"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#40FFFFFF"
+        android:textColor="#40000000"
         android:textSize="9sp"
         android:layout_marginTop="6dp" />
 

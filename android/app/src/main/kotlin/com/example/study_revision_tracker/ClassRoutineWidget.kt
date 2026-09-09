@@ -51,8 +51,6 @@ class ClassRoutineWidget : AppWidgetProvider() {
                 val currentTime = prefs.getString("widget_class_current_time", "") ?: ""
                 val currentLocation = prefs.getString("widget_class_current_location", "") ?: ""
                 val currentRemaining = prefs.getString("widget_class_current_end_time", "") ?: ""
-                val nextSubject = prefs.getString("widget_class_next_subject", "") ?: ""
-                val nextTime = prefs.getString("widget_class_next_time", "") ?: ""
                 val classesJson = prefs.getString("widget_class_items", "[]") ?: "[]"
 
                 Log.d(TAG, "hasToday=$hasToday currentSubject='$currentSubject' currentTime='$currentTime'")
@@ -63,11 +61,11 @@ class ClassRoutineWidget : AppWidgetProvider() {
 
                 if (hasToday && currentSubject.isNotEmpty()) {
                     views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.GONE)
-                    views.setViewVisibility(R.id.widget_status_badge, View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_today_header, View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_empty, View.GONE)
                     views.setTextViewText(R.id.widget_current_subject, currentSubject)
                     views.setTextViewText(R.id.widget_current_time, currentTime)
-                    views.setTextViewText(R.id.widget_remaining, currentRemaining)
+                    views.setTextViewText(R.id.widget_current_timer, currentRemaining)
 
                     if (currentLocation.isNotEmpty() && !isSmallWidget) {
                         views.setViewVisibility(R.id.widget_current_location, View.VISIBLE)
@@ -77,65 +75,65 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     }
                 } else {
                     views.setViewVisibility(R.id.widget_current_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_status_badge, View.GONE)
+                    views.setViewVisibility(R.id.widget_today_header, View.GONE)
                     if (!hasToday) {
-                        views.setViewVisibility(R.id.widget_empty_state, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_empty_text, statusMessage)
+                        views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_message, statusMessage)
                     } else {
-                        views.setViewVisibility(R.id.widget_empty_state, View.GONE)
+                        views.setViewVisibility(R.id.widget_empty, View.GONE)
                     }
                 }
 
-                // Populate timeline class list
-                views.removeAllViews(R.id.widget_classes_container)
-                try {
-                    val classes = JSONArray(classesJson)
-                    val maxItems = minOf(classes.length(), if (isSmallWidget) 3 else 8)
-                    Log.d(TAG, "Parsing $maxItems classes from JSON")
-                    if (maxItems > 0 && hasToday) {
-                        views.setViewVisibility(R.id.widget_classes_container, View.VISIBLE)
-                        for (i in 0 until maxItems) {
+                // Class rows — rendered directly with RemoteViews.addView().
+                // No ListView/adapter/service → no "Loading…" placeholder, ever.
+                val hasClasses = try {
+                    JSONArray(classesJson).length() > 0
+                } catch (_: Exception) { false }
+
+                views.removeAllViews(R.id.widget_class_list)
+                if (hasToday && hasClasses) {
+                    views.setViewVisibility(R.id.widget_class_list, View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_empty, View.GONE)
+                    try {
+                        val classes = JSONArray(classesJson)
+                        val maxItems = if (isSmallWidget) 3 else 6
+                        for (i in 0 until minOf(classes.length(), maxItems)) {
                             val cls = classes.getJSONObject(i)
-                            val subject = cls.optString("subject", "")
+                            val row = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
+                            row.setTextViewText(R.id.item_subject, cls.optString("subject", ""))
                             val timeText = cls.optString("timeText", "")
                             val endTimeText = cls.optString("endTimeText", "")
+                            row.setTextViewText(R.id.item_time, if (endTimeText.isNotEmpty()) "$timeText – $endTimeText" else timeText)
+
                             val location = cls.optString("location", "")
-                            val isCurrent = cls.optBoolean("isCurrent", false)
-
-                            Log.d(TAG, "Class $i: subject=$subject time=$timeText-$endTimeText isCurrent=$isCurrent")
-
-                            val itemView = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
-                            itemView.setTextViewText(R.id.item_time_start, timeText)
-                            itemView.setTextViewText(R.id.item_time_end, endTimeText)
-                            itemView.setTextViewText(R.id.item_subject, subject)
-
                             if (location.isNotEmpty()) {
-                                itemView.setViewVisibility(R.id.item_location, View.VISIBLE)
-                                itemView.setTextViewText(R.id.item_location, "· $location")
+                                row.setViewVisibility(R.id.item_location, View.VISIBLE)
+                                row.setTextViewText(R.id.item_location, "· $location")
                             } else {
-                                itemView.setViewVisibility(R.id.item_location, View.GONE)
+                                row.setViewVisibility(R.id.item_location, View.GONE)
                             }
 
-                            if (isCurrent) {
-                                itemView.setInt(R.id.item_timeline_dot, "setBackgroundResource",
-                                    R.drawable.widget_timeline_dot)
-                                itemView.setInt(R.id.item_subject, "setTextColor",
-                                    context.getColor(R.color.widget_accent_green))
+                            if (cls.optBoolean("isCurrent", false)) {
+                                row.setViewVisibility(R.id.item_now_badge, View.VISIBLE)
+                                row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_now)
                             } else {
-                                itemView.setInt(R.id.item_timeline_dot, "setBackgroundResource",
-                                    R.drawable.widget_timeline_dot_inactive)
-                                itemView.setInt(R.id.item_subject, "setTextColor",
-                                    context.getColor(R.color.widget_text_primary))
+                                row.setViewVisibility(R.id.item_now_badge, View.GONE)
+                                row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_upcoming)
                             }
-
-                            views.addView(R.id.widget_classes_container, itemView)
+                            views.addView(R.id.widget_class_list, row)
                         }
-                    } else {
-                        views.setViewVisibility(R.id.widget_classes_container, View.GONE)
+                        if (classes.length() > maxItems) {
+                            val more = RemoteViews(context.packageName, R.layout.widget_more_row)
+                            more.setTextViewText(R.id.more_text, "+${classes.length() - maxItems} more")
+                            views.addView(R.id.widget_class_list, more)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "row build failed: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing classes JSON", e)
-                    views.setViewVisibility(R.id.widget_classes_container, View.GONE)
+                } else {
+                    views.setViewVisibility(R.id.widget_class_list, View.GONE)
+                    views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+                    views.setTextViewText(R.id.widget_empty_message, if (hasToday) statusMessage else "No classes today")
                 }
 
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("study-revision-tracker://routine"))
