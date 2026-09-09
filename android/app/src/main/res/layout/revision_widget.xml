@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_card_background"
-    android:padding="16dp">
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:elevation="2dp">
 
     <!-- Header -->
     <LinearLayout
@@ -13,227 +14,123 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <ImageView
-            android:layout_width="4dp"
-            android:layout_height="20dp"
-            android:background="@drawable/widget_accent_blue"
-            android:layout_marginEnd="10dp" />
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/widget_icon_book"
+            android:layout_marginEnd="8dp"
+            android:alpha="0.7" />
 
         <TextView
+            android:id="@+id/widget_header_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Revisions"
-            android:textSize="15sp"
+            android:text="Revision"
+            android:textColor="#DEFFFFFF"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="@color/widget_text_primary"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.02" />
-
-        <TextView
-            android:id="@+id/widget_last_updated"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="10sp"
-            android:textColor="@color/widget_text_muted"
-            android:visibility="gone" />
+            android:letterSpacing="0.04" />
     </LinearLayout>
 
-    <!-- Stats chips row -->
+    <!-- Toggle buttons -->
     <LinearLayout
-        android:id="@+id/widget_stats_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="10dp"
-        android:visibility="gone">
+        android:layout_marginBottom="8dp">
 
-        <!-- Overdue chip (toggle button) -->
-        <LinearLayout
-            android:id="@+id/widget_overdue_container"
+        <TextView
+            android:id="@+id/btn_missed"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="30dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/widget_badge_background"
-            android:padding="6dp"
-            android:layout_marginEnd="4dp"
-            android:visibility="gone">
+            android:text="MISSED"
+            android:textColor="#E0FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/btn_toggle_active" />
 
-            <ImageView
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/widget_dot_overdue"
-                android:layout_marginEnd="4dp" />
-
-            <TextView
-                android:id="@+id/widget_overdue_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/widget_accent_red" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" missed"
-                android:textSize="10sp"
-                android:textColor="@color/widget_text_muted" />
-
-            <ImageView
-                android:id="@+id/widget_overdue_arrow"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:background="@drawable/widget_accent_red"
-                android:layout_marginStart="4dp" />
-        </LinearLayout>
-
-        <!-- Today chip (toggle button) -->
-        <LinearLayout
-            android:id="@+id/widget_today_container"
+        <TextView
+            android:id="@+id/btn_coming_soon"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="30dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/widget_badge_background"
-            android:padding="6dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/widget_dot_today"
-                android:layout_marginEnd="4dp" />
-
-            <TextView
-                android:id="@+id/widget_today_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/widget_primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" today"
-                android:textSize="10sp"
-                android:textColor="@color/widget_text_muted" />
-
-            <ImageView
-                android:id="@+id/widget_today_arrow"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:background="@drawable/widget_accent_blue"
-                android:layout_marginStart="4dp" />
-        </LinearLayout>
-
-        <!-- Upcoming chip (toggle button) -->
-        <LinearLayout
-            android:id="@+id/widget_upcoming_container"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/widget_badge_background"
-            android:padding="6dp"
-            android:layout_marginStart="4dp"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/widget_dot_today"
-                android:layout_marginEnd="4dp" />
-
-            <TextView
-                android:id="@+id/widget_upcoming_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/widget_accent_green" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" soon"
-                android:textSize="10sp"
-                android:textColor="@color/widget_text_muted" />
-
-            <ImageView
-                android:id="@+id/widget_upcoming_arrow"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:background="@drawable/widget_accent_green"
-                android:layout_marginStart="4dp" />
-        </LinearLayout>
+            android:text="COMING SOON"
+            android:textColor="#80FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:background="@drawable/btn_toggle_inactive" />
     </LinearLayout>
 
-    <!-- Overdue items section -->
-    <LinearLayout
-        android:id="@+id/widget_overdue_section"
-        android:layout_width="match_parent"
+    <!-- Status badge -->
+    <TextView
+        android:id="@+id/widget_status"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:background="@drawable/badge_overdue_bg"
+        android:textColor="#E0FFFFFF"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"
         android:visibility="gone" />
 
-    <!-- Today items section -->
-    <LinearLayout
-        android:id="@+id/widget_today_section"
+    <!-- ListView -->
+    <ListView
+        android:id="@+id/widget_list"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
-
-    <!-- Upcoming items section -->
-    <LinearLayout
-        android:id="@+id/widget_upcoming_section"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
-
-    <!-- Legacy container (for backwards compat) -->
-    <LinearLayout
-        android:id="@+id/widget_items_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="0dp"
+        android:clipToPadding="false"
+        android:scrollbars="none" />
 
     <!-- Empty state -->
     <LinearLayout
-        android:id="@+id/widget_empty_state"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:id="@+id/widget_empty"
         android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:gravity="center"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
         android:visibility="gone">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="&#10003;"
-            android:textSize="28sp"
-            android:textColor="@color/widget_accent_green"
-            android:layout_marginBottom="4dp" />
+            android:text="✓"
+            android:textColor="#66FFFFFF"
+            android:textSize="24sp"
+            android:layout_marginBottom="6dp" />
 
         <TextView
-            android:id="@+id/widget_empty_text"
+            android:id="@+id/widget_empty_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="All caught up!"
+            android:textColor="#99FFFFFF"
             android:textSize="13sp"
-            android:textColor="@color/widget_text_secondary"
-            android:gravity="center" />
+            android:textStyle="italic" />
     </LinearLayout>
+
+    <!-- Updated timestamp -->
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#40FFFFFF"
+        android:textSize="9sp"
+        android:layout_marginTop="6dp" />
+
 </LinearLayout>

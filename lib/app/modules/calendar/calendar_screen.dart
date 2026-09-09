@@ -12,7 +12,7 @@ class CalendarScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<CalendarController>();
     return Scaffold(
-      appBar: AppBar(title: Text('Calendar', style: AppTextStyles.headlineMedium)),
+      appBar: AppBar(title: Text('navCalendar'.tr, style: AppTextStyles.headlineMedium)),
       body: Obx(() => c.isLoading.value
           ? const Center(child: CircularProgressIndicator())
           : Column(children: [
@@ -56,7 +56,7 @@ class CalendarScreen extends StatelessWidget {
   Widget _eventList(CalendarController c, BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
     final evts = c.getEventsForDay(c.selectedDay.value);
-    if (evts.isEmpty) return Center(child: Text('No revisions this day',
+    if (evts.isEmpty) return Center(child: Text('noRevisionsThisDay'.tr,
       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted(d))));
     return ListView.builder(
       padding: EdgeInsets.all(S.base),
@@ -69,10 +69,10 @@ class CalendarScreen extends StatelessWidget {
     final isMissed = e.status == 'missed';
     final isCompleted = e.status == 'completed';
     final sc = isCompleted ? AppColors.success : isMissed ? AppColors.error : AppColors.primary;
-    final subjectLabel = e.subjectName ?? 'Subject';
-    final topicLabel = e.topicName ?? 'Topic';
+    final subjectLabel = e.subjectName ?? 'subject'.tr;
+    final topicLabel = e.topicName ?? 'topic'.tr;
     final dateStr = '${e.scheduledDate.day}/${e.scheduledDate.month}/${e.scheduledDate.year}';
-    final statusLabel = isMissed ? 'Missed' : isCompleted ? 'Completed' : 'Pending';
+    final statusLabel = isMissed ? 'missed'.tr : isCompleted ? 'completed'.tr : 'pending'.tr;
 
     return Container(
       margin: EdgeInsets.only(bottom: S.sm),
@@ -94,7 +94,7 @@ class CalendarScreen extends StatelessWidget {
           SizedBox(height: 4),
           // Day label + date + status badge
           Row(children: [
-            Text('Day ${e.dayNumber}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+            Text('dayLabel'.replaceAll('{n}', '${e.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             SizedBox(width: S.sm),
             Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             SizedBox(width: S.sm),

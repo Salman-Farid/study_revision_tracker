@@ -45,8 +45,8 @@ class ClassRoutineWidget : AppWidgetProvider() {
                 val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
                 val views = RemoteViews(context.packageName, R.layout.class_routine_widget)
 
-                val hasToday = prefs.getBoolean("widget_class_has_today", false)
-                val statusMessage = prefs.getString("widget_class_status_message", "No classes today") ?: ""
+                val hasToday = prefs.getString("widget_class_has_today", "false")?.toBoolean() == true
+                val statusMessage = prefs.getString("widget_class_status_message", "Nothing for today") ?: ""
                 val currentSubject = prefs.getString("widget_class_current_subject", "") ?: ""
                 val currentTime = prefs.getString("widget_class_current_time", "") ?: ""
                 val currentLocation = prefs.getString("widget_class_current_location", "") ?: ""
@@ -56,12 +56,10 @@ class ClassRoutineWidget : AppWidgetProvider() {
                 val classesJson = prefs.getString("widget_class_items", "[]") ?: "[]"
 
                 Log.d(TAG, "hasToday=$hasToday currentSubject='$currentSubject' currentTime='$currentTime'")
-                Log.d(TAG, "currentLocation='$currentLocation' nextSubject='$nextSubject'")
-                Log.d(TAG, "classesJson.length=${classesJson.length}")
 
-                // Dump ALL keys for debugging
-                val allKeys = prefs.all.keys.filter { it.startsWith("widget_") }
-                Log.d(TAG, "All widget_ keys in SP: $allKeys")
+                // Ultra-low sizing check
+                val widgetInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
+                val isSmallWidget = (widgetInfo?.minWidth ?: 250) < 180
 
                 if (hasToday && currentSubject.isNotEmpty()) {
                     views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
@@ -71,70 +69,63 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_current_time, currentTime)
                     views.setTextViewText(R.id.widget_remaining, currentRemaining)
 
-                    if (currentLocation.isNotEmpty()) {
+                    if (currentLocation.isNotEmpty() && !isSmallWidget) {
                         views.setViewVisibility(R.id.widget_current_location, View.VISIBLE)
                         views.setTextViewText(R.id.widget_current_location, currentLocation)
                     } else {
                         views.setViewVisibility(R.id.widget_current_location, View.GONE)
                     }
-
-                    if (nextSubject.isNotEmpty()) {
-                        views.setViewVisibility(R.id.widget_next_card, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_next_subject, nextSubject)
-                        views.setTextViewText(R.id.widget_next_time, nextTime)
-                    } else {
-                        views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    }
-                } else if (hasToday) {
-                    views.setViewVisibility(R.id.widget_current_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_status_badge, View.GONE)
-                    views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.VISIBLE)
-                    views.setTextViewText(R.id.widget_empty_text, statusMessage)
                 } else {
                     views.setViewVisibility(R.id.widget_current_card, View.GONE)
                     views.setViewVisibility(R.id.widget_status_badge, View.GONE)
-                    views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.VISIBLE)
-                    views.setTextViewText(R.id.widget_empty_text, statusMessage)
+                    if (!hasToday) {
+                        views.setViewVisibility(R.id.widget_empty_state, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_text, statusMessage)
+                    } else {
+                        views.setViewVisibility(R.id.widget_empty_state, View.GONE)
+                    }
                 }
 
-                // Populate today's class list
+                // Populate timeline class list
                 views.removeAllViews(R.id.widget_classes_container)
                 try {
                     val classes = JSONArray(classesJson)
-                    val maxItems = minOf(classes.length(), 8)
+                    val maxItems = minOf(classes.length(), if (isSmallWidget) 3 else 8)
                     Log.d(TAG, "Parsing $maxItems classes from JSON")
                     if (maxItems > 0 && hasToday) {
                         views.setViewVisibility(R.id.widget_classes_container, View.VISIBLE)
                         for (i in 0 until maxItems) {
                             val cls = classes.getJSONObject(i)
                             val subject = cls.optString("subject", "")
-                            val time = cls.optString("timeText", "")
+                            val timeText = cls.optString("timeText", "")
+                            val endTimeText = cls.optString("endTimeText", "")
                             val location = cls.optString("location", "")
                             val isCurrent = cls.optBoolean("isCurrent", false)
 
-                            Log.d(TAG, "Class $i: subject=$subject time=$time isCurrent=$isCurrent")
+                            Log.d(TAG, "Class $i: subject=$subject time=$timeText-$endTimeText isCurrent=$isCurrent")
 
                             val itemView = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
-                            itemView.setTextViewText(R.id.item_time, time)
+                            itemView.setTextViewText(R.id.item_time_start, timeText)
+                            itemView.setTextViewText(R.id.item_time_end, endTimeText)
                             itemView.setTextViewText(R.id.item_subject, subject)
 
                             if (location.isNotEmpty()) {
                                 itemView.setViewVisibility(R.id.item_location, View.VISIBLE)
-                                itemView.setTextViewText(R.id.item_location, location)
+                                itemView.setTextViewText(R.id.item_location, "· $location")
                             } else {
                                 itemView.setViewVisibility(R.id.item_location, View.GONE)
                             }
 
                             if (isCurrent) {
-                                itemView.setInt(R.id.item_accent, "setBackgroundColor",
+                                itemView.setInt(R.id.item_timeline_dot, "setBackgroundResource",
+                                    R.drawable.widget_timeline_dot)
+                                itemView.setInt(R.id.item_subject, "setTextColor",
                                     context.getColor(R.color.widget_accent_green))
-                                itemView.setViewVisibility(R.id.item_status_dot, View.VISIBLE)
                             } else {
-                                itemView.setInt(R.id.item_accent, "setBackgroundColor",
-                                    context.getColor(R.color.widget_accent_purple))
-                                itemView.setViewVisibility(R.id.item_status_dot, View.GONE)
+                                itemView.setInt(R.id.item_timeline_dot, "setBackgroundResource",
+                                    R.drawable.widget_timeline_dot_inactive)
+                                itemView.setInt(R.id.item_subject, "setTextColor",
+                                    context.getColor(R.color.widget_text_primary))
                             }
 
                             views.addView(R.id.widget_classes_container, itemView)

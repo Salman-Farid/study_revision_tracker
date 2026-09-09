@@ -1,62 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
-    android:paddingStart="0dp"
-    android:paddingEnd="4dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:gravity="center_vertical">
 
-    <!-- Left accent bar -->
-    <ImageView
-        android:id="@+id/item_accent"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:background="@drawable/widget_accent_blue"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="10dp" />
+    <!-- Color indicator dot -->
+    <View
+        android:id="@+id/item_dot"
+        android:layout_width="6dp"
+        android:layout_height="6dp"
+        android:background="@drawable/dot_circle_overdue"
+        android:layout_marginEnd="8dp" />
 
     <LinearLayout
+        android:orientation="vertical"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_weight="1">
 
+        <!-- Top row: topic name + day badge -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/item_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#DEFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/item_day_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/badge_day_bg"
+                android:textColor="#CCFFFFFF"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <!-- Subject name -->
         <TextView
             android:id="@+id/item_subject"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:textColor="@color/widget_text_primary"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:id="@+id/item_topic"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:textColor="#80FFFFFF"
             android:textSize="11sp"
-            android:textColor="@color/widget_text_secondary"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:layout_marginTop="1dp"
-            android:visibility="gone" />
+            android:singleLine="true"
+            android:layout_marginTop="1dp" />
+
     </LinearLayout>
 
-    <!-- Right side: day badge -->
-    <TextView
-        android:id="@+id/item_badge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="10sp"
-        android:textStyle="bold"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:layout_marginStart="8dp" />
 </LinearLayout>

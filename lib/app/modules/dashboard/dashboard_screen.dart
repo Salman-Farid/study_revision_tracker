@@ -82,7 +82,7 @@ class DashboardScreen extends GetView<DashboardController> {
       SizedBox(width: S.md),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(_greeting(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-        Text('Smart Revision Tracker', style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary(d))),
+        Text('smartRevisionTracker'.tr, style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary(d))),
       ])),
     ]));
 
@@ -110,14 +110,14 @@ class DashboardScreen extends GetView<DashboardController> {
                 blurRadius: 20, offset: const Offset(0, 8)),
             ]),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(today > 0 ? '$today revision${today > 1 ? 's' : ''} due today' : 'No revisions due today',
+            Text(today > 0 ? 'revisionsDueToday'.replaceAll('{n}', '$today') : 'noRevisionsDueToday'.tr,
               style: AppTextStyles.headlineSmall.copyWith(color: Colors.white)),
             if (overdue > 0) ...[SizedBox(height: S.sm),
               Container(padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
                 decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(S.radiusSm)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.warning_rounded, color: Colors.white, size: S.iconSm), SizedBox(width: S.sm),
-                  Text('$overdue overdue', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+                  Text('overdueBadge'.replaceAll('{n}', '$overdue'), style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
                 ])),
             ],
             SizedBox(height: S.base),
@@ -125,17 +125,17 @@ class DashboardScreen extends GetView<DashboardController> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white, foregroundColor: AppColors.primary,
                 minimumSize: Size(S.avatarSize * 2, S.buttonHeight * 0.75)),
-child: const Text('Start Revising')),
+child: Text('startRevising'.tr)),
           ]))));
   }
 
   Widget _statsGrid(bool d) {
     final rate = (controller.stats['completion_rate'] as num?)?.toDouble() ?? 0;
     final items = [
-      ['Overdue', '${controller.stats['overdue_count'] ?? 0}', Icons.warning_rounded, AppColors.error],
-      ['Today', '${controller.stats['today_count'] ?? 0}', Icons.today_rounded, AppColors.primary],
-      ['Upcoming', '${controller.stats['upcoming_count'] ?? 0}', Icons.upcoming_rounded, AppColors.info],
-      ['Completion', '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success],
+      ['statOverdue'.tr, '${controller.stats['overdue_count'] ?? 0}', Icons.warning_rounded, AppColors.error],
+      ['statToday'.tr, '${controller.stats['today_count'] ?? 0}', Icons.today_rounded, AppColors.primary],
+      ['statUpcoming'.tr, '${controller.stats['upcoming_count'] ?? 0}', Icons.upcoming_rounded, AppColors.info],
+      ['statCompletion'.tr, '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success],
     ];
     return Padding(
       padding: EdgeInsets.all(S.xl),
@@ -163,7 +163,7 @@ child: const Text('Start Revising')),
 
   Widget _actions(bool d) => Padding(padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Quick Actions', style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
+      Text('quickActions'.tr, style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
       SizedBox(height: S.md),
       Material(color: Colors.transparent, child: InkWell(onTap: () => Get.toNamed(AppRoutes.history),
         borderRadius: BorderRadius.circular(S.radiusMd),
@@ -176,8 +176,8 @@ child: const Text('Start Revising')),
               child: Icon(Icons.bar_chart_rounded, color: AppColors.success, size: S.iconMd)),
             SizedBox(width: S.base),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('History', style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
-              Text('View progress and analytics', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+              Text('history'.tr, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
+              Text('viewProgressAnalytics'.tr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             ])),
             Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
           ])))),
@@ -185,6 +185,6 @@ child: const Text('Start Revising')),
 
   String _greeting() {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good Morning'; if (h < 17) return 'Good Afternoon'; return 'Good Evening';
+    if (h < 12) return 'goodMorning'.tr; if (h < 17) return 'goodAfternoon'.tr; return 'goodEvening'.tr;
   }
 }

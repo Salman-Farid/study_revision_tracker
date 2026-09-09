@@ -59,6 +59,7 @@ class LanguageController extends GetxService {
       if (stored != null && AppLanguages.all.containsKey(stored)) {
         locale.value = Locale(stored);
       }
+      Get.updateLocale(locale.value);
     });
   }
 

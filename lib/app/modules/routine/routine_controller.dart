@@ -106,6 +106,7 @@ class RoutineController extends GetxController {
   final Rx<RoutineMode> mode = RoutineMode.daily.obs;
   final RxList<ClassRoutineModel> classRoutines = <ClassRoutineModel>[].obs;
   final RxList<DailyRoutineModel> dailyRoutines = <DailyRoutineModel>[].obs;
+  final RxBool isLoading = true.obs;
 
   StreamSubscription? _classSub;
   StreamSubscription? _dailySub;
@@ -117,9 +118,11 @@ class RoutineController extends GetxController {
     voice.currentRoutineMode = mode.value == RoutineMode.daily ? 'daily' : 'class';
     _classSub = _routineRepo.classRoutinesStream.listen((list) {
       classRoutines.assignAll(list);
+      isLoading.value = false;
     });
     _dailySub = _routineRepo.dailyRoutinesStream.listen((list) {
       dailyRoutines.assignAll(list);
+      isLoading.value = false;
     });
     // Trigger initial load
     Future.microtask(() {

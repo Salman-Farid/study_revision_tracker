@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/revision_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/services/supabase_service.dart';
+import '../../widgets/widget_promo_dialog.dart';
 
 class DashboardController extends GetxController {
   final _repo = Get.find<RevisionRepository>();
@@ -22,6 +24,11 @@ class DashboardController extends GetxController {
     super.onInit();
     load();
     _subscribeRealtime();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.context != null) {
+        WidgetPromoDialog.showIfNeeded(Get.context!);
+      }
+    });
   }
 
   void _subscribeRealtime() {

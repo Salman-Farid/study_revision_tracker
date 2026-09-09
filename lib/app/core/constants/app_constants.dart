@@ -30,19 +30,19 @@ class AppConstants {
   static const Color primaryDarkColor = Color(0xFF5BA3D9);   // Deeper Sky Blue
   static const Color primaryLightColor = Color(0xFFB8E0F7);  // Light Sky Blue
 
-  static const Color secondaryColor = Color(0xFFFFF3B0);     // Soft Yellow
-  static const Color secondaryDarkColor = Color(0xFFE6D88A); // Deeper Soft Yellow
-  static const Color secondaryLightColor = Color(0xFFFFF9DB);// Light Soft Yellow
+  static const Color secondaryColor = Color(0xFF81D4FA);     // Light Sky Blue
+  static const Color secondaryDarkColor = Color(0xFF4FC3F7); // Deeper Light Sky Blue
+  static const Color secondaryLightColor = Color(0xFFE1F5FE);// Pale Sky Blue
 
   static const Color accentColor = Color(0xFFFF8A80);        // Soft Red
   static const Color accentDarkColor = Color(0xFFE56B60);    // Deeper Soft Red
   static const Color accentLightColor = Color(0xFFFFCDD2);   // Light Soft Red
 
   static const List<Color> subjectColors = [
-    Color(0xFF87CEEB), Color(0xFFFFF3B0), Color(0xFFFF8A80),
-    Color(0xFFB8E0F7), Color(0xFFE6D88A), Color(0xFFE56B60),
-    Color(0xFF5BA3D9), Color(0xFFFFF9DB), Color(0xFFFFCDD2),
-    Color(0xFF4FC3F7), Color(0xFFFFD54F), Color(0xFFEF9A9A),
+    Color(0xFF87CEEB), Color(0xFF81D4FA), Color(0xFFFF8A80),
+    Color(0xFFB8E0F7), Color(0xFF4FC3F7), Color(0xFFE56B60),
+    Color(0xFF5BA3D9), Color(0xFFE1F5FE), Color(0xFFFFCDD2),
+    Color(0xFF4FC3F7), Color(0xFF29B6F6), Color(0xFFEF9A9A),
   ];
 
   // ── SEMANTIC COLORS ──
@@ -53,7 +53,7 @@ class AppConstants {
 
   // ── SURFACE COLORS ──
   static const Color primarySurface = Color(0xFFE3F2FD);
-  static const Color secondarySurface = Color(0xFFFFFDE7);
+  static const Color secondarySurface = Color(0xFFE1F5FE);
   static const Color accentSurface = Color(0xFFFFEBEE);
 
   // ── ALIASES ──

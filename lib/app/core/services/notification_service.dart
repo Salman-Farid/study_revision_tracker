@@ -467,16 +467,20 @@ class NotificationService extends GetxService {
   Future<void> rescheduleAll() async {
     if (!_notificationsEnabled) return;
     final now = DateTime.now();
-    if (_lastReschedule != null && now.difference(_lastReschedule!).inSeconds < 5) {
+    if (_lastReschedule != null && now.difference(_lastReschedule!).inSeconds < 2) {
       return;
     }
     _lastReschedule = now;
 
     try {
       await _plugin.cancelAll();
+      debugPrint('[NotificationService] Cancelled all existing notifications');
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('[NotificationService] rescheduleAll: no user, skipping');
+        return;
+      }
       final userId = user.id;
       final today = DateTime.now();
       final todayStart = DateTime(today.year, today.month, today.day);
@@ -492,6 +496,8 @@ class NotificationService extends GetxService {
       final schedules = results[0] as List<RevisionScheduleModel>;
       final classRoutines = results[1] as List<ClassRoutineModel>;
       final dailyRoutines = results[2] as List<DailyRoutineModel>;
+
+      debugPrint('[NotificationService] rescheduleAll: ${schedules.length} revision schedules, ${classRoutines.length} class routines, ${dailyRoutines.length} daily routines');
 
       // Schedule revisions
       for (final schedule in schedules) {
@@ -530,8 +536,9 @@ class NotificationService extends GetxService {
           await scheduleDailyRoutine(routine: routine, daysAhead: 7);
         } catch (_) {}
       }
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('[NotificationService] rescheduleAll error: $e');
+      debugPrint('[NotificationService] stack: $stack');
     }
   }
 

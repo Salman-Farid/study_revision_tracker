@@ -1,140 +1,131 @@
 package com.example.study_revision_tracker
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
-import android.view.View
+import android.os.Handler
+import android.os.Looper
 import android.widget.RemoteViews
+import android.app.PendingIntent
 
 class DailyRoutineWidget : AppWidgetProvider() {
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        Log.d("DailyRoutineWidget", "onUpdate called with ${appWidgetIds.size} widgets")
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+    private val handler = Handler(Looper.getMainLooper())
+    private val timerUpdateRunnable = object : Runnable {
+        override fun run() {
+            val ctx = androidx.core.content.ContextCompat.getImplApplication(context)
+            if (ctx != null) {
+                val mgr = AppWidgetManager.getInstance(ctx)
+                val ids = mgr.getAppWidgetIds(ComponentName(ctx, DailyRoutineWidget::class.java))
+                for (id in ids) updateWidget(ctx, mgr, id, updateTimer = true)
+            }
+            handler.postDelayed(this, 60_000)
         }
     }
 
-    override fun onReceive(context: Context, intent: Intent?) {
-        Log.d("DailyRoutineWidget", "onReceive action=${intent?.action}")
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        for (appWidgetId in appWidgetIds) {
+            updateWidget(context, appWidgetManager, appWidgetId)
+        }
+        // Start periodic timer updates
+        handler.removeCallbacks(timerUpdateRunnable)
+        handler.postDelayed(timerUpdateRunnable, 60_000)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent?.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE ||
-            intent?.action == "com.example.study_revision_tracker.UPDATE_WIDGETS") {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val ids = appWidgetManager.getAppWidgetIds(
-                android.content.ComponentName(context, DailyRoutineWidget::class.java)
-            )
-            Log.d("DailyRoutineWidget", "Found ${ids.size} widget instances")
-            for (id in ids) {
-                updateAppWidget(context, appWidgetManager, id)
+        when (intent.action) {
+            ACTION_REFRESH -> {
+                val mgr = AppWidgetManager.getInstance(context)
+                val ids = mgr.getAppWidgetIds(ComponentName(context, DailyRoutineWidget::class.java))
+                for (id in ids) updateWidget(context, mgr, id)
             }
         }
     }
 
     companion object {
-        private const val TAG = "DailyRoutineWidget"
+        const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_DAILY"
+    }
+}
 
-        fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            try {
-                Log.d(TAG, "updateAppWidget id=$appWidgetId")
-                val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-                val views = RemoteViews(context.packageName, R.layout.daily_routine_widget)
+private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, updateTimer: Boolean = false) {
+    try {
+        val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+        val hasData = prefs.getString("widget_daily_has_data", "false") == "true"
+        val statusMessage = prefs.getString("widget_daily_status_message", "No routine for today") ?: "No routine for today"
+        val currentSubject = prefs.getString("widget_daily_current_subject", "") ?: ""
+        val currentTopic = prefs.getString("widget_daily_current_topic", "") ?: ""
+        val currentType = prefs.getString("widget_daily_current_type", "") ?: ""
+        val currentTime = prefs.getString("widget_daily_current_time", "") ?: ""
+        val remaining = prefs.getString("widget_daily_remaining", "") ?: ""
+        val endTimestamp = prefs.getString("widget_daily_current_end_timestamp", "0")?.toLongOrNull() ?: 0L
+        val upcomingJson = prefs.getString("widget_daily_upcoming_items", "[]") ?: "[]"
+        val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
 
-                val hasData = prefs.getBoolean("widget_daily_has_data", false)
-                val statusMessage = prefs.getString("widget_daily_status_message", "No routine set for today") ?: ""
-                val currentSubject = prefs.getString("widget_daily_current_subject", "") ?: ""
-                val currentTopic = prefs.getString("widget_daily_current_topic", "") ?: ""
-                val currentType = prefs.getString("widget_daily_current_type", "") ?: ""
-                val currentTime = prefs.getString("widget_daily_current_time", "") ?: ""
-                val remaining = prefs.getString("widget_daily_remaining", "") ?: ""
-                val nextSubject = prefs.getString("widget_daily_next_subject", "") ?: ""
-                val nextTime = prefs.getString("widget_daily_next_time", "") ?: ""
+        val hasUpcoming = try {
+            val arr = org.json.JSONArray(upcomingJson)
+            arr.length() > 0
+        } catch (_: Exception) { false }
 
-                Log.d(TAG, "hasData=$hasData currentSubject='$currentSubject' currentType='$currentType' remaining='$remaining'")
-                Log.d(TAG, "nextSubject='$nextSubject' nextTime='$nextTime'")
+        val hasCurrent = currentSubject.isNotEmpty() && endTimestamp > System.currentTimeMillis()
 
-                if (hasData && currentSubject.isNotEmpty()) {
-                    views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.GONE)
-                    views.setTextViewText(R.id.widget_current_subject, currentSubject)
+        val views = RemoteViews(context.packageName, R.layout.daily_routine_widget)
 
-                    if (currentTopic.isNotEmpty()) {
-                        views.setViewVisibility(R.id.widget_current_topic, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_current_topic, currentTopic)
-                    } else {
-                        views.setViewVisibility(R.id.widget_current_topic, View.GONE)
-                    }
+        // Current card
+        if (hasCurrent) {
+            views.setViewVisibility(R.id.widget_current_card, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.widget_current_subject, currentSubject)
+            views.setTextViewText(R.id.widget_current_topic, currentTopic)
+            views.setTextViewText(R.id.widget_current_type, currentType)
+            views.setTextViewText(R.id.widget_current_timer, remaining)
 
-                    val typeLabel = formatTypeLabel(currentType)
-                    if (typeLabel.isNotEmpty()) {
-                        views.setViewVisibility(R.id.widget_current_type, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_current_type, typeLabel)
-                    } else {
-                        views.setViewVisibility(R.id.widget_current_type, View.GONE)
-                    }
-
-                    views.setTextViewText(R.id.widget_current_time, currentTime)
-                    views.setTextViewText(R.id.widget_remaining, remaining)
-                    views.setViewVisibility(R.id.widget_status_badge, View.VISIBLE)
-
-                    if (nextSubject.isNotEmpty()) {
-                        views.setViewVisibility(R.id.widget_next_card, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_next_subject, nextSubject)
-                        views.setTextViewText(R.id.widget_next_time, nextTime)
-                    } else {
-                        views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    }
-                } else if (hasData) {
-                    views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
-                    views.setTextViewText(R.id.widget_current_subject, statusMessage)
-                    views.setViewVisibility(R.id.widget_current_topic, View.GONE)
-                    views.setViewVisibility(R.id.widget_current_type, View.GONE)
-                    views.setTextViewText(R.id.widget_current_time, "")
-                    views.setTextViewText(R.id.widget_remaining, "")
-                    views.setViewVisibility(R.id.widget_status_badge, View.GONE)
-                    views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.GONE)
-                } else {
-                    views.setViewVisibility(R.id.widget_current_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_next_card, View.GONE)
-                    views.setViewVisibility(R.id.widget_status_badge, View.GONE)
-                    views.setViewVisibility(R.id.widget_empty_state, View.VISIBLE)
-                    views.setTextViewText(R.id.widget_empty_text, statusMessage)
-                }
-
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("study-revision-tracker://routine"))
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                val pendingIntent = PendingIntent.getActivity(
-                    context, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
-
-                appWidgetManager.updateAppWidget(appWidgetId, views)
-                Log.d(TAG, "Widget $appWidgetId updated successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "CRITICAL: updateAppWidget failed for id=$appWidgetId", e)
-            }
+            // Click to open app
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val pending = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            views.setOnClickPendingIntent(R.id.widget_current_card, pending)
+        } else {
+            views.setViewVisibility(R.id.widget_current_card, android.view.View.GONE)
         }
 
-        private fun formatTypeLabel(type: String): String {
-            return when (type) {
-                "study" -> "Study"
-                "revision" -> "Revision"
-                "first_read" -> "First Read"
-                "class" -> "Class"
-                "break" -> "Break"
-                "meal" -> "Meal"
-                "nap" -> "Power Nap"
-                "recall" -> "Active Recall"
-                "question_practice" -> "Questions"
-                "review" -> "Review"
-                else -> type.replace("_", " ").replaceFirstChar { it.uppercase() }
-            }
+        // Upcoming header — ONLY if there ARE upcoming items
+        if (hasUpcoming && hasCurrent) {
+            views.setViewVisibility(R.id.widget_upcoming_header, android.view.View.VISIBLE)
+        } else {
+            views.setViewVisibility(R.id.widget_upcoming_header, android.view.View.GONE)
         }
+
+        // ListView for upcoming items
+        val svcIntent = Intent(context, DailyRoutineWidgetListService::class.java).apply {
+            putExtra("upcoming_json", upcomingJson)
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            data = Uri.parse(svcIntent.toUri(Intent.URI_INTENT_SCHEME))
+        }
+        views.setRemoteAdapter(R.id.widget_upcoming_list, svcIntent)
+        views.setEmptyView(R.id.widget_upcoming_list, R.id.widget_empty)
+
+        // Empty state
+        if (!hasData) {
+            views.setViewVisibility(R.id.widget_upcoming_list, android.view.View.GONE)
+            views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.widget_empty_message, statusMessage)
+        } else if (!hasUpcoming && !hasCurrent) {
+            views.setViewVisibility(R.id.widget_upcoming_list, android.view.View.GONE)
+            views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.widget_empty_message, "No more blocks today")
+        }
+
+        // Timestamp
+        if (lastUpdated.isNotEmpty()) {
+            val time = lastUpdated.substringAfter("T", "").take(5)
+            views.setTextViewText(R.id.widget_updated, "Updated $time")
+        }
+
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_upcoming_list)
+        appWidgetManager.updateAppWidget(appWidgetId, views)
+    } catch (e: Exception) {
+        android.util.Log.e("DailyRoutineWidget", "update error: ${e.message}")
     }
 }

@@ -33,10 +33,13 @@ class WidgetDataProvider {
   static const String _kDailyCurrentType = 'widget_daily_current_type';
   static const String _kDailyCurrentTime = 'widget_daily_current_time';
   static const String _kDailyRemaining = 'widget_daily_remaining';
+  static const String _kDailyCurrentEndTimestamp = 'widget_daily_current_end_timestamp';
   static const String _kDailyNextSubject = 'widget_daily_next_subject';
   static const String _kDailyNextTime = 'widget_daily_next_time';
   static const String _kDailyHasData = 'widget_daily_has_data';
   static const String _kDailyStatusMessage = 'widget_daily_status_message';
+  static const String _kDailyUpcomingItems = 'widget_daily_upcoming_items';
+  static const String _kDailyAllItems = 'widget_daily_all_items';
 
   static const String _kRevisionOverdueItems = 'widget_revision_overdue_items';
   static const String _kRevisionTodayItems = 'widget_revision_today_items';
@@ -65,7 +68,11 @@ class WidgetDataProvider {
 
   /// Call once during app startup to register background callbacks.
   static Future<void> init() async {
-    await HomeWidget.registerInteractivityCallback(_onWidgetTapped);
+    try {
+      await HomeWidget.registerInteractivityCallback(_onWidgetTapped);
+    } catch (e) {
+      debugPrint('[WidgetData] registerInteractivityCallback failed: $e');
+    }
   }
 
   /// Get the initial deep link URI from a widget tap (if any).
@@ -141,7 +148,7 @@ class WidgetDataProvider {
   ) async {
     final result = <String, dynamic>{
       'hasData': false,
-      'statusMessage': 'No routine set for today',
+      'statusMessage': 'Nothing for today',
     };
 
     try {
@@ -237,24 +244,60 @@ class WidgetDataProvider {
         result['remaining'] = remainingMin > 60
             ? '${remainingMin ~/ 60}h ${remainingMin % 60}m left'
             : '${remainingMin}m left';
+        result['currentEndTimestamp'] = end.millisecondsSinceEpoch;
         result['statusMessage'] = 'Currently: ${currentItem['subject']}';
       } else {
         result['statusMessage'] = 'No active block right now';
       }
 
-      // Find next item
-      Map<String, dynamic>? nextItem;
+      // Build upcoming items list (all future items, not just next)
+      final upcomingItems = <Map<String, dynamic>>[];
       for (final item in allItems) {
         final start = item['start'] as DateTime;
+        final end = item['end'] as DateTime;
         if (start.isAfter(now)) {
-          nextItem = item;
-          break;
+          final remainingMs = end.difference(now).inMilliseconds;
+          final remainingMin = remainingMs ~/ 60000;
+          upcomingItems.add({
+            'subject': item['subject'] as String,
+            'topic': item['topic'] as String? ?? '',
+            'type': item['type'] as String,
+            'timeText': '${item['timeText']} – ${item['endTimeText']}',
+            'endTimestamp': end.millisecondsSinceEpoch,
+            'remainingMin': remainingMin,
+          });
         }
       }
-      if (nextItem != null) {
-        result['nextSubject'] = nextItem['subject'] as String;
-        result['nextTime'] = '${nextItem['timeText']} – ${nextItem['endTimeText']}';
+      result['upcomingItems'] = upcomingItems;
+
+      // Keep single next for backward compat
+      if (upcomingItems.isNotEmpty) {
+        result['nextSubject'] = upcomingItems[0]['subject'];
+        result['nextTime'] = upcomingItems[0]['timeText'];
       }
+
+      // Also save ALL items for full widget view
+      final allItemsJson = <Map<String, dynamic>>[];
+      for (final item in allItems) {
+        final start = item['start'] as DateTime;
+        final end = item['end'] as DateTime;
+        final isPast = end.isBefore(now);
+        final isCurrent = !now.isBefore(start) && now.isBefore(end);
+        final remainingMs = end.difference(now).inMilliseconds;
+        allItemsJson.add({
+          'subject': item['subject'] as String,
+          'topic': item['topic'] as String? ?? '',
+          'type': item['type'] as String,
+          'timeText': item['timeText'] as String,
+          'endTimeText': item['endTimeText'] as String,
+          'startTimestamp': start.millisecondsSinceEpoch,
+          'endTimestamp': end.millisecondsSinceEpoch,
+          'isPast': isPast,
+          'isCurrent': isCurrent,
+          'remainingMin': remainingMs > 0 ? remainingMs ~/ 60000 : 0,
+        });
+      }
+      result['allItems'] = allItemsJson;
     } catch (e) {
       debugPrint('[WidgetData] _fetchDailyRoutineData error: $e');
       result['statusMessage'] = 'Error loading routine';
@@ -273,7 +316,7 @@ class WidgetDataProvider {
       'overdueCount': 0,
       'todayCount': 0,
       'upcomingCount': 0,
-      'statusMessage': 'No revisions scheduled',
+      'statusMessage': 'Nothing for today',
       'items': <Map<String, dynamic>>[],
     };
 
@@ -400,7 +443,7 @@ class WidgetDataProvider {
   ) async {
     final result = <String, dynamic>{
       'hasToday': false,
-      'statusMessage': 'No classes today',
+      'statusMessage': 'Nothing for today',
     };
 
     try {
@@ -506,21 +549,24 @@ class WidgetDataProvider {
   static Future<void> _saveDailyWidgetData(
     Map<String, dynamic> data,
   ) async {
-    await HomeWidget.saveWidgetData<bool>(_kDailyHasData, data['hasData'] as bool? ?? false);
+    await HomeWidget.saveWidgetData<String>(_kDailyHasData, (data['hasData'] as bool? ?? false).toString());
     await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, data['statusMessage'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentSubject, data['currentSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentTopic, data['currentTopic'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentType, data['currentType'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentTime, data['currentTime'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyRemaining, data['remaining'] as String? ?? '');
+    await HomeWidget.saveWidgetData<String>(_kDailyCurrentEndTimestamp, (data['currentEndTimestamp'] as int? ?? 0).toString());
     await HomeWidget.saveWidgetData<String>(_kDailyNextSubject, data['nextSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyNextTime, data['nextTime'] as String? ?? '');
+    await HomeWidget.saveWidgetData<String>(_kDailyUpcomingItems, jsonEncode(data['upcomingItems'] ?? []));
+    await HomeWidget.saveWidgetData<String>(_kDailyAllItems, jsonEncode(data['allItems'] ?? []));
   }
 
   static Future<void> _saveRevisionWidgetData(
     Map<String, dynamic> data,
   ) async {
-    await HomeWidget.saveWidgetData<bool>(_kRevisionHasData, data['hasData'] as bool? ?? false);
+    await HomeWidget.saveWidgetData<String>(_kRevisionHasData, (data['hasData'] as bool? ?? false).toString());
     await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, data['statusMessage'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kRevisionOverdueCount, (data['overdueCount'] as int? ?? 0).toString());
     await HomeWidget.saveWidgetData<String>(_kRevisionTodayCount, (data['todayCount'] as int? ?? 0).toString());
@@ -534,7 +580,7 @@ class WidgetDataProvider {
   static Future<void> _saveClassWidgetData(
     Map<String, dynamic> data,
   ) async {
-    await HomeWidget.saveWidgetData<bool>(_kClassHasToday, data['hasToday'] as bool? ?? false);
+    await HomeWidget.saveWidgetData<String>(_kClassHasToday, (data['hasToday'] as bool? ?? false).toString());
     await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, data['statusMessage'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassCurrentSubject, data['currentSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassCurrentTime, data['currentTime'] as String? ?? '');
@@ -547,12 +593,12 @@ class WidgetDataProvider {
   }
 
   static Future<void> _setEmptyData() async {
-    await HomeWidget.saveWidgetData<bool>(_kDailyHasData, false);
+    await HomeWidget.saveWidgetData<String>(_kDailyHasData, 'false');
     await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, 'Sign in to see your routine');
-    await HomeWidget.saveWidgetData<bool>(_kRevisionHasData, false);
-    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, 'Sign in to see revisions');
-    await HomeWidget.saveWidgetData<bool>(_kClassHasToday, false);
-    await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, 'Sign in to see classes');
+    await HomeWidget.saveWidgetData<String>(_kRevisionHasData, 'false');
+    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, 'Nothing for today');
+    await HomeWidget.saveWidgetData<String>(_kClassHasToday, 'false');
+    await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, 'Nothing for today');
   }
 
   // ── Utility ──
@@ -580,6 +626,8 @@ class WidgetDataProvider {
   static Future<void> setAppGroupId(String groupId) async {
     try {
       await HomeWidget.setAppGroupId(groupId);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[WidgetData] setAppGroupId failed: $e');
+    }
   }
 }

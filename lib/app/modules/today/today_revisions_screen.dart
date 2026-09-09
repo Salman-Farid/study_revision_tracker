@@ -12,22 +12,22 @@ class TodayRevisionsScreen extends GetView<TodayController> {
   @override
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(appBar: AppBar(title: Text("Today's Revisions")),
+    return Scaffold(appBar: AppBar(title: Text('todaysRevisions'.tr)),
       body: Obx(() {
         if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
         final total = controller.overdue.length + controller.today.length;
-        if (total == 0) return const EmptyState(icon: Icons.check_circle_rounded,
-          title: 'All Caught Up!', subtitle: 'No revisions scheduled for today');
+        if (total == 0) return EmptyState(icon: Icons.check_circle_rounded,
+          title: 'allCaughtUpTitle'.tr, subtitle: 'allCaughtUpSub'.tr);
         return RefreshIndicator(onRefresh: controller.load,
           child: ListView(physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             padding: EdgeInsets.all(S.base), children: [
               if (controller.overdue.isNotEmpty) ...[
-                _header('Missed', controller.overdue.length, AppColors.error),
+                _header('missed'.tr, controller.overdue.length, AppColors.error),
                 ...controller.overdue.map((s) => _tile(s, AppColors.error, () => controller.markMissed(s.id), d, isOverdue: true)),
                 SizedBox(height: S.base),
               ],
               if (controller.today.isNotEmpty) ...[
-                _header('Due Today', controller.today.length, AppColors.primary),
+                _header('dueToday'.tr, controller.today.length, AppColors.primary),
                 ...controller.today.map((s) => _tile(s, AppColors.primary, () => controller.markDone(s.id), d, isOverdue: false)),
               ],
               SizedBox(height: S.xxxl),
@@ -46,8 +46,8 @@ class TodayRevisionsScreen extends GetView<TodayController> {
     ]));
 
   Widget _tile(RevisionScheduleModel s, Color col, VoidCallback onDismiss, bool d, {required bool isOverdue}) {
-    final subjectLabel = s.subjectName ?? 'Subject';
-    final topicLabel = s.topicName ?? 'Topic';
+    final subjectLabel = s.subjectName ?? 'subject'.tr;
+    final topicLabel = s.topicName ?? 'topic'.tr;
     final dateStr = '${s.scheduledDate.day}/${s.scheduledDate.month}/${s.scheduledDate.year}';
 
     return Dismissible(key: ValueKey(s.id),
@@ -57,9 +57,9 @@ class TodayRevisionsScreen extends GetView<TodayController> {
         child: Icon(Icons.check_rounded, color: AppColors.success)),
       child: Container(margin: EdgeInsets.only(bottom: S.sm), padding: EdgeInsets.all(S.base),
         decoration: BoxDecoration(
-          color: isOverdue ? AppColors.error.withOpacity(0.06) : AppColors.surface(d),
+          color: AppColors.surface(d),
           borderRadius: BorderRadius.circular(S.radiusMd),
-          border: Border.all(color: isOverdue ? AppColors.error.withOpacity(0.3) : AppColors.border(d))),
+          border: Border.all(color: AppColors.border(d))),
         child: Row(children: [
           Container(width: 4, height: 48, decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(2))),
           SizedBox(width: S.md),
@@ -72,18 +72,14 @@ class TodayRevisionsScreen extends GetView<TodayController> {
             SizedBox(height: 4),
             // Day label + date or Missed badge
             Row(children: [
-              Text('Day ${s.dayNumber}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+              Text('dayLabel'.replaceAll('{n}', '${s.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
               SizedBox(width: S.sm),
               Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
               SizedBox(width: S.sm),
               Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
               if (isOverdue) ...[
                 SizedBox(width: S.sm),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(4)),
-                  child: Text('Missed', style: AppTextStyles.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
-                ),
+                Text('missed'.tr, style: AppTextStyles.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 10)),
               ],
             ]),
           ])),

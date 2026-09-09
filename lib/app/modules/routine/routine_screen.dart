@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../gemini_3_flash_live_voice_chatbot/features/voice_assistant/study_assistant_dialogue.dart';
 import '../../core/constants/app_constants.dart';
@@ -20,10 +21,10 @@ class RoutineScreen extends GetView<RoutineController> {
       appBar: AppBar(
         backgroundColor: AppColors.bg(d),
         elevation: 0,
-        title: const Text('Routine'),
+        title: Text('routine'.tr),
         actions: [
           IconButton(
-            tooltip: 'Assistant',
+            tooltip: 'assistant'.tr,
             icon: const Icon(Icons.mic_rounded),
             onPressed: controller.openAssistant,
           ),
@@ -36,6 +37,11 @@ class RoutineScreen extends GetView<RoutineController> {
               _ModeToggle(controller: controller),
               Expanded(
                 child: Obx(() {
+                  if (controller.isLoading.value) {
+                    return controller.mode.value == RoutineMode.daily
+                        ? _DailyShimmer(d: d)
+                        : _ClassShimmer(d: d);
+                  }
                   return controller.mode.value == RoutineMode.daily
                       ? _DailyBody(controller: controller)
                       : _ClassBody(controller: controller);
@@ -82,7 +88,7 @@ class _ModeToggle extends StatelessWidget {
             children: [
               Expanded(
                 child: _Segment(
-                  label: 'Daily Routine',
+                  label: 'dailyRoutine'.tr,
                   icon: Icons.today_rounded,
                   active: mode == RoutineMode.daily,
                   onTap: () => controller.switchMode(RoutineMode.daily),
@@ -91,7 +97,7 @@ class _ModeToggle extends StatelessWidget {
               ),
               Expanded(
                 child: _Segment(
-                  label: 'Class Routine',
+                  label: 'classRoutine'.tr,
                   icon: Icons.event_note_rounded,
                   active: mode == RoutineMode.class$,
                   onTap: () => controller.switchMode(RoutineMode.class$),
@@ -186,14 +192,14 @@ class _DailyBody extends StatelessWidget {
                   size: 48, color: AppColors.textMuted(d)),
               SizedBox(height: S.md),
               Text(
-                'No routines for today',
+                'noRoutinesForToday'.tr,
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary(d),
                 ),
               ),
               SizedBox(height: S.sm),
               Text(
-                'Tap the mic to ask the assistant to build your day.',
+                'tapMicToAskAssistant'.tr,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textMuted(d),
                 ),
@@ -235,14 +241,14 @@ class _ClassBody extends StatelessWidget {
                   size: 48, color: AppColors.textMuted(d)),
               SizedBox(height: S.md),
               Text(
-                'No class routines',
+                'noClassRoutines'.tr,
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary(d),
                 ),
               ),
               SizedBox(height: S.sm),
               Text(
-                'Say: "I have Physics class at 9 AM in UB26A" to add one.',
+                'sayToAddOne'.tr,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textMuted(d),
                 ),
@@ -487,7 +493,7 @@ class _ClassRoutineTile extends StatelessWidget {
               // Section 1: Date
               _buildSection(
                 icon: Icons.calendar_today_rounded,
-                label: cr.daysText.isNotEmpty ? cr.daysText : 'One-time',
+                label: cr.daysText.isNotEmpty ? cr.daysText : 'oneTime'.tr,
                 sub: cr.dates.isNotEmpty ? cr.dates.first : '',
                 color: AppConstants.infoColor,
               ),
@@ -513,8 +519,8 @@ class _ClassRoutineTile extends StatelessWidget {
               // Section 3: Location
               _buildSection(
                 icon: Icons.location_on_rounded,
-                label: cr.locationText.isNotEmpty ? cr.locationText : 'TBA',
-                sub: cr.room != null ? 'Room ${cr.room}' : '',
+                label: cr.locationText.isNotEmpty ? cr.locationText : 'tba'.tr,
+                sub: cr.room != null ? 'roomNumber'.replaceAll('{room}', '${cr.room}') : '',
                 color: AppColors.warning,
               ),
             ],
@@ -566,6 +572,166 @@ class _ClassRoutineTile extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Shimmer Skeletons ──
+
+class _DailyShimmer extends StatelessWidget {
+  final bool d;
+  const _DailyShimmer({required this.d});
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
+    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: ListView.builder(
+        padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.xxxl),
+        itemCount: 6,
+        itemBuilder: (_, i) => Container(
+          margin: EdgeInsets.only(bottom: S.sm),
+          padding: EdgeInsets.all(S.md),
+          decoration: BoxDecoration(
+            color: baseColor,
+            borderRadius: BorderRadius.circular(S.radiusLg),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: highlightColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: S.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 12, height: 12, color: highlightColor),
+                        SizedBox(width: 6),
+                        Container(width: 100, height: 10, color: highlightColor),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      height: 12,
+                      color: highlightColor,
+                    ),
+                    SizedBox(height: 6),
+                    Container(width: 140, height: 10, color: highlightColor),
+                  ],
+                ),
+              ),
+              SizedBox(width: S.sm),
+              Container(
+                width: 40,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: highlightColor,
+                  borderRadius: BorderRadius.circular(S.radiusSm),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassShimmer extends StatelessWidget {
+  final bool d;
+  const _ClassShimmer({required this.d});
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
+    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: ListView.builder(
+        padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.xxxl),
+        itemCount: 5,
+        itemBuilder: (_, i) => Container(
+          margin: EdgeInsets.only(bottom: S.sm),
+          padding: EdgeInsets.all(S.md),
+          decoration: BoxDecoration(
+            color: baseColor,
+            borderRadius: BorderRadius.circular(S.radiusLg),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 160,
+                height: 14,
+                color: highlightColor,
+              ),
+              SizedBox(height: S.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(width: 14, height: 14, color: highlightColor),
+                        SizedBox(height: 4),
+                        Container(width: 60, height: 8, color: highlightColor),
+                        SizedBox(height: 2),
+                        Container(width: 40, height: 8, color: highlightColor),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 32,
+                    color: highlightColor,
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(width: 14, height: 14, color: highlightColor),
+                        SizedBox(height: 4),
+                        Container(width: 80, height: 8, color: highlightColor),
+                        SizedBox(height: 2),
+                        Container(width: 50, height: 8, color: highlightColor),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 32,
+                    color: highlightColor,
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(width: 14, height: 14, color: highlightColor),
+                        SizedBox(height: 4),
+                        Container(width: 50, height: 8, color: highlightColor),
+                        SizedBox(height: 2),
+                        Container(width: 30, height: 8, color: highlightColor),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

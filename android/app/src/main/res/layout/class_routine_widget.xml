@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_card_background"
-    android:padding="16dp">
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:elevation="2dp">
 
     <!-- Header -->
     <LinearLayout
@@ -13,39 +14,24 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <ImageView
-            android:layout_width="4dp"
-            android:layout_height="20dp"
-            android:background="@drawable/widget_accent_purple"
-            android:layout_marginEnd="10dp" />
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/widget_icon_book"
+            android:layout_marginEnd="8dp"
+            android:alpha="0.7" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Class Routine"
-            android:textSize="15sp"
+            android:textColor="#DEFFFFFF"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="@color/widget_text_primary"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.02" />
-
-        <TextView
-            android:id="@+id/widget_status_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="NOW"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:textColor="@color/widget_accent_green"
-            android:background="@drawable/widget_badge_background_green"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:visibility="gone" />
+            android:letterSpacing="0.04" />
     </LinearLayout>
 
     <!-- Current class card -->
@@ -54,127 +40,135 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/widget_inner_card_background"
-        android:padding="12dp"
+        android:background="@drawable/widget_current_card_bg"
+        android:padding="10dp"
         android:layout_marginBottom="8dp"
         android:visibility="gone">
-
-        <TextView
-            android:id="@+id/widget_current_subject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="@color/widget_text_primary"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="6dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:layout_marginBottom="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NOW"
+                android:textColor="#FFFFFF"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:background="@drawable/badge_now_bg"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/widget_current_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#80FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_current_subject"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#F0FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="2dp">
 
             <TextView
                 android:id="@+id/widget_current_time"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="11sp"
-                android:textColor="@color/widget_text_muted" />
+                android:textColor="#99FFFFFF"
+                android:textSize="11sp" />
 
             <TextView
-                android:id="@+id/widget_remaining"
+                android:id="@+id/widget_current_location"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textColor="#99FFFFFF"
                 android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/widget_accent_green" />
+                android:layout_marginStart="8dp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/widget_current_location"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="11sp"
-            android:textColor="@color/widget_text_subtitle"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:layout_marginTop="3dp"
-            android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Today's classes list (populated dynamically) -->
-    <LinearLayout
-        android:id="@+id/widget_classes_container"
+    <!-- Today's schedule header -->
+    <TextView
+        android:id="@+id/widget_today_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:text="TODAY"
+        android:textColor="#80FFFFFF"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.08"
+        android:layout_marginBottom="4dp"
         android:visibility="gone" />
 
-    <!-- Next class indicator -->
-    <LinearLayout
-        android:id="@+id/widget_next_card"
+    <!-- Class list ListView -->
+    <ListView
+        android:id="@+id/widget_class_list"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="4dp"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="NEXT"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:textColor="@color/widget_text_muted"
-            android:letterSpacing="0.1"
-            android:layout_marginEnd="8dp" />
-
-        <TextView
-            android:id="@+id/widget_next_subject"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="12sp"
-            android:textColor="@color/widget_text_secondary"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/widget_next_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="11sp"
-            android:textColor="@color/widget_text_muted" />
-    </LinearLayout>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="0dp"
+        android:clipToPadding="false"
+        android:scrollbars="none" />
 
     <!-- Empty state -->
     <LinearLayout
-        android:id="@+id/widget_empty_state"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:id="@+id/widget_empty"
         android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:gravity="center"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
         android:visibility="gone">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="&#127979;"
-            android:textSize="28sp"
-            android:layout_marginBottom="4dp" />
+            android:text="}"
+            android:textColor="#66FFFFFF"
+            android:textSize="24sp"
+            android:layout_marginBottom="6dp" />
 
         <TextView
-            android:id="@+id/widget_empty_text"
+            android:id="@+id/widget_empty_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No classes today"
+            android:textColor="#99FFFFFF"
             android:textSize="13sp"
-            android:textColor="@color/widget_text_secondary"
-            android:gravity="center" />
+            android:textStyle="italic" />
     </LinearLayout>
+
+    <!-- Updated timestamp -->
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#40FFFFFF"
+        android:textSize="9sp"
+        android:layout_marginTop="4dp" />
+
 </LinearLayout>
