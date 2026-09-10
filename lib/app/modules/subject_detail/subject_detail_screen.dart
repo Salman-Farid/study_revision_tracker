@@ -33,6 +33,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: controller.showAddSheet,
         child: const Icon(Icons.add_rounded),
       ),
@@ -153,7 +154,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     return ReorderableListView.builder(
       padding: EdgeInsets.all(S.base),
       itemCount: topics.length,
-      onReorder: isAllFilter ? controller.reorderTopics : (oldIndex, newIndex) {},
+      onReorder: controller.reorderTopics,
       proxyDecorator: (child, index, animation) {
         return AnimatedBuilder(
           animation: animation,

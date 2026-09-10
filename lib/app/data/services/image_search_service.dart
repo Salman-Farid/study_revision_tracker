@@ -12,7 +12,7 @@ class ImageSearchService {
     try {
       final query = Uri.encodeQueryComponent('$subjectName study');
       final uri = Uri.parse('https://api.unsplash.com/search/photos'
-          '?query=$query&per_page=12&orientation=landscape');
+          '?query=$query&per_page=2&orientation=landscape');
 
       final client = HttpClient();
       final req = await client.getUrl(uri);

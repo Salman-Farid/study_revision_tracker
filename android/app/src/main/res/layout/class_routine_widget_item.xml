@@ -3,62 +3,65 @@
     android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="10dp"
+    android:padding="8dp"
     android:layout_marginBottom="6dp"
     android:background="@drawable/widget_row_bg"
     android:gravity="center_vertical">
 
-    <!-- Left: subject / time / location -->
+    <!-- Left: subject / time / location — wrap instead of early ellipsis -->
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginEnd="8dp">
+        android:layout_marginEnd="6dp">
 
         <TextView
             android:id="@+id/row_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#FF1A237E"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:maxLines="2"
+            android:singleLine="false"
+            android:includeFontPadding="false" />
 
         <TextView
             android:id="@+id/row_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#FF5C6BC0"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:layout_marginTop="2dp" />
+            android:maxLines="2"
+            android:singleLine="false"
+            android:layout_marginTop="2dp"
+            android:includeFontPadding="false" />
 
         <TextView
             android:id="@+id/row_location"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#FFEF6C00"
-            android:textSize="11sp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:layout_marginTop="1dp" />
+            android:textSize="10sp"
+            android:maxLines="2"
+            android:singleLine="false"
+            android:layout_marginTop="1dp"
+            android:includeFontPadding="false" />
     </LinearLayout>
 
-    <!-- Right: duration box -->
+    <!-- Duration pill — hidden when widget is narrow -->
     <LinearLayout
         android:id="@+id/row_duration_box"
         android:orientation="vertical"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/widget_duration_box"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:gravity="center">
 
         <TextView
@@ -67,16 +70,16 @@
             android:layout_height="wrap_content"
             android:text="Duration"
             android:textColor="#FF5C6BC0"
-            android:textSize="8sp"
+            android:textSize="7sp"
             android:textStyle="bold"
-            android:letterSpacing="0.06" />
+            android:letterSpacing="0.04" />
 
         <TextView
             android:id="@+id/row_duration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FF1A237E"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:maxLines="2"
             android:layout_marginTop="1dp" />

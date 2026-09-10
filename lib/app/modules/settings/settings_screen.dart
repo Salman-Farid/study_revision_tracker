@@ -25,19 +25,22 @@ class SettingsScreen extends StatelessWidget {
                 () => _showLanguageSheet(c)),
             Obx(() => _tile(Icons.brightness_6_rounded, 'theme'.tr,
                 _themeLabel(c.themeMode.value), () => _showThemeSheet(c))),
-            Obx(() => SwitchListTile(
-              contentPadding: EdgeInsets.symmetric(horizontal: S.base, vertical: S.xs),
-              secondary: Icon(Icons.notifications_rounded,
-                  color: AppColors.textPrimary(Get.isDarkMode), size: S.iconMd),
-              title: Text('notifications'.tr,
-                  style: AppTextStyles.titleSmall
-                      .copyWith(color: AppColors.textPrimary(Get.isDarkMode))),
-              subtitle: Text('manageReminders'.tr,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textMuted(Get.isDarkMode))),
-              value: c.notificationsEnabled.value,
-              activeColor: AppConstants.primaryColor,
-              onChanged: c.toggleNotifications)),
+            Obx(() => Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.symmetric(horizontal: S.base, vertical: S.xs),
+                secondary: Icon(Icons.notifications_rounded,
+                    color: AppColors.textPrimary(Get.isDarkMode), size: S.iconMd),
+                title: Text('notifications'.tr,
+                    style: AppTextStyles.titleSmall
+                        .copyWith(color: AppColors.textPrimary(Get.isDarkMode))),
+                subtitle: Text('manageReminders'.tr,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textMuted(Get.isDarkMode))),
+                value: c.notificationsEnabled.value,
+                activeColor: AppConstants.primaryColor,
+                onChanged: c.toggleNotifications),
+            )),
             _tile(Icons.calendar_month_rounded, 'calendarIntegration'.tr,
                 'deviceIntegration'.tr, () {}),
           ]),

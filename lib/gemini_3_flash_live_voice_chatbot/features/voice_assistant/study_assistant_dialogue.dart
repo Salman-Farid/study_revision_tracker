@@ -8,8 +8,29 @@ import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../shared/widgets/thinking_dots.dart';
 import 'voice_assistant_controller.dart';
 
-class StudyAssistantDialogue extends StatelessWidget {
+class StudyAssistantDialogue extends StatefulWidget {
   const StudyAssistantDialogue({super.key});
+  @override
+  State<StudyAssistantDialogue> createState() => _StudyAssistantDialogueState();
+}
+
+class _StudyAssistantDialogueState extends State<StudyAssistantDialogue> {
+  bool _sessionStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _sessionStarted) return;
+      final c = Get.find<VoiceAssistantController>();
+      if (c.connectionState.value == ws.ConnectionState.disconnected) {
+        _sessionStarted = true;
+        try {
+          c.startSession();
+        } catch (_) {}
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +42,6 @@ class StudyAssistantDialogue extends StatelessWidget {
     final dialogueHNormal = screenH * 0.35;
     final dialogueHExpanded = screenH * 0.70;
 
-    if (c.connectionState.value == ws.ConnectionState.disconnected) {
-      try { c.startSession(); } catch (_) {}
-    }
     c.initExpandAnim();
 
     if (!c.dialogueOffsetInitialized) {
@@ -282,14 +300,14 @@ class StudyAssistantDialogue extends StatelessWidget {
         );
       }
 
-      c.scrollToBottom();
+      // Don't call scrollToBottom() here — it schedules a rebuild during build.
       return ListView.builder(
         controller: c.scrollCtrl,
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         itemCount: msgs.length + (processing ? 1 : 0),
         itemBuilder: (_, i) {
-          if (i == msgs.length && processing) {
+          if (i >= msgs.length) {
             return const _ThinkingBubble();
           }
           return _ChatBubble(message: msgs[i], isDark: isDark);

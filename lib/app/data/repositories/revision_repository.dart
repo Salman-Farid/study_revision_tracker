@@ -14,6 +14,8 @@ class RevisionRepository {
     required String subjectId, required DateTime firstReadDate}) =>
     _s.createRevisionSchedules(topicId: topicId, subjectId: subjectId, firstReadDate: firstReadDate);
   Future<void> updateScheduleStatus(String id, String st) => _s.updateScheduleStatus(id, st);
+  Future<void> completeRevision({required String scheduleId, required String topicId}) =>
+      _s.completeRevision(scheduleId: scheduleId, topicId: topicId);
   Future<RevisionSessionModel> startSession({required String topicId, String? scheduleId}) =>
     _s.createSession(topicId: topicId, scheduleId: scheduleId);
   Future<void> completeSession(String sid, {required String recallRating,

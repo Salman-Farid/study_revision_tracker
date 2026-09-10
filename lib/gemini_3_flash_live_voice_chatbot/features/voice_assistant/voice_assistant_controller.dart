@@ -106,13 +106,16 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
 
   void scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (scrollCtrl.hasClients) {
-        scrollCtrl.animateTo(
-          scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
+      // Ignore if not attached or attached to more than one ListView
+      // (sheet + screen share this controller).
+      if (!scrollCtrl.hasClients || scrollCtrl.positions.length != 1) return;
+      final pos = scrollCtrl.position;
+      if (!pos.hasContentDimensions) return;
+      scrollCtrl.animateTo(
+        pos.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -453,6 +456,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     super.onInit();
     _setupListeners();
     _startMicReconcileTimer();
+    // Always keep the chat pinned to the latest message.
+    ever(messages, (_) => scrollToBottom());
+    ever(isProcessing, (_) => scrollToBottom());
+    ever(connectionState, (_) => scrollToBottom());
   }
 
   // ───────────────────────── Mic state ─────────────────────────

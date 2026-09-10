@@ -351,15 +351,15 @@ class WidgetDataProvider {
           .gte('scheduled_date', today.toIso8601String())
           .lt('scheduled_date', tomorrow.toIso8601String());
 
-      // Fetch upcoming (next 7 days)
-      final upcomingEnd = tomorrow.add(const Duration(days: 7));
+      // Fetch upcoming — ALL future pending (Day 14 / 30 / 90 too),
+      // not only the next 7 days.
       final upcomingRows = await client
           .from('revision_schedules')
           .select()
           .eq('user_id', userId)
           .eq('status', 'pending')
           .gte('scheduled_date', tomorrow.toIso8601String())
-          .lt('scheduled_date', upcomingEnd.toIso8601String());
+          .order('scheduled_date', ascending: true);
 
       result['overdueCount'] = (overdueRows as List).length;
       result['todayCount'] = (todayRows as List).length;

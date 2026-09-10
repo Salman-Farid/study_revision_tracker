@@ -155,13 +155,13 @@ class RoutineController extends GetxController {
     return '$h:$m $period';
   }
 
-  /// Combined items for the daily tab: today's daily routine + today's unfinished class routines.
+  /// Daily tab list = assistant-created daily routine only.
+  /// Class routines stay on the Class tab so they aren't duplicated here.
   List<RoutineDisplayItem> get todayItems {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final items = <RoutineDisplayItem>[];
 
-    // Helper: compute end time text from start time + duration
     String endText(DateTime start, int durMin) {
       final end = start.add(Duration(minutes: durMin));
       var h = end.hour;
@@ -172,36 +172,9 @@ class RoutineController extends GetxController {
       return '$h:$m $period';
     }
 
-    // 1. Add class routines that are scheduled for today and not yet finished
-    for (final cr in classRoutines) {
-      if (_isClassToday(cr, today)) {
-        final endHour = cr.startTime.hour + (cr.durationMinutes ~/ 60);
-        final endMinute = cr.startTime.minute + (cr.durationMinutes % 60);
-        final endTime = DateTime(
-          today.year, today.month, today.day,
-          endHour, endMinute,
-        );
-        // Only include if not already finished
-        if (endTime.isAfter(now)) {
-          items.add(RoutineDisplayItem(
-            subjectName: cr.subjectName,
-            timeText: cr.timeText,
-            endTimeText: cr.endTimeText,
-            sortKey: '${cr.startTime.hour.toString().padLeft(2, '0')}:${cr.startTime.minute.toString().padLeft(2, '0')}',
-            locationText: cr.locationText,
-            durationText: cr.durationText,
-            type: 'class',
-            notes: cr.notes,
-          ));
-        }
-      }
-    }
-
-    // 2. Add daily routine items
     for (final dr in dailyRoutines) {
       if (_isSameDay(dr.date, today)) {
         for (final item in dr.items) {
-          // Compute end time from start + duration
           final parts = item.time.split(':');
           final sh = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
           final sm = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
@@ -211,7 +184,7 @@ class RoutineController extends GetxController {
             subjectName: item.subject,
             timeText: _to12Hour(item.time),
             endTimeText: endText(startDt, item.durationMinutes),
-            sortKey: item.time, // raw 24h for correct sorting
+            sortKey: item.time,
             locationText: '',
             durationText: '${item.durationMinutes}m',
             type: item.type,
@@ -222,17 +195,8 @@ class RoutineController extends GetxController {
       }
     }
 
-    // Sort by time (24h format for correct ordering)
     items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     return items;
-  }
-
-  bool _isClassToday(ClassRoutineModel cr, DateTime today) {
-    final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    if (cr.dates.any((d) => d == dateStr || d.startsWith(dateStr))) return true;
-    // Recurring weekday (1=Mon..7=Sun); also match if flag was omitted.
-    if (cr.recurringDays.contains(today.weekday)) return true;
-    return false;
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>

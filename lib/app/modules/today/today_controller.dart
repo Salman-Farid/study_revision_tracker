@@ -78,21 +78,24 @@ class TodayController extends GetxController {
   }
 
   Future<void> markDone(String id) async {
-    await _repo.updateScheduleStatus(id, 'completed');
+    final item = [
+      ...overdue,
+      ...today,
+      ...upcoming,
+    ].firstWhereOrNull((s) => s.id == id);
+    if (item == null) return;
+    // Remove from UI immediately so Dismissible is not left in the tree.
     overdue.removeWhere((s) => s.id == id);
     today.removeWhere((s) => s.id == id);
     upcoming.removeWhere((s) => s.id == id);
-    // Push a stream event so Dashboard / widgets also update.
-    try {
-      _s.refreshSchedules();
-    } catch (_) {}
+    await _repo.completeRevision(scheduleId: id, topicId: item.topicId);
   }
 
   Future<void> markMissed(String id) async {
-    await _repo.updateScheduleStatus(id, 'missed');
     overdue.removeWhere((s) => s.id == id);
     today.removeWhere((s) => s.id == id);
     upcoming.removeWhere((s) => s.id == id);
+    await _repo.updateScheduleStatus(id, 'missed');
     try {
       _s.refreshSchedules();
     } catch (_) {}

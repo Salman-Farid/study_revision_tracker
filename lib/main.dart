@@ -228,6 +228,9 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
       unknownRoute: GetPage(
         name: '/not-found',
         page: () => const MainNavigation(),
+        // Avoid stacking a second MainNavigation when a widget deep-link
+        // arrives after home is already open.
+        preventDuplicates: true,
       ),
       defaultTransition: Transition.fadeIn,
       transitionDuration: AppConstants.pageTransitionDuration,

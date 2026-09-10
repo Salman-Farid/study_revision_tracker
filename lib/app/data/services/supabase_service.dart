@@ -223,11 +223,40 @@ class SupabaseService extends GetxService {
         'day_number': d, 'status': 'pending'});
     }
     final r = await client.from('revision_schedules').insert(rows).select();
+    _debouncedNotificationUpdate(force: true);
     return (r as List).map((j) => RevisionScheduleModel.fromJson(j)).toList();
   }
 
   Future<void> updateScheduleStatus(String id, String st) =>
     client.from('revision_schedules').update({'status': st}).eq('id', id);
+
+  /// Single source of truth: complete one revision day for a topic.
+  /// Updates the schedule row + topic.total_revisions, then fires streams
+  /// so Today / Calendar / Subject cards all stay in sync.
+  Future<void> completeRevision({
+    required String scheduleId,
+    required String topicId,
+  }) async {
+    await client
+        .from('revision_schedules')
+        .update({'status': 'completed'}).eq('id', scheduleId);
+    try {
+      final topic = await client
+          .from('topics')
+          .select('total_revisions')
+          .eq('id', topicId)
+          .single();
+      final next = ((topic['total_revisions'] as num?) ?? 0) + 1;
+      await client.from('topics').update({
+        'total_revisions': next,
+        'last_revised_at': DateTime.now().toIso8601String(),
+      }).eq('id', topicId);
+    } catch (_) {}
+    unawaited(_refreshSchedules());
+    unawaited(_refreshTopics());
+    // Next pending revision may become due — rebuild alarms immediately.
+    _debouncedNotificationUpdate(force: true);
+  }
 
   // ── SESSIONS ──
   Future<RevisionSessionModel> createSession({required String topicId, String? scheduleId}) async {
@@ -258,10 +287,9 @@ class SupabaseService extends GetxService {
     final now = DateTime.now();
     final ts = DateTime(now.year, now.month, now.day);
     final te = ts.add(const Duration(days: 1));
-    final upcomingEnd = te.add(const Duration(days: 7));
     final weekStart = ts.subtract(Duration(days: now.weekday - 1));
 
-    // Parallel queries instead of sequential awaits (faster startup/tab load).
+    // upcoming = ALL future pending revisions (not capped to 7 days)
     final results = await Future.wait([
       client.from('revision_schedules').select('id')
           .eq('user_id', userId).eq('status', 'pending')
@@ -272,8 +300,7 @@ class SupabaseService extends GetxService {
           .lt('scheduled_date', te.toIso8601String()),
       client.from('revision_schedules').select('id')
           .eq('user_id', userId).eq('status', 'pending')
-          .gte('scheduled_date', te.toIso8601String())
-          .lt('scheduled_date', upcomingEnd.toIso8601String()),
+          .gte('scheduled_date', te.toIso8601String()),
       client.from('revision_sessions').select('id')
           .eq('user_id', userId).gte('started_at', weekStart.toIso8601String()),
       client.from('revision_schedules').select('id')
@@ -426,19 +453,19 @@ class SupabaseService extends GetxService {
     });
   }
 
-  // Debounced notification reschedule — long window so realtime storms
-  // don't cancel/rebuild every alarm.
+  // Data changed → rebuild alarms quickly (2s coalesce), then force.
   DateTime? _lastNotificationUpdate;
-  void _debouncedNotificationUpdate() {
+  void _debouncedNotificationUpdate({bool force = false}) {
     final now = DateTime.now();
-    if (_lastNotificationUpdate != null &&
-        now.difference(_lastNotificationUpdate!).inSeconds < 30) {
+    if (!force &&
+        _lastNotificationUpdate != null &&
+        now.difference(_lastNotificationUpdate!).inSeconds < 2) {
       return;
     }
     _lastNotificationUpdate = now;
     Future.microtask(() {
       try {
-        NotificationService.to.rescheduleAll();
+        NotificationService.to.rescheduleAll(force: true);
       } catch (_) {}
     });
   }
@@ -487,6 +514,7 @@ class SupabaseService extends GetxService {
       'notes': notes,
     };
     final r = await client.from('class_routines').insert(data).select().single();
+    _debouncedNotificationUpdate(force: true);
     return Map<String, dynamic>.from(r as Map);
   }
 
@@ -518,6 +546,7 @@ class SupabaseService extends GetxService {
       'items': items,
     };
     final r = await client.from('daily_routines').insert(data).select().single();
+    _debouncedNotificationUpdate(force: true);
     return Map<String, dynamic>.from(r as Map);
   }
 

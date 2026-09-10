@@ -26,8 +26,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
           color: controller.showChat.value ? AppColors.primary : null))),
       ]),
       floatingActionButton: FloatingActionButton(
-        key: controller.studyAssistantButtonKey,
-        heroTag: 'fab-subjects',
+        heroTag: null, // avoid Hero GlobalKey clashes across nav tabs
         onPressed: controller.openStudyAssistantDialogue,
         backgroundColor: AppConstants.primaryColor,
         child: const Icon(Icons.mic_rounded, color: Colors.white),

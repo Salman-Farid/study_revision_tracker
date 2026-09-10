@@ -13,43 +13,59 @@ class CalendarScreen extends StatelessWidget {
     final c = Get.find<CalendarController>();
     return Scaffold(
       appBar: AppBar(title: Text('navCalendar'.tr, style: AppTextStyles.headlineMedium)),
-      body: Obx(() => c.isLoading.value
-          ? const Center(child: CircularProgressIndicator())
-          : Column(children: [
-              Obx(() => TableCalendar(
-                firstDay: DateTime(2024), lastDay: DateTime(2027),
-                focusedDay: c.focusedDay.value,
-                calendarFormat: c.calendarFormat.value,
-                selectedDayPredicate: (d) => isSameDay(c.selectedDay.value, d),
-                onDaySelected: c.onDaySelected,
-                onFormatChanged: c.onFormatChanged,
-                eventLoader: c.getEventsForDay,
-                calendarStyle: CalendarStyle(
-                  todayDecoration: BoxDecoration(color: AppColors.primary.withOpacity(0.3), shape: BoxShape.circle),
-                  selectedDecoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                  markerDecoration: BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
-                  markerSize: 6,
-                  todayTextStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary(
-                    Theme.of(context).brightness == Brightness.dark)),
-                ),
-                headerStyle: HeaderStyle(
-                  titleTextStyle: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary(
-                    Theme.of(context).brightness == Brightness.dark)),
-                  formatButtonTextStyle: AppTextStyles.labelMedium,
-                  leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.textPrimary(
-                    Theme.of(context).brightness == Brightness.dark)),
-                  rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.textPrimary(
-                    Theme.of(context).brightness == Brightness.dark)),
-                ),
-                daysOfWeekStyle: DaysOfWeekStyle(
-                  weekdayStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted(
-                    Theme.of(context).brightness == Brightness.dark)),
-                  weekendStyle: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted(
-                    Theme.of(context).brightness == Brightness.dark)),
-                ),
-              )),
-              Expanded(child: _eventList(c, context)),
-            ])),
+      body: Obx(() {
+        // Depend on version + selected day so markers/list always refresh.
+        final _ = c.eventsVersion.value;
+        final selected = c.selectedDay.value;
+        if (c.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return Column(children: [
+          TableCalendar(
+            firstDay: DateTime(2024),
+            lastDay: DateTime(2027),
+            focusedDay: c.focusedDay.value,
+            calendarFormat: c.calendarFormat.value,
+            selectedDayPredicate: (d) => isSameDay(selected, d),
+            onDaySelected: c.onDaySelected,
+            onFormatChanged: c.onFormatChanged,
+            eventLoader: c.getEventsForDay,
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.3), shape: BoxShape.circle),
+              selectedDecoration: BoxDecoration(
+                  color: AppColors.primary, shape: BoxShape.circle),
+              markerDecoration: BoxDecoration(
+                  color: AppColors.secondary, shape: BoxShape.circle),
+              markerSize: 6,
+              todayTextStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textPrimary(
+                      Theme.of(context).brightness == Brightness.dark)),
+            ),
+            headerStyle: HeaderStyle(
+              titleTextStyle: AppTextStyles.titleLarge.copyWith(
+                  color: AppColors.textPrimary(
+                      Theme.of(context).brightness == Brightness.dark)),
+              formatButtonTextStyle: AppTextStyles.labelMedium,
+              leftChevronIcon: Icon(Icons.chevron_left,
+                  color: AppColors.textPrimary(
+                      Theme.of(context).brightness == Brightness.dark)),
+              rightChevronIcon: Icon(Icons.chevron_right,
+                  color: AppColors.textPrimary(
+                      Theme.of(context).brightness == Brightness.dark)),
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textMuted(
+                      Theme.of(context).brightness == Brightness.dark)),
+              weekendStyle: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textMuted(
+                      Theme.of(context).brightness == Brightness.dark)),
+            ),
+          ),
+          Expanded(child: _eventList(c, context)),
+        ]);
+      }),
     );
   }
 

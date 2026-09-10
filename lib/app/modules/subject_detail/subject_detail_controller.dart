@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/notification_service.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
@@ -24,25 +25,32 @@ class SubjectDetailController extends GetxController {
   final isLoading = true.obs;
   final selectedFilter = 'firstRead'.obs;
   StreamSubscription<List<TopicModel>>? _realtimeSub;
+  StreamSubscription? _schedulesStreamSub;
+
+  /// Ignore one realtime overwrite right after a user drag-reorder.
+  bool _ignoreNextRealtime = false;
+  DateTime? _lastReorderAt;
+
+  String get _orderKey => 'topic_order_${subject.id}';
 
   List<TopicModel> get filteredTopics {
-    switch (selectedFilter.value) {
-      case 'firstRead':
-        return topics.where((t) => !t.firstReadCompleted).toList();
-      case 'inRevision':
-        return topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).toList();
-      case 'completed':
-        return topics.where((t) => t.totalRevisions >= 6).toList();
-      default:
-        return topics;
-    }
+    final list = switch (selectedFilter.value) {
+      'firstRead' => topics.where((t) => !t.firstReadCompleted).toList(),
+      'inRevision' =>
+        topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).toList(),
+      'completed' => topics.where((t) => t.totalRevisions >= 6).toList(),
+      _ => topics.toList(),
+    };
+    return list;
   }
 
   int get firstReadCount => topics.where((t) => !t.firstReadCompleted).length;
-  int get inRevisionCount => topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).length;
+  int get inRevisionCount =>
+      topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).length;
   int get completedCount => topics.where((t) => t.totalRevisions >= 6).length;
 
-  @override void onInit() {
+  @override
+  void onInit() {
     super.onInit();
     subject = Get.arguments as SubjectModel;
     load();
@@ -50,28 +58,86 @@ class SubjectDetailController extends GetxController {
   }
 
   void _subscribeRealtime() {
-    _realtimeSub = _topicRepo.stream.listen((allTopics) {
-      // Filter topics belonging to this subject
-      topics.assignAll(allTopics.where((t) => t.subjectId == subject.id));
+    _realtimeSub = _topicRepo.stream.listen((allTopics) async {
+      // Don't clobber a drag-reorder the user just made.
+      if (_ignoreNextRealtime ||
+          (_lastReorderAt != null &&
+              DateTime.now().difference(_lastReorderAt!) <
+                  const Duration(seconds: 3))) {
+        _ignoreNextRealtime = false;
+        return;
+      }
+      final mine =
+          allTopics.where((t) => t.subjectId == subject.id).toList();
+      topics.assignAll(await _applySavedOrder(mine));
     });
+    // Keep revision cards in sync when Today/Calendar mark a schedule done.
+    _schedulesStreamSub = Get.find<SupabaseService>().schedulesStream.listen((_) {
+      unawaited(_reloadSchedulesQuiet());
+    });
+  }
+
+  Future<void> _reloadSchedulesQuiet() async {
+    try {
+      final ids = topics.map((t) => t.id).toList();
+      if (ids.isEmpty) return;
+      final results = await Future.wait(
+        ids.map((id) async {
+          try {
+            return MapEntry(id, await _revRepo.getSchedules(topicId: id));
+          } catch (_) {
+            return MapEntry(id, <RevisionScheduleModel>[]);
+          }
+        }),
+      );
+      schedulesByTopic.addEntries(results);
+    } catch (_) {}
   }
 
   @override
   void onClose() {
     _realtimeSub?.cancel();
+    _schedulesStreamSub?.cancel();
     super.onClose();
   }
 
   Future<void> load() async {
     try {
       isLoading.value = true;
-      topics.assignAll(await _topicRepo.getBySubject(subject.id));
+      final raw = await _topicRepo.getBySubject(subject.id);
+      topics.assignAll(await _applySavedOrder(raw));
       await _loadSchedules();
     } catch (e) {
       Get.snackbar('error'.tr, 'error'.tr);
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<List<TopicModel>> _applySavedOrder(List<TopicModel> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final order = prefs.getStringList(_orderKey);
+      if (order == null || order.isEmpty) return list;
+      final index = {for (var i = 0; i < order.length; i++) order[i]: i};
+      final sorted = list.toList()
+        ..sort((a, b) {
+          final ia = index[a.id] ?? 1 << 20;
+          final ib = index[b.id] ?? 1 << 20;
+          return ia.compareTo(ib);
+        });
+      return sorted;
+    } catch (_) {
+      return list;
+    }
+  }
+
+  Future<void> _persistOrder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+          _orderKey, topics.map((t) => t.id).toList());
+    } catch (_) {}
   }
 
   Future<void> _loadSchedules() async {
@@ -108,27 +174,14 @@ class SubjectDetailController extends GetxController {
       final schedule = schedules.firstWhereOrNull((s) => s.dayNumber == dayNumber);
       if (schedule == null) return;
 
-      // Mark ONLY this specific day's schedule as completed
-      await _revRepo.updateScheduleStatus(schedule.id, 'completed');
+      // Same path as Today tab — one source of truth.
+      await _revRepo.completeRevision(
+        scheduleId: schedule.id,
+        topicId: topicId,
+      );
 
-      // Increment total_revisions by 1 directly (don't use markNextRevisionCompleted — it marks the NEXT pending one too)
-      final topic = topics.firstWhereOrNull((t) => t.id == topicId);
-      if (topic != null) {
-        await _topicRepo.update(topicId, {
-          'total_revisions': topic.totalRevisions + 1,
-          'last_revised_at': DateTime.now().toIso8601String(),
-        });
-      }
-      _topicRepo.refresh();
-      try {
-        Get.find<SupabaseService>().refreshSchedules();
-      } catch (_) {}
-
-      // Reload schedules for this topic
       final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
       schedulesByTopic[topicId] = updatedSchedules;
-
-      // Refresh topics to get updated totalRevisions
       topics.assignAll(await _topicRepo.getBySubject(subject.id));
 
       Get.snackbar('Done', 'Revision marked as completed',
@@ -256,10 +309,33 @@ class SubjectDetailController extends GetxController {
     }
   }
 
+  /// Reorder the currently visible (filtered) list and persist the full order.
   void reorderTopics(int oldIndex, int newIndex) {
     if (oldIndex < newIndex) newIndex -= 1;
-    final item = topics.removeAt(oldIndex);
-    topics.insert(newIndex, item);
+    final visible = filteredTopics;
+    if (oldIndex < 0 ||
+        oldIndex >= visible.length ||
+        newIndex < 0 ||
+        newIndex >= visible.length) {
+      return;
+    }
+    final moved = visible[oldIndex];
+    // Rebuild the full topics list: remove moved id, insert at the
+    // position of the neighbor it was dropped next to.
+    final full = topics.toList()..removeWhere((t) => t.id == moved.id);
+    final anchorId = newIndex < visible.length
+        ? visible[newIndex].id
+        : (visible.isNotEmpty ? visible.last.id : null);
+    var insertAt = full.length;
+    if (anchorId != null) {
+      insertAt = full.indexWhere((t) => t.id == anchorId);
+      if (insertAt < 0) insertAt = full.length;
+    }
+    full.insert(insertAt, moved);
+    topics.assignAll(full);
+    _lastReorderAt = DateTime.now();
+    _ignoreNextRealtime = true;
+    _persistOrder();
   }
 
   /// Navigate to Gemini Live voice assistant with subject context

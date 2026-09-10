@@ -48,19 +48,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#FF1A237E"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:textStyle="bold"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:visibility="gone" />
+        android:maxLines="2"
+        android:singleLine="false"
+        android:visibility="gone"
+        android:includeFontPadding="false" />
 
     <TextView
         android:id="@+id/widget_now_time"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#FF5C6BC0"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:textStyle="bold"
+        android:maxLines="2"
+        android:singleLine="false"
         android:visibility="gone" />
 
     <TextView
@@ -70,6 +73,8 @@
         android:textColor="#FFEF6C00"
         android:textSize="11sp"
         android:textStyle="bold"
+        android:maxLines="2"
+        android:singleLine="false"
         android:visibility="gone"
         android:layout_marginBottom="10dp" />
 
