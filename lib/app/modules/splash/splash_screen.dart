@@ -28,8 +28,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _go() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    // Short splash when a session already exists — don't block first paint.
     final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      await Future.delayed(const Duration(milliseconds: 400));
+    } else {
+      await Future.delayed(const Duration(milliseconds: 1200));
+    }
 
     // Determine the deep link target route
     String? targetRoute;
@@ -44,7 +49,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     void goHomeWithTab() {
       Get.offAllNamed(targetRoute ?? AppRoutes.home);
-      // Open the right bottom-nav tab from the widget deep link.
       Future.microtask(() {
         Get.put(NavigationController(), permanent: true).applyHost(linkHost);
       });
@@ -58,18 +62,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final wasLoggedIn = prefs.getBool('logged_in') ?? false;
     final savedEmail = prefs.getString('user_email');
     if (wasLoggedIn && savedEmail != null) {
-      try {
-        final session = Supabase.instance.client.auth.currentSession;
-        if (session != null && !session.isExpired) {
-          goHomeWithTab();
-          return;
-        }
-        goHomeWithTab();
-        return;
-      } catch (_) {
-        goHomeWithTab();
-        return;
-      }
+      goHomeWithTab();
+      return;
     }
     Get.offAllNamed(AppRoutes.auth);
   }

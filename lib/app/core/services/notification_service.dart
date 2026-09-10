@@ -239,8 +239,8 @@ class NotificationService extends GetxService {
           importance: Importance.high,
           priority: Priority.high,
           icon: 'ic_stat_notif',
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          color: const Color(0xFF87CEEB),
+          largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+                    color: const Color(0xFF87CEEB),
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -321,8 +321,8 @@ class NotificationService extends GetxService {
             importance: Importance.high,
             priority: Priority.high,
             icon: 'ic_stat_notif',
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          color: const Color(0xFF87CEEB),
+          largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+                    color: const Color(0xFF87CEEB),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -432,8 +432,8 @@ class NotificationService extends GetxService {
                 importance: Importance.high,
                 priority: Priority.high,
                 icon: 'ic_stat_notif',
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          color: const Color(0xFF87CEEB),
+          largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+                    color: const Color(0xFF87CEEB),
                 playSound: true,
                 enableVibration: true,
                 visibility: NotificationVisibility.public,
@@ -477,13 +477,14 @@ class NotificationService extends GetxService {
   bool _rescheduleRunning = false;
 
   /// Cancel everything and re-schedule from the database.
-  /// Batched name lookups; safe to call many times quickly.
+  /// Single-flight + 60s debounce so realtime/lifecycle storms don't
+  /// cancel-and-rebuild alarms repeatedly.
   Future<void> rescheduleAll() async {
     if (!_notificationsEnabled) return;
     if (_rescheduleRunning) return;
     final now = DateTime.now();
     if (_lastReschedule != null &&
-        now.difference(_lastReschedule!).inSeconds < 5) {
+        now.difference(_lastReschedule!).inSeconds < 60) {
       return;
     }
     _lastReschedule = now;
@@ -542,36 +543,11 @@ class NotificationService extends GetxService {
 
       for (final routine in dailyRoutines) {
         try {
-          // Only 2 days ahead — 7 days × 25 blocks hits OS alarm limits
-          // and Samsung drops extras silently.
           final n = await scheduleDailyRoutine(routine: routine, daysAhead: 2);
-          debugPrint('[NotificationService] daily routine ${routine.id} → $n alarms');
+          debugPrint('[NotificationService] daily ${routine.id}: $n alarms');
         } catch (e) {
           debugPrint('[NotificationService] daily schedule failed: $e');
         }
-      }
-
-      // Prove the channel works: one immediate notification.
-      try {
-        await _plugin.show(
-          999001,
-          '✅ Notifications ready',
-          'Daily routine reminders will fire at each block start.',
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              _channelDaily,
-              _channelDailyName,
-              channelDescription: 'Reminders when each daily routine block starts',
-              importance: Importance.max,
-              priority: Priority.max,
-              icon: 'ic_stat_notif',
-          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
-          color: const Color(0xFF87CEEB),
-            ),
-          ),
-        );
-      } catch (e) {
-        debugPrint('[NotificationService] test notification failed: $e');
       }
     } catch (e, stack) {
       debugPrint('[NotificationService] rescheduleAll error: $e');
@@ -580,10 +556,7 @@ class NotificationService extends GetxService {
       _rescheduleRunning = false;
       try {
         final pending = await getPending();
-        debugPrint('[NotificationService] pending alarms after reschedule: ${pending.length}');
-        for (final p in pending.take(12)) {
-          debugPrint('  id=${p.id} title=${p.title} payload=${p.payload}');
-        }
+        debugPrint('[NotificationService] pending alarms: ${pending.length}');
       } catch (_) {}
     }
   }

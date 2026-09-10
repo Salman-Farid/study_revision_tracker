@@ -9,6 +9,7 @@ import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/repositories/revision_repository.dart';
+import '../../data/services/supabase_service.dart';
 import '../../theme/app_theme.dart';
 import '../../core/constants/size_constants.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
@@ -119,6 +120,9 @@ class SubjectDetailController extends GetxController {
         });
       }
       _topicRepo.refresh();
+      try {
+        Get.find<SupabaseService>().refreshSchedules();
+      } catch (_) {}
 
       // Reload schedules for this topic
       final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);

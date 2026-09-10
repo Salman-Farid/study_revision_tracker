@@ -73,9 +73,19 @@ class SupabaseService extends GetxService {
       'name': name, 'notes': notes, 'reference_answer': referenceAnswer,
       'first_read_date': (firstReadDate ?? DateTime.now()).toIso8601String()};
     final r = await client.from('topics').insert(data).select().single();
-    // increment subject topic count
-    final sub = await client.from('subjects').select('total_topics').eq('id', subjectId).single();
-    await client.from('subjects').update({'total_topics': (sub['total_topics'] as int) + 1}).eq('id', subjectId);
+    // Increment subject topic count without blocking the returned topic.
+    unawaited(() async {
+      try {
+        final sub = await client
+            .from('subjects')
+            .select('total_topics')
+            .eq('id', subjectId)
+            .single();
+        await client.from('subjects').update({
+          'total_topics': ((sub['total_topics'] as int?) ?? 0) + 1
+        }).eq('id', subjectId);
+      } catch (_) {}
+    }());
     return TopicModel.fromJson(r);
   }
 
@@ -86,11 +96,17 @@ class SupabaseService extends GetxService {
     client.from('topics').update({'first_read_completed': true}).eq('id', topicId);
 
   Future<Map<String, dynamic>> getTopicFullStatus(String topicId) async {
-    final topicRow = await client.from('topics').select().eq('id', topicId).single();
-    final schedules = await client.from('revision_schedules').select()
-      .eq('topic_id', topicId).order('day_number', ascending: true);
-    final scheduleList = (schedules as List).map((j) => RevisionScheduleModel.fromJson(j)).toList();
-    final topic = TopicModel.fromJson(topicRow);
+    final results = await Future.wait([
+      client.from('topics').select().eq('id', topicId).single(),
+      client.from('revision_schedules').select()
+          .eq('topic_id', topicId).order('day_number', ascending: true),
+    ]);
+    final topicRow = results[0];
+    final schedules = results[1];
+    final scheduleList = (schedules as List)
+        .map((j) => RevisionScheduleModel.fromJson(j))
+        .toList();
+    final topic = TopicModel.fromJson(topicRow as Map<String, dynamic>);
 
     final completedSchedules = scheduleList.where((s) => s.status == 'completed').toList();
     final pendingSchedules = scheduleList.where((s) => s.status == 'pending').toList();
@@ -242,35 +258,47 @@ class SupabaseService extends GetxService {
     final now = DateTime.now();
     final ts = DateTime(now.year, now.month, now.day);
     final te = ts.add(const Duration(days: 1));
-    final overdue = await client.from('revision_schedules').select().eq('user_id', userId)
-      .eq('status', 'pending').lt('scheduled_date', ts.toIso8601String());
-    final today = await client.from('revision_schedules').select().eq('user_id', userId)
-      .eq('status', 'pending').gte('scheduled_date', ts.toIso8601String())
-      .lt('scheduled_date', te.toIso8601String());
     final upcomingEnd = te.add(const Duration(days: 7));
-    final upcoming = await client.from('revision_schedules').select().eq('user_id', userId)
-      .eq('status', 'pending').gte('scheduled_date', te.toIso8601String())
-      .lt('scheduled_date', upcomingEnd.toIso8601String());
     final weekStart = ts.subtract(Duration(days: now.weekday - 1));
-    final sessions = await client.from('revision_sessions').select().eq('user_id', userId)
-      .gte('started_at', weekStart.toIso8601String());
-    final completed = await client.from('revision_schedules').select('id')
-      .eq('user_id', userId).eq('status', 'completed');
-    // Completion = completed revisions / (all topics × 6 planned revisions).
-    final topics = await client.from('topics').select('id')
-      .eq('user_id', userId);
-    final cl = (completed as List).length;
-    final topicCount = (topics as List).length;
+
+    // Parallel queries instead of sequential awaits (faster startup/tab load).
+    final results = await Future.wait([
+      client.from('revision_schedules').select('id')
+          .eq('user_id', userId).eq('status', 'pending')
+          .lt('scheduled_date', ts.toIso8601String()),
+      client.from('revision_schedules').select('id')
+          .eq('user_id', userId).eq('status', 'pending')
+          .gte('scheduled_date', ts.toIso8601String())
+          .lt('scheduled_date', te.toIso8601String()),
+      client.from('revision_schedules').select('id')
+          .eq('user_id', userId).eq('status', 'pending')
+          .gte('scheduled_date', te.toIso8601String())
+          .lt('scheduled_date', upcomingEnd.toIso8601String()),
+      client.from('revision_sessions').select('id')
+          .eq('user_id', userId).gte('started_at', weekStart.toIso8601String()),
+      client.from('revision_schedules').select('id')
+          .eq('user_id', userId).eq('status', 'completed'),
+      client.from('topics').select('id').eq('user_id', userId),
+    ]);
+
+    final overdueCount = (results[0] as List).length;
+    final todayCount = (results[1] as List).length;
+    final upcomingCount = (results[2] as List).length;
+    final sessionsCount = (results[3] as List).length;
+    final cl = (results[4] as List).length;
+    final topicCount = (results[5] as List).length;
     final plannedTotal = topicCount * AppConstants.revisionDays.length;
+
     return {
-      'overdue_count': (overdue as List).length,
-      'today_count': (today as List).length,
-      'upcoming_count': (upcoming as List).length,
-      'sessions_this_week': (sessions as List).length,
+      'overdue_count': overdueCount,
+      'today_count': todayCount,
+      'upcoming_count': upcomingCount,
+      'sessions_this_week': sessionsCount,
       'total_completed': cl,
       'total_topics': topicCount,
       'total_schedules': plannedTotal,
-      'completion_rate': plannedTotal == 0 ? 0.0 : (cl / plannedTotal).clamp(0.0, 1.0),
+      'completion_rate':
+          plannedTotal == 0 ? 0.0 : (cl / plannedTotal).clamp(0.0, 1.0),
     };
   }
 
@@ -398,14 +426,20 @@ class SupabaseService extends GetxService {
     });
   }
 
-  // Debounced notification reschedule to avoid excessive refreshes
+  // Debounced notification reschedule — long window so realtime storms
+  // don't cancel/rebuild every alarm.
   DateTime? _lastNotificationUpdate;
   void _debouncedNotificationUpdate() {
     final now = DateTime.now();
-    if (_lastNotificationUpdate != null && now.difference(_lastNotificationUpdate!).inSeconds < 3) return;
+    if (_lastNotificationUpdate != null &&
+        now.difference(_lastNotificationUpdate!).inSeconds < 30) {
+      return;
+    }
     _lastNotificationUpdate = now;
     Future.microtask(() {
-      try { NotificationService.to.rescheduleAll(); } catch (_) {}
+      try {
+        NotificationService.to.rescheduleAll();
+      } catch (_) {}
     });
   }
 

@@ -106,20 +106,15 @@ void main() async {
   Get.put(RevisionRepository(), permanent: true);
   Get.put(RoutineRepository(), permanent: true);
   Get.put(ConnectivityService(), permanent: true);
-  Get.put(GeminiLiveService(), permanent: true);
-  Get.put(VoiceAssistantController(), permanent: true);
+  // Heavy chatbot services — create only when first used (mic / voice UI).
+  Get.lazyPut<GeminiLiveService>(() => GeminiLiveService(), fenix: true);
+  Get.lazyPut<VoiceAssistantController>(() => VoiceAssistantController(), fenix: true);
   Get.put(LanguageController(), permanent: true);
   Get.put(SettingsController(), permanent: true);
   await Get.putAsync<NotificationService>(() => NotificationService().init());
 
   if (Get.find<SupabaseService>().currentUser != null) {
     Get.find<SupabaseService>().initRealtime();
-    // Request exact alarm permission first (Android 12+), then schedule.
-    final granted =
-        await Get.find<NotificationService>().requestExactAlarmPermission();
-    debugPrint('[main] exactAlarmPermission granted=$granted');
-    // Run off the critical startup path so first frame isn't blocked.
-    unawaited(Get.find<NotificationService>().rescheduleAll());
   }
 
   await WidgetDataProvider.init();
@@ -132,12 +127,8 @@ void main() async {
     await WidgetDataProvider.setAppGroupId('group.HOMEWIDGET');
   } catch (_) {}
 
-  if (Get.find<SupabaseService>().currentUser != null) {
-    unawaited(WidgetDataProvider.updateAllWidgets());
-    _startPeriodicWidgetRefresh();
-    unawaited(_registerBackgroundWidgetRefresh());
-  }
-
+  // Heavy post-login work (alarms, widgets, WorkManager) runs after first frame
+  // so splash/home aren't blocked — see _RevisionTrackerAppState.initState.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -146,11 +137,24 @@ void main() async {
   runApp(const RevisionTrackerApp());
 }
 
+/// Called once after the first frame: alarms, widgets, WorkManager.
+Future<void> _postFrameBoot() async {
+  if (Get.find<SupabaseService>().currentUser == null) return;
+  try {
+    final granted =
+        await Get.find<NotificationService>().requestExactAlarmPermission();
+    debugPrint('[main] exactAlarmPermission granted=$granted');
+  } catch (_) {}
+  unawaited(Get.find<NotificationService>().rescheduleAll());
+  unawaited(WidgetDataProvider.updateAllWidgets());
+  _startPeriodicWidgetRefresh();
+  unawaited(_registerBackgroundWidgetRefresh());
+}
+
 void _startPeriodicWidgetRefresh() {
   _periodicWidgetTimer?.cancel();
   _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 10), (_) {
     if (Get.find<SupabaseService>().currentUser != null) {
-      // Fire-and-forget; do not block the timer isolate.
       unawaited(WidgetDataProvider.updateAllWidgets());
     }
   });
@@ -168,6 +172,10 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Defer network/alarm/widget work until after first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_postFrameBoot());
+    });
   }
 
   @override
@@ -179,11 +187,22 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (Get.find<SupabaseService>().currentUser != null) {
-        unawaited(WidgetDataProvider.updateAllWidgets());
-        unawaited(Get.find<NotificationService>().refreshNotificationPreference());
-      }
+      _onResume();
     }
+  }
+
+  DateTime? _lastResumeRefresh;
+  void _onResume() {
+    if (Get.find<SupabaseService>().currentUser == null) return;
+    final now = DateTime.now();
+    if (_lastResumeRefresh != null &&
+        now.difference(_lastResumeRefresh!).inSeconds < 20) {
+      return;
+    }
+    _lastResumeRefresh = now;
+    unawaited(WidgetDataProvider.updateAllWidgets());
+    unawaited(
+        Get.find<NotificationService>().refreshNotificationPreference());
   }
 
   @override

@@ -199,22 +199,25 @@ class SettingsScreen extends StatelessWidget {
               final name = AppLanguages.all.values.elementAt(i);
               return Obx(() {
                 final selected = lang.locale.value.languageCode == code;
-                return ListTile(
-                  dense: true,
-                  leading: Icon(selected
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_off_rounded,
-                    color: selected ? AppConstants.primaryColor : AppColors.textMuted(Get.isDarkMode)),
-                  title: Text(name, style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.textPrimary(Get.isDarkMode),
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
-                  onTap: () {
-                    c.changeLanguage(code);
-                    Get.back();
-                    Get.snackbar('language'.tr, 'languageChanged'.tr,
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: AppColors.success.withOpacity(0.15));
-                  },
+                return Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(selected
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                      color: selected ? AppConstants.primaryColor : AppColors.textMuted(Get.isDarkMode)),
+                    title: Text(name, style: AppTextStyles.titleSmall.copyWith(
+                      color: AppColors.textPrimary(Get.isDarkMode),
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                    onTap: () {
+                      c.changeLanguage(code);
+                      Get.back();
+                      Get.snackbar('language'.tr, 'languageChanged'.tr,
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: AppColors.success.withOpacity(0.15));
+                    },
+                  ),
                 );
               });
             })),
@@ -236,18 +239,23 @@ class SettingsScreen extends StatelessWidget {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('theme'.tr, style: AppTextStyles.headlineSmall),
           SizedBox(height: S.sm),
-          ListTile(
-            leading: const Icon(Icons.brightness_auto_rounded),
-            title: Text('themeSystem'.tr),
-            onTap: () { c.changeThemeMode(ThemeMode.system); Get.back(); }),
-          ListTile(
-            leading: const Icon(Icons.light_mode_rounded),
-            title: Text('themeLight'.tr),
-            onTap: () { c.changeThemeMode(ThemeMode.light); Get.back(); }),
-          ListTile(
-            leading: const Icon(Icons.dark_mode_rounded),
-            title: Text('themeDark'.tr),
-            onTap: () { c.changeThemeMode(ThemeMode.dark); Get.back(); }),
+          Material(
+            type: MaterialType.transparency,
+            child: Column(children: [
+              ListTile(
+                leading: const Icon(Icons.brightness_auto_rounded),
+                title: Text('themeSystem'.tr),
+                onTap: () { c.changeThemeMode(ThemeMode.system); Get.back(); }),
+              ListTile(
+                leading: const Icon(Icons.light_mode_rounded),
+                title: Text('themeLight'.tr),
+                onTap: () { c.changeThemeMode(ThemeMode.light); Get.back(); }),
+              ListTile(
+                leading: const Icon(Icons.dark_mode_rounded),
+                title: Text('themeDark'.tr),
+                onTap: () { c.changeThemeMode(ThemeMode.dark); Get.back(); }),
+            ]),
+          ),
           SizedBox(height: S.base),
         ]),
       ),
