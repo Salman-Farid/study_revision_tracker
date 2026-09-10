@@ -165,6 +165,9 @@ class SubjectsController extends GetxController {
 
   /// Navigate to Gemini Live voice assistant
   void openVoiceAssistant() {
+    try {
+      Get.find<VoiceAssistantController>().toolMode = 'subjects';
+    } catch (_) {}
     Get.to(() => const VoiceAssistantScreen());
   }
 
@@ -175,6 +178,7 @@ class SubjectsController extends GetxController {
       Get.put(VoiceAssistantController(), permanent: true);
     }
     final vc = Get.find<VoiceAssistantController>();
+    vc.toolMode = 'subjects'; // no class/daily routine tools on Subjects tab
     vc.showDialogue.value = true;
 
     showGeneralDialog(

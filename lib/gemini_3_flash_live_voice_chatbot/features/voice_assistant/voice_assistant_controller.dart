@@ -206,6 +206,12 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     'markFirstReadCompleted', 'markRevisionCompleted',
   };
 
+  // Tools blocked on subject/topic screens — never create class/daily routines here
+  static const _subjectBlockedTools = {
+    'registerClassRoutine', 'registerDailyRoutine',
+    'deleteClassRoutine', 'deleteDailyRoutine',
+  };
+
   final List<Map<String, dynamic>> _tools = [
     {
       'name': 'getAllData',
@@ -801,6 +807,14 @@ DATA:
 - "topic status / progress of X" → call getTopicStatus(subjectName, topicName).
 - Never say "I don't know" or ask for IDs — use names, tools resolve them.
 
+SUBJECT / TOPIC MODE (when NOT on the routine screen):
+- ONLY add subjects/topics, mark first-read/revision, or read status. NEVER create a class or daily routine from this screen.
+- If the user says "create routine", "plan my day", "add class" here → tell them to open the Routine tab. Do NOT call registerClassRoutine / registerDailyRoutine.
+- Adding topics: NEVER invent topic names like "Topic 1", "Chapter 2", "Part A".
+- If user says "add 10 subjects and 4 topics under each" → first collect EVERY subject name from the user (or use the names they already spoke). Then for EACH subject, ASK which 4 topic names to add. Wait for the user to reply with the real topic names before calling addSubjectsBulk / addTopic.
+- If user already listed topic names, use those exact names. If they only gave a subject, ask: "কোন কোন টপিক যোগ করবো? / Which topics should I add under <subject>?" and wait.
+- Always use the real names the user provides for both subject and topic.
+
 FIRST READ & REVISION WORKFLOW:
 - Topics have a "first read" phase and a "revision" phase (6 revisions: Day 1, 3, 7, 14, 30, 90).
 - Topics start in the "first read" phase. Revision schedules (Day 1, 3, 7, 14, 30, 90) are created ONLY after first-read is marked completed — never when the topic is added.
@@ -831,6 +845,14 @@ CRITICAL RULE: You MUST call getAllData FIRST before creating any daily routine.
 CRITICAL RULE — NO FAKE SUBJECTS: NEVER invent subjects like "question bank", "revision", "practice", "mock test", "problem solving", "quick revision", "question practice", "Active Recall", "MCQ Practice", "স্টাডি সেশন", "প্র্যাকটিস", "রিভিশন" etc. These do NOT exist in the database. ONLY use subject names returned by getAllData. The ONLY allowed non-database subject names are: "Break", "Breakfast", "Lunch", "Dinner", "Power Nap".
 
 CRITICAL RULE — AUTO REVISION DETECTION: getAllData returns "revisions_due_today" — a list of topics that need revision today. Read this list. For EACH item, add a "type":"revision" block (120 minutes) with the real subject name and topic name. This is AUTOMATIC — do NOT ask the user if they want revision. If revisions_due_today is not empty, those blocks go in the routine.
+
+CRITICAL RULE — "I WANT TO STUDY SUBJECT X":
+- If user says "ami Computer Science porte chai" / "I want to study Math today" / "আজ পদার্থবিজ্ঞান পড়ব" →
+  1. Call getSubjectDetail(subjectName: X) (or getAllData if subject missing).
+  2. List that subject's real topic names from the tool result.
+  3. ASK the user which topic(s) to study today. Do NOT invent topics.
+  4. Also check revisions_due_today — if a topic under that subject is due, include it as a revision block with the SAME subject and topic names.
+  5. After the user picks a topic, you may call registerDailyRoutine with subject+topic exactly as in the database.
 
 CRITICAL RULE — CLASS TIME CONFLICT: getAllData returns "class_routines_today" — a list of today's classes with subject, time, duration, location. Read this list. Each class time slot is BLOCKED. You MUST NOT place any study/break/meal block during a class time. The daily routine items list should include "type":"class" blocks for each class in class_routines_today. These class blocks act as anchors — study blocks go around them.
 
@@ -903,10 +925,14 @@ REVISION FEEDBACK:
 Greetings → greet back, ask how to help, do NOT call getAllData.
 ''';
 
-      // Filter tools based on mode — routine mode blocks subject/topic modification
+      // Filter tools based on mode
+      // — routine mode blocks subject/topic modification
+      // — subjects mode blocks routine creation (no daily/class register)
       final activeTools = toolMode == 'routine'
           ? _tools.where((t) => !_routineBlockedTools.contains(t['name'])).toList()
-          : _tools;
+          : toolMode == 'subjects'
+              ? _tools.where((t) => !_subjectBlockedTools.contains(t['name'])).toList()
+              : _tools;
 
       await _service.startSession(
         voice: 'Kore',

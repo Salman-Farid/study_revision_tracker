@@ -46,6 +46,7 @@ class TopicDetailController extends GetxController {
   void openVoiceAssistant() {
     final vc = Get.find<VoiceAssistantController>();
     vc.currentSubjectName = subject.name;
+    vc.toolMode = 'subjects'; // isolate: no class/daily routine tools
     Get.bottomSheet(
       const VoiceAssistantSheet(),
       isScrollControlled: true,
