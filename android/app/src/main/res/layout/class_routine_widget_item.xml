@@ -3,18 +3,20 @@
     android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingStart="8dp"
+    android:paddingStart="6dp"
     android:paddingEnd="8dp"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:layout_marginBottom="3dp"
+    android:background="@drawable/widget_class_card_bg"
     android:gravity="center_vertical">
 
-    <!-- Timeline dot -->
-    <ImageView
-        android:id="@+id/item_dot"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:src="@drawable/dot_circle_upcoming"
+    <!-- Left accent bar (3dp wide, colored per state) -->
+    <View
+        android:id="@+id/item_accent_bar"
+        android:layout_width="3dp"
+        android:layout_height="32dp"
+        android:background="@drawable/widget_class_accent_upcoming"
         android:layout_marginEnd="10dp" />
 
     <LinearLayout
@@ -23,28 +25,40 @@
         android:layout_height="wrap_content"
         android:layout_weight="1">
 
+        <!-- Subject name -->
         <TextView
             android:id="@+id/item_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#DE000000"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:singleLine="true"
             android:ellipsize="end" />
 
+        <!-- Time + location row -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp">
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical">
+
+            <!-- Small dot indicator -->
+            <ImageView
+                android:id="@+id/item_dot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:src="@drawable/dot_circle_upcoming"
+                android:layout_marginEnd="5dp" />
 
             <TextView
                 android:id="@+id/item_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#80000000"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
 
             <TextView
                 android:id="@+id/item_location"
@@ -54,10 +68,9 @@
                 android:textSize="10sp"
                 android:layout_marginStart="8dp"
                 android:singleLine="true"
-                android:ellipsize="end" />
-
+                android:ellipsize="end"
+                android:visibility="gone" />
         </LinearLayout>
-
     </LinearLayout>
 
     <!-- NOW badge -->
@@ -70,11 +83,11 @@
         android:textSize="8sp"
         android:textStyle="bold"
         android:background="@drawable/badge_now_bg"
-        android:paddingStart="5dp"
-        android:paddingEnd="5dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
         android:paddingTop="2dp"
         android:paddingBottom="2dp"
         android:visibility="gone"
-        android:layout_marginStart="6dp" />
+        android:layout_marginStart="8dp" />
 
 </LinearLayout>

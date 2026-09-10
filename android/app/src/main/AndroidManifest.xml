@@ -84,6 +84,18 @@
                 android:resource="@xml/class_routine_widget_info" />
         </receiver>
 
+        <!-- Daily Routine Widget RemoteViewsService (for scrollable ListView) -->
+        <service
+            android:name=".DailyRoutineWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Revision Widget RemoteViewsService (for scrollable ListView) -->
+        <service
+            android:name=".RevisionWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -43,7 +43,6 @@ class ClassRoutineWidget : AppWidgetProvider() {
             try {
                 Log.d(TAG, "updateAppWidget id=$appWidgetId")
                 val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-                val views = RemoteViews(context.packageName, R.layout.class_routine_widget)
 
                 val hasToday = prefs.getString("widget_class_has_today", "false")?.toBoolean() == true
                 val statusMessage = prefs.getString("widget_class_status_message", "Nothing for today") ?: ""
@@ -55,9 +54,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
 
                 Log.d(TAG, "hasToday=$hasToday currentSubject='$currentSubject' currentTime='$currentTime'")
 
-                // Ultra-low sizing check
-                val widgetInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
-                val isSmallWidget = (widgetInfo?.minWidth ?: 250) < 180
+                val views = RemoteViews(context.packageName, R.layout.class_routine_widget)
 
                 if (hasToday && currentSubject.isNotEmpty()) {
                     views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
@@ -67,7 +64,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_current_time, currentTime)
                     views.setTextViewText(R.id.widget_current_timer, currentRemaining)
 
-                    if (currentLocation.isNotEmpty() && !isSmallWidget) {
+                    if (currentLocation.isNotEmpty()) {
                         views.setViewVisibility(R.id.widget_current_location, View.VISIBLE)
                         views.setTextViewText(R.id.widget_current_location, currentLocation)
                     } else {
@@ -96,10 +93,11 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_empty, View.GONE)
                     try {
                         val classes = JSONArray(classesJson)
-                        val maxItems = if (isSmallWidget) 3 else 6
+                        val maxItems = 6
                         for (i in 0 until minOf(classes.length(), maxItems)) {
                             val cls = classes.getJSONObject(i)
                             val row = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
+
                             row.setTextViewText(R.id.item_subject, cls.optString("subject", ""))
                             val timeText = cls.optString("timeText", "")
                             val endTimeText = cls.optString("endTimeText", "")
@@ -113,12 +111,22 @@ class ClassRoutineWidget : AppWidgetProvider() {
                                 row.setViewVisibility(R.id.item_location, View.GONE)
                             }
 
-                            if (cls.optBoolean("isCurrent", false)) {
+                            val isCurrent = cls.optBoolean("isCurrent", false)
+                            val isPast = cls.optBoolean("isPast", false)
+                            if (isCurrent) {
                                 row.setViewVisibility(R.id.item_now_badge, View.VISIBLE)
                                 row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_now)
+                                row.setInt(R.id.item_accent_bar, "setBackgroundResource", R.drawable.widget_class_accent_current)
+                            } else if (isPast) {
+                                row.setViewVisibility(R.id.item_now_badge, View.GONE)
+                                row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_inactive)
+                                row.setInt(R.id.item_accent_bar, "setBackgroundResource", R.drawable.widget_class_accent_past)
+                                row.setTextColor(R.id.item_subject, android.graphics.Color.parseColor("#99000000"))
+                                row.setTextColor(R.id.item_time, android.graphics.Color.parseColor("#66000000"))
                             } else {
                                 row.setViewVisibility(R.id.item_now_badge, View.GONE)
                                 row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_upcoming)
+                                row.setInt(R.id.item_accent_bar, "setBackgroundResource", R.drawable.widget_class_accent_upcoming)
                             }
                             views.addView(R.id.widget_class_list, row)
                         }

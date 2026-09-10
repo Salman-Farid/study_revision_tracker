@@ -138,15 +138,16 @@
         android:layout_marginBottom="4dp"
         android:visibility="gone" />
 
-    <!-- Upcoming items (rendered directly via RemoteViews.addView — no adapter,
-         no service, no "Loading…" placeholder) -->
-    <LinearLayout
+    <!-- Upcoming items (scrollable ListView via RemoteViewsAdapter) -->
+    <ListView
         android:id="@+id/widget_upcoming_list"
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:clipToPadding="false" />
+        android:divider="@android:color/transparent"
+        android:dividerHeight="0dp"
+        android:clipToPadding="false"
+        android:scrollbarStyle="outsideOverlay" />
 
     <!-- Empty state -->
     <LinearLayout
@@ -162,7 +163,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=":"
+            android:text=":)"
             android:textColor="#66000000"
             android:textSize="24sp"
             android:layout_marginBottom="6dp" />

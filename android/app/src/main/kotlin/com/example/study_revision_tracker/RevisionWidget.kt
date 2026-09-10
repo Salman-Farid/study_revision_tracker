@@ -134,9 +134,16 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         )
         views.setOnClickPendingIntent(R.id.btn_coming_soon, upcomingPending)
 
-        // Content rows — rendered directly with RemoteViews.addView().
-        // No ListView/adapter/service → no "Loading…" placeholder, ever.
-        views.removeAllViews(R.id.widget_list)
+        // Connect the ListView to the RemoteViewsService adapter for scrollable content
+        val adapterIntent = Intent(context, RevisionWidgetService::class.java)
+        adapterIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        adapterIntent.action = "android.appwidget.action.APPWIDGET_UPDATE"
+        views.setRemoteAdapter(R.id.widget_list, adapterIntent)
+
+        // Set the empty view for when there's no data
+        views.setEmptyView(R.id.widget_list, R.id.widget_empty)
+
+        // Empty state
         if (!hasData || !hasItems) {
             views.setViewVisibility(R.id.widget_list, android.view.View.GONE)
             views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE)
@@ -144,20 +151,6 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         } else {
             views.setViewVisibility(R.id.widget_list, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_empty, android.view.View.GONE)
-            try {
-                val arr = org.json.JSONArray(itemsJson)
-                val maxItems = 5
-                for (i in 0 until minOf(arr.length(), maxItems)) {
-                    views.addView(R.id.widget_list, buildRevisionRow(context, arr.getJSONObject(i), isMissedMode))
-                }
-                if (arr.length() > maxItems) {
-                    val more = RemoteViews(context.packageName, R.layout.widget_more_row)
-                    more.setTextViewText(R.id.more_text, "+${arr.length() - maxItems} more")
-                    views.addView(R.id.widget_list, more)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("RevisionWidget", "row build failed: ${e.message}")
-            }
         }
 
         // Timestamp
@@ -167,32 +160,9 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
+        // Notify the adapter to reload data
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
     } catch (e: Exception) {
         android.util.Log.e("RevisionWidget", "update error: ${e.message}")
     }
-}
-
-/** Builds one revision row (topic + subject + date/label badge). */
-private fun buildRevisionRow(context: Context, item: org.json.JSONObject, isMissedMode: Boolean): RemoteViews {
-    val row = RemoteViews(context.packageName, R.layout.revision_widget_item)
-    row.setTextViewText(R.id.item_name, item.optString("topicName", "Unknown"))
-    row.setTextViewText(R.id.item_subject, item.optString("subjectName", ""))
-    val dayLabel = if (isMissedMode) {
-        item.optString("scheduledDate", item.optString("dayLabel", ""))
-    } else {
-        item.optString("dayLabel", "")
-    }
-    row.setTextViewText(R.id.item_day_badge, dayLabel)
-
-    // Color coding: red for overdue, blue for upcoming (white theme)
-    if (isMissedMode) {
-        row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_overdue)
-        row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_overdue_bg)
-        row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#D93025"))
-    } else {
-        row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_today)
-        row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_today_bg)
-        row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#1A73E8"))
-    }
-    return row
 }

@@ -84,15 +84,16 @@
         android:layout_marginBottom="6dp"
         android:visibility="gone" />
 
-    <!-- Content rows (rendered directly via RemoteViews.addView — no adapter,
-         no service, no "Loading…" placeholder) -->
-    <LinearLayout
+    <!-- Content rows (scrollable ListView via RemoteViewsAdapter) -->
+    <ListView
         android:id="@+id/widget_list"
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:clipToPadding="false" />
+        android:divider="@android:color/transparent"
+        android:dividerHeight="0dp"
+        android:clipToPadding="false"
+        android:scrollbarStyle="outsideOverlay" />
 
     <!-- Empty state -->
     <LinearLayout

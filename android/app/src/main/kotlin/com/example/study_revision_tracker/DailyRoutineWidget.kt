@@ -48,13 +48,7 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         val currentTime = prefs.getString("widget_daily_current_time", "") ?: ""
         val remaining = prefs.getString("widget_daily_remaining", "") ?: ""
         val endTimestamp = prefs.getString("widget_daily_current_end_timestamp", "0")?.toLongOrNull() ?: 0L
-        val upcomingJson = prefs.getString("widget_daily_upcoming_items", "[]") ?: "[]"
         val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
-
-        val hasUpcoming = try {
-            val arr = org.json.JSONArray(upcomingJson)
-            arr.length() > 0
-        } catch (_: Exception) { false }
 
         val hasCurrent = currentSubject.isNotEmpty() && endTimestamp > System.currentTimeMillis()
 
@@ -94,35 +88,26 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         }
 
         // Upcoming header — ONLY if there ARE upcoming items
+        val upcomingJson = prefs.getString("widget_daily_upcoming_items", "[]") ?: "[]"
+        val hasUpcoming = try {
+            val arr = org.json.JSONArray(upcomingJson)
+            arr.length() > 0
+        } catch (_: Exception) { false }
+
         if (hasUpcoming && hasCurrent) {
             views.setViewVisibility(R.id.widget_upcoming_header, android.view.View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.widget_upcoming_header, android.view.View.GONE)
         }
 
-        // Upcoming rows — rendered directly with RemoteViews.addView().
-        // No ListView/adapter/service → no "Loading…" placeholder, ever.
-        views.removeAllViews(R.id.widget_upcoming_list)
-        try {
-            val arr = org.json.JSONArray(upcomingJson)
-            val maxItems = 4
-            for (i in 0 until minOf(arr.length(), maxItems)) {
-                val obj = arr.getJSONObject(i)
-                val row = RemoteViews(context.packageName, R.layout.daily_routine_widget_item)
-                row.setTextViewText(R.id.item_time, obj.optString("timeText", ""))
-                row.setTextViewText(R.id.item_subject, obj.optString("subject", "Unknown"))
-                row.setTextViewText(R.id.item_topic, obj.optString("topic", ""))
-                row.setTextViewText(R.id.item_type, obj.optString("type", ""))
-                views.addView(R.id.widget_upcoming_list, row)
-            }
-            if (arr.length() > maxItems) {
-                val more = RemoteViews(context.packageName, R.layout.widget_more_row)
-                more.setTextViewText(R.id.more_text, "+${arr.length() - maxItems} more")
-                views.addView(R.id.widget_upcoming_list, more)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("DailyRoutineWidget", "row build failed: ${e.message}")
-        }
+        // Connect the ListView to the RemoteViewsService adapter for scrollable content
+        val adapterIntent = Intent(context, DailyRoutineWidgetService::class.java)
+        adapterIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        adapterIntent.action = "android.appwidget.action.APPWIDGET_UPDATE"
+        views.setRemoteAdapter(R.id.widget_upcoming_list, adapterIntent)
+
+        // Set the empty view for when there's no data
+        views.setEmptyView(R.id.widget_upcoming_list, R.id.widget_empty)
 
         // Empty state
         if (!hasData) {
@@ -144,6 +129,8 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
+        // Notify the adapter to reload data
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_upcoming_list)
     } catch (e: Exception) {
         android.util.Log.e("DailyRoutineWidget", "update error: ${e.message}")
     }
