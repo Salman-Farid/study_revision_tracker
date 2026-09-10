@@ -131,38 +131,26 @@ class HistoryScreen extends GetView<HistoryController> {
       width: double.infinity,
       padding: EdgeInsets.all(S.xl),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: streak > 0
-              ? [const Color(0xFFFF6B35), const Color(0xFFFF8E53)]
-              : [AppColors.primary, AppColors.primary.withOpacity(0.7)],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(S.radiusXl),
-        boxShadow: [
-          BoxShadow(
-            color: (streak > 0 ? const Color(0xFFFF6B35) : AppColors.primary).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: AppColors.borderLight, width: 1),
       ),
       child: Row(
         children: [
-          // Flame icon
           Container(
             padding: EdgeInsets.all(S.md),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: (streak > 0 ? const Color(0xFFFF6B35) : AppColors.primary)
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(S.radiusLg),
             ),
-            child: Text(
-              streak > 0 ? '🔥' : '📚',
-              style: TextStyle(fontSize: S.iconXxl),
+            child: Icon(
+              streak > 0 ? Icons.local_fire_department_rounded : Icons.menu_book_rounded,
+              color: streak > 0 ? const Color(0xFFFF6B35) : AppColors.primary,
+              size: S.iconXl,
             ),
           ),
           SizedBox(width: S.lg),
-          // Streak info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,35 +158,33 @@ class HistoryScreen extends GetView<HistoryController> {
                 Text(
                   streak > 0 ? 'dayStreak'.tr.replaceAll('{n}', '$streak') : 'startYourStreak'.tr,
                   style: AppTextStyles.headlineSmall.copyWith(
-                    color: Colors.white,
+                    color: AppColors.textPrimaryLight,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 SizedBox(height: S.xs),
                 Text(
-                  streak > 0
-                      ? 'keepMomentum'.tr
-                      : 'reviseToday'.tr,
+                  streak > 0 ? 'keepMomentum'.tr : 'reviseToday'.tr,
                   style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.85),
+                    color: AppColors.textSecondaryLight,
                   ),
                 ),
               ],
             ),
           ),
-          // Streak number
           Container(
-            width: S.avatarSize * 1.45,
-            height: S.avatarSize * 1.45,
+            width: S.avatarSize * 1.35,
+            height: S.avatarSize * 1.35,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: (streak > 0 ? const Color(0xFFFF6B35) : AppColors.primary)
+                  .withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 '$streak',
                 style: AppTextStyles.headlineLarge.copyWith(
-                  color: Colors.white,
+                  color: streak > 0 ? const Color(0xFFFF6B35) : AppColors.primary,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -248,8 +234,8 @@ class HistoryScreen extends GetView<HistoryController> {
       crossAxisCount: 2,
       crossAxisSpacing: S.gridSpacing,
       mainAxisSpacing: S.gridSpacing,
-      // Taller cards (was 1.3) so localized text + subtitles never overflow.
-      childAspectRatio: S.statCardAspectRatio,
+      // Fixed taller extent so localized text + subtitles never overflow.
+      mainAxisExtent: S.statCardMinHeight + 24,
       children: items
           .map((item) => StatCard(
                 title: item.title,

@@ -1,93 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingStart="6dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
-    android:layout_marginBottom="3dp"
-    android:background="@drawable/widget_class_card_bg"
-    android:gravity="center_vertical">
+    android:padding="10dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/widget_row_bg">
 
-    <!-- Left accent bar (3dp wide, colored per state) -->
-    <View
-        android:id="@+id/item_accent_bar"
-        android:layout_width="3dp"
-        android:layout_height="32dp"
-        android:background="@drawable/widget_class_accent_upcoming"
-        android:layout_marginEnd="10dp" />
-
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1">
-
-        <!-- Subject name -->
-        <TextView
-            android:id="@+id/item_subject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#DE000000"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:singleLine="true"
-            android:ellipsize="end" />
-
-        <!-- Time + location row -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:gravity="center_vertical">
-
-            <!-- Small dot indicator -->
-            <ImageView
-                android:id="@+id/item_dot"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:src="@drawable/dot_circle_upcoming"
-                android:layout_marginEnd="5dp" />
-
-            <TextView
-                android:id="@+id/item_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#80000000"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <TextView
-                android:id="@+id/item_location"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#66000000"
-                android:textSize="10sp"
-                android:layout_marginStart="8dp"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:visibility="gone" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- NOW badge -->
     <TextView
-        android:id="@+id/item_now_badge"
-        android:layout_width="wrap_content"
+        android:id="@+id/row_subject"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="NOW"
-        android:textColor="#FFFFFF"
-        android:textSize="8sp"
+        android:textColor="#FF1A73E8"
+        android:textSize="13sp"
         android:textStyle="bold"
-        android:background="@drawable/badge_now_bg"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:visibility="gone"
-        android:layout_marginStart="8dp" />
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/row_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#FF00897B"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="2dp" />
 
 </LinearLayout>

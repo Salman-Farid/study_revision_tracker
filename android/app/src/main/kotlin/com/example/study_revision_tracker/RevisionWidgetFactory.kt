@@ -5,6 +5,8 @@ import android.content.Intent
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import org.json.JSONArray
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class RevisionWidgetFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
 
@@ -45,26 +47,50 @@ class RevisionWidgetFactory(private val context: Context, intent: Intent) : Remo
 
     override fun getCount(): Int = items.size
 
+    /** "2026-09-10" → "10 Sep 2026" */
+    private fun prettyDate(raw: String): String {
+        if (raw.isEmpty()) return ""
+        return try {
+            val inFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val outFmt = SimpleDateFormat("d MMM yyyy", Locale.US)
+            val d = inFmt.parse(raw.substring(0, 10))
+            if (d != null) outFmt.format(d) else raw
+        } catch (_: Exception) {
+            raw
+        }
+    }
+
     override fun getViewAt(position: Int): RemoteViews {
         val item = items[position]
         val row = RemoteViews(context.packageName, R.layout.revision_widget_item)
-        row.setTextViewText(R.id.item_name, item["topicName"] ?: "Unknown")
-        row.setTextViewText(R.id.item_subject, item["subjectName"] ?: "")
-        val dayLabel = if (isMissedMode) {
-            item["scheduledDate"] ?: item["dayLabel"] ?: ""
+
+        val topic = item["topicName"] ?: "Unknown"
+        val subject = item["subjectName"] ?: ""
+        val date = prettyDate(item["scheduledDate"] ?: "")
+        val day = item["dayLabel"] ?: ""
+
+        // Date is the card title on BOTH tabs.
+        row.setTextViewText(R.id.item_date, date.ifEmpty { day })
+        row.setTextViewText(R.id.item_name, topic)
+        row.setTextViewText(R.id.item_subject, subject)
+        // Badge: day number (Day 1 / Day 3…); Missed tab also shows "Missed".
+        val badge = if (isMissedMode) {
+            if (day.isNotEmpty() && day != "Missed") day else "Missed"
         } else {
-            item["dayLabel"] ?: ""
+            day
         }
-        row.setTextViewText(R.id.item_day_badge, dayLabel)
+        row.setTextViewText(R.id.item_day_badge, badge)
 
         if (isMissedMode) {
             row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_overdue)
             row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_overdue_bg)
             row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#D93025"))
+            row.setTextColor(R.id.item_date, android.graphics.Color.parseColor("#D93025"))
         } else {
             row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_today)
             row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_today_bg)
             row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#1A73E8"))
+            row.setTextColor(R.id.item_date, android.graphics.Color.parseColor("#1A73E8"))
         }
         return row
     }

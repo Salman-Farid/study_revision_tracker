@@ -72,7 +72,7 @@ class TodayRevisionsScreen extends GetView<TodayController> {
             SizedBox(height: 4),
             // Day label + date or Missed badge
             Row(children: [
-              Text('dayLabel'.replaceAll('{n}', '${s.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+              Text('dayLabel'.tr.replaceAll('{n}', '${s.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
               SizedBox(width: S.sm),
               Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
               SizedBox(width: S.sm),

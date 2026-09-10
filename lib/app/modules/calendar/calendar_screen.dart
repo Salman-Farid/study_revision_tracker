@@ -94,7 +94,7 @@ class CalendarScreen extends StatelessWidget {
           SizedBox(height: 4),
           // Day label + date + status badge
           Row(children: [
-            Text('dayLabel'.replaceAll('{n}', '${e.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+            Text('dayLabel'.tr.replaceAll('{n}', '${e.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             SizedBox(width: S.sm),
             Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
             SizedBox(width: S.sm),

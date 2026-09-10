@@ -11,5 +11,4 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:previewImage="@android:drawable/ic_menu_recent_history"
-    android:description="@string/widget_revision_description"
-    android:widgetFeatures="reconfigurable|configuration_optional" />
+    android:description="@string/widget_revision_description" />

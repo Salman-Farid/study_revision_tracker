@@ -21,9 +21,9 @@ class DailyRoutineWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         when (intent.action) {
-            ACTION_REFRESH, ACTION_DAILY_TICK -> {
-                // Refresh all widget instances (DAILY_TICK comes from AlarmManager
-                // for the once-a-minute timer refresh).
+            ACTION_REFRESH, ACTION_DAILY_TICK,
+            "com.example.study_revision_tracker.UPDATE_WIDGETS",
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
                 val mgr = AppWidgetManager.getInstance(context)
                 val ids = mgr.getAppWidgetIds(ComponentName(context, DailyRoutineWidget::class.java))
                 for (id in ids) updateWidget(context, mgr, id, updateTimer = true)
@@ -41,7 +41,10 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
     try {
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         val hasData = prefs.getString("widget_daily_has_data", "false") == "true"
-        val statusMessage = prefs.getString("widget_daily_status_message", "No routine for today") ?: "No routine for today"
+        var statusMessage = prefs.getString("widget_daily_status_message", "") ?: ""
+        if (statusMessage.isBlank() || statusMessage.contains("Error", ignoreCase = true)) {
+            statusMessage = "Nothing to show"
+        }
         val currentSubject = prefs.getString("widget_daily_current_subject", "") ?: ""
         val currentTopic = prefs.getString("widget_daily_current_topic", "") ?: ""
         val currentType = prefs.getString("widget_daily_current_type", "") ?: ""

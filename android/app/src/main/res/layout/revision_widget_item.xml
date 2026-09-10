@@ -5,11 +5,10 @@
     android:layout_height="wrap_content"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:gravity="center_vertical">
 
-    <!-- Color indicator dot (ImageView — plain <View> is not allowed in RemoteViews) -->
     <ImageView
         android:id="@+id/item_dot"
         android:layout_width="6dp"
@@ -23,12 +22,24 @@
         android:layout_height="wrap_content"
         android:layout_weight="1">
 
-        <!-- Top row: topic name + day badge -->
+        <!-- Date as card title -->
+        <TextView
+            android:id="@+id/item_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#DE000000"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <!-- Topic + day badge -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:layout_marginTop="2dp">
 
             <TextView
                 android:id="@+id/item_name"
@@ -36,7 +47,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="#DE000000"
-                android:textSize="12sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:singleLine="true"
                 android:ellipsize="end" />
@@ -56,7 +67,6 @@
                 android:layout_marginStart="6dp" />
         </LinearLayout>
 
-        <!-- Subject name -->
         <TextView
             android:id="@+id/item_subject"
             android:layout_width="wrap_content"

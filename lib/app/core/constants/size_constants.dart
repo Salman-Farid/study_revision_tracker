@@ -42,10 +42,10 @@ class S {
   // ── Metric/stat cards (history + dashboard) ──
   /// Wider-taller ratio so text never overflows on small screens.
   static double get statCardAspectRatio =>
-      Responsive.isTablet ? 1.55 : (Get.height < 700 ? 1.05 : 1.15);
+      Responsive.isTablet ? 1.45 : (Get.height < 700 ? 0.95 : 1.05);
   /// Fixed minimum height fallback for metric cards.
-  static double get statCardMinHeight => Responsive.scale(128);
-  static double get streakCardHeight => Responsive.scale(110);
+  static double get statCardMinHeight => Responsive.scale(148);
+  static double get streakCardHeight => Responsive.scale(120);
   static double get chartHeight => Responsive.scale(220);
 
   static List<BoxShadow> get shadowSm => [

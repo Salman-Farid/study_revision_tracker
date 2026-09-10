@@ -37,6 +37,7 @@ class AppTranslations extends Translations {
   static const Map<String, String> en = {
     // Common
     'ok': 'OK', 'cancel': 'Cancel', 'save': 'Save', 'delete': 'Delete',
+    'add': 'Add',
     'loading': 'Loading...', 'error': 'Error', 'required': 'Required',
     'invalid': 'Invalid', 'or': 'OR', 'minChars': 'Min 6 chars',
     // Auth

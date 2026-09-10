@@ -328,12 +328,10 @@ class SupabaseService extends GetxService {
 
   Future<void> _refreshTopics() async {
     try {
-      // Refresh all topics for all subjects
-      final subjects = await fetchSubjects();
-      final allTopics = <TopicModel>[];
-      for (final sub in subjects) {
-        allTopics.addAll(await fetchTopics(sub.id));
-      }
+      // Single query for all topics of this user (avoids N+1 per subject).
+      final r = await client.from('topics').select()
+        .eq('user_id', userId).order('created_at', ascending: false);
+      final allTopics = (r as List).map((j) => TopicModel.fromJson(j)).toList();
       _topicsController.add(allTopics);
     } catch (e) { print('[Supabase] ❌ _refreshTopics failed: $e'); }
   }
@@ -394,7 +392,7 @@ class SupabaseService extends GetxService {
   DateTime? _lastNotificationUpdate;
   void _debouncedNotificationUpdate() {
     final now = DateTime.now();
-    if (_lastNotificationUpdate != null && now.difference(_lastNotificationUpdate!).inSeconds < 15) return;
+    if (_lastNotificationUpdate != null && now.difference(_lastNotificationUpdate!).inSeconds < 3) return;
     _lastNotificationUpdate = now;
     Future.microtask(() {
       try { NotificationService.to.rescheduleAll(); } catch (_) {}

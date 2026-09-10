@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_revision_tracker/gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:workmanager/workmanager.dart';
 import 'app/core/constants/app_constants.dart';
 import 'app/core/localization/language_controller.dart';
 import 'app/core/localization/app_translations.dart';
@@ -20,11 +21,70 @@ import 'app/data/repositories/topic_repository.dart';
 import 'app/data/repositories/routine_repository.dart';
 import 'app/data/services/supabase_service.dart';
 import 'app/modules/settings/settings_controller.dart';
+import 'app/modules/navigation/main_navigation.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/theme/app_theme.dart';
 
 Timer? _periodicWidgetTimer;
+
+/// WorkManager entry point — runs in a background isolate even when
+/// the Flutter UI is closed, so home widgets stay fresh without
+/// requiring the user to open the app.
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      await SharedPreferences.getInstance();
+
+      try {
+        await Supabase.initialize(
+          url: AppConstants.supabaseUrl,
+          anonKey: AppConstants.supabaseAnonKey,
+        );
+      } catch (_) {
+        // Already initialized in this isolate.
+      }
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return true;
+
+      // Refresh widget data from Supabase.
+      await WidgetDataProvider.updateAllWidgets(forceRefresh: true);
+
+      // Also refresh local notifications so timings stay in sync.
+      try {
+        final notifications = NotificationService();
+        await notifications.init();
+        await notifications.rescheduleAll();
+      } catch (e) {
+        debugPrint('[WorkManager] notification refresh failed: $e');
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[WorkManager] task failed: $e');
+      return false;
+    }
+  });
+}
+
+Future<void> _registerBackgroundWidgetRefresh() async {
+  try {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    await Workmanager().registerPeriodicTask(
+      'study-widget-refresh',
+      'study-widget-refresh',
+      frequency: const Duration(minutes: 15),
+      existingWorkPolicy: ExistingWorkPolicy.keep,
+      constraints: Constraints(networkType: NetworkType.connected),
+      backoffPolicy: BackoffPolicy.linear,
+    );
+    debugPrint('[main] background widget refresh registered');
+  } catch (e) {
+    debugPrint('[main] WorkManager register failed: $e');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,24 +114,28 @@ void main() async {
 
   if (Get.find<SupabaseService>().currentUser != null) {
     Get.find<SupabaseService>().initRealtime();
-    // Request exact alarm permission first (Android 14+), then schedule
-    final granted = await Get.find<NotificationService>().requestExactAlarmPermission();
+    // Request exact alarm permission first (Android 12+), then schedule.
+    final granted =
+        await Get.find<NotificationService>().requestExactAlarmPermission();
     debugPrint('[main] exactAlarmPermission granted=$granted');
-    await Get.find<NotificationService>().rescheduleAll();
-    debugPrint('[main] rescheduleAll completed');
-    final pending = await Get.find<NotificationService>().getPending();
-    debugPrint('[main] pending notifications: ${pending.length}');
+    // Run off the critical startup path so first frame isn't blocked.
+    unawaited(Get.find<NotificationService>().rescheduleAll());
   }
 
   await WidgetDataProvider.init();
   try {
+    await HomeWidget.registerInteractivityCallback(backgroundCallback);
+  } catch (e) {
+    debugPrint('[main] registerInteractivityCallback failed: $e');
+  }
+  try {
     await WidgetDataProvider.setAppGroupId('group.HOMEWIDGET');
   } catch (_) {}
+
   if (Get.find<SupabaseService>().currentUser != null) {
-    try {
-      WidgetDataProvider.updateAllWidgets();
-    } catch (_) {}
+    unawaited(WidgetDataProvider.updateAllWidgets());
     _startPeriodicWidgetRefresh();
+    unawaited(_registerBackgroundWidgetRefresh());
   }
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -84,9 +148,10 @@ void main() async {
 
 void _startPeriodicWidgetRefresh() {
   _periodicWidgetTimer?.cancel();
-  _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 15), (_) {
+  _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 10), (_) {
     if (Get.find<SupabaseService>().currentUser != null) {
-      WidgetDataProvider.updateAllWidgets();
+      // Fire-and-forget; do not block the timer isolate.
+      unawaited(WidgetDataProvider.updateAllWidgets());
     }
   });
 }
@@ -114,9 +179,9 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // App came back to foreground — refresh widgets immediately
       if (Get.find<SupabaseService>().currentUser != null) {
-        WidgetDataProvider.updateAllWidgets();
+        unawaited(WidgetDataProvider.updateAllWidgets());
+        unawaited(Get.find<NotificationService>().refreshNotificationPreference());
       }
     }
   }
@@ -141,6 +206,10 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
       supportedLocales: AppLanguages.all.keys.map((c) => Locale(c)).toList(),
       initialRoute: AppRoutes.splash,
       getPages: AppPages.pages,
+      unknownRoute: GetPage(
+        name: '/not-found',
+        page: () => const MainNavigation(),
+      ),
       defaultTransition: Transition.fadeIn,
       transitionDuration: AppConstants.pageTransitionDuration,
     );

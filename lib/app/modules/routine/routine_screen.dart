@@ -520,7 +520,7 @@ class _ClassRoutineTile extends StatelessWidget {
               _buildSection(
                 icon: Icons.location_on_rounded,
                 label: cr.locationText.isNotEmpty ? cr.locationText : 'tba'.tr,
-                sub: cr.room != null ? 'roomNumber'.replaceAll('{room}', '${cr.room}') : '',
+                sub: cr.room != null ? 'roomNumber'.tr.replaceAll('{room}', '${cr.room}') : '',
                 color: AppColors.warning,
               ),
             ],

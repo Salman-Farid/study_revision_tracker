@@ -2,18 +2,33 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/models/revision_schedule_model.dart';
 
 /// Background callback entry point — MUST be a top-level function.
+/// Invoked by home_widget WorkManager / interactive taps when the
+/// Flutter UI is not running.
 @pragma('vm:entry-point')
-void backgroundCallback(Uri? uri) async {
-  if (uri?.host == 'updateWidgets') {
+Future<void> backgroundCallback(Uri? uri) async {
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    try {
+      await Supabase.initialize(
+        url: AppConstants.supabaseUrl,
+        anonKey: AppConstants.supabaseAnonKey,
+      );
+    } catch (_) {
+      // Already initialized in this isolate.
+    }
     await WidgetDataProvider.updateAllWidgets(forceRefresh: true);
+  } catch (e) {
+    debugPrint('[WidgetData] backgroundCallback error: $e');
   }
 }
 
@@ -59,6 +74,7 @@ class WidgetDataProvider {
   static const String _kClassNextTime = 'widget_class_next_time';
   static const String _kClassNextLocation = 'widget_class_next_location';
   static const String _kClassItems = 'widget_class_items';
+  static const String _kClassTodayItems = 'widget_class_today_items';
   static const String _kClassHasToday = 'widget_class_has_today';
   static const String _kClassStatusMessage = 'widget_class_status_message';
 
@@ -69,7 +85,7 @@ class WidgetDataProvider {
   /// Call once during app startup to register background callbacks.
   static Future<void> init() async {
     try {
-      await HomeWidget.registerInteractivityCallback(_onWidgetTapped);
+      await HomeWidget.registerInteractivityCallback(backgroundCallback);
     } catch (e) {
       debugPrint('[WidgetData] registerInteractivityCallback failed: $e');
     }
@@ -85,11 +101,8 @@ class WidgetDataProvider {
   }
 
   // ── Widget tap handler ──
-
-  static Future<void> _onWidgetTapped(Uri? uri) async {
-    // Deep links are handled by the Flutter app's navigation.
-    // The URI scheme is registered in native config.
-  }
+  // Interactive taps are handled by the Flutter app's navigation via deep links.
+  // Background data refresh is handled by [backgroundCallback].
 
   // ── Public API ──
 
@@ -114,11 +127,13 @@ class WidgetDataProvider {
         _fetchClassRoutineData(client, userId, now, today, tomorrow),
       ]);
 
+      debugPrint('[WidgetData] updateAllWidgets daily.hasData=${results[0]['hasData']} '
+          'rev.hasData=${results[1]['hasData']} class.hasToday=${results[2]['hasToday']}');
+
       // Save data via HomeWidget (writes to the platform-native shared
       // preferences file that Android/iOS widgets can read).
-      await HomeWidget.saveWidgetData<String>(_kLastUpdated, now.toIso8601String());
-
       await Future.wait([
+        HomeWidget.saveWidgetData<String>(_kLastUpdated, now.toIso8601String()),
         _saveDailyWidgetData(results[0]),
         _saveRevisionWidgetData(results[1]),
         _saveClassWidgetData(results[2]),
@@ -148,7 +163,7 @@ class WidgetDataProvider {
   ) async {
     final result = <String, dynamic>{
       'hasData': false,
-      'statusMessage': 'Nothing for today',
+      'statusMessage': 'Nothing to show',
     };
 
     try {
@@ -194,9 +209,7 @@ class WidgetDataProvider {
       final classItems = <Map<String, dynamic>>[];
       for (final row in classRows) {
         final cr = ClassRoutineModel.fromJson(row);
-        final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-        final isToday = cr.dates.contains(dateStr) ||
-            (cr.recurring && cr.recurringDays.contains(today.weekday));
+        final isToday = _classMatchesDay(cr, today);
         if (isToday) {
           final start = DateTime(today.year, today.month, today.day, cr.startTime.hour, cr.startTime.minute);
           final end = start.add(Duration(minutes: cr.durationMinutes));
@@ -300,7 +313,7 @@ class WidgetDataProvider {
       result['allItems'] = allItemsJson;
     } catch (e) {
       debugPrint('[WidgetData] _fetchDailyRoutineData error: $e');
-      result['statusMessage'] = 'Error loading routine';
+      result['statusMessage'] = 'No routine for today';
     }
 
     return result;
@@ -316,7 +329,7 @@ class WidgetDataProvider {
       'overdueCount': 0,
       'todayCount': 0,
       'upcomingCount': 0,
-      'statusMessage': 'Nothing for today',
+      'statusMessage': 'Nothing planned yet',
       'items': <Map<String, dynamic>>[],
     };
 
@@ -354,7 +367,7 @@ class WidgetDataProvider {
 
       final totalPending = result['overdueCount'] + result['todayCount'];
       if (totalPending == 0 && result['upcomingCount'] == 0) {
-        result['statusMessage'] = 'All caught up!';
+        result['statusMessage'] = 'Nothing planned yet';
       } else if (result['overdueCount'] > 0) {
         result['statusMessage'] = '${result['overdueCount']} overdue, ${result['todayCount']} due today';
       } else {
@@ -430,7 +443,8 @@ class WidgetDataProvider {
       result['hasData'] = totalPending > 0 || result['upcomingCount'] > 0;
     } catch (e) {
       debugPrint('[WidgetData] _fetchRevisionData error: $e');
-      result['statusMessage'] = 'Error loading revisions';
+      // Never surface a raw error on the home screen widget.
+      result['statusMessage'] = 'Nothing planned yet';
     }
 
     return result;
@@ -438,12 +452,42 @@ class WidgetDataProvider {
 
   // ── Class Routine ──
 
+  /// True if [cr] occurs on [day]. Tolerates ISO timestamps in `dates`,
+  /// weekday names, numeric weekdays stored in `dates`, and a missing
+  /// `recurring` flag when `recurringDays` is set.
+  static bool _classMatchesDay(ClassRoutineModel cr, DateTime day) {
+    final dateStr =
+        '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    const weekdayNames = [
+      '', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    ];
+    const weekdayShort = ['', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    final dayName = weekdayNames[day.weekday];
+    final dayShort = weekdayShort[day.weekday];
+
+    for (final raw in cr.dates) {
+      final d = raw.trim();
+      if (d.isEmpty) continue;
+      // Exact or prefix date match (YYYY-MM-DD or ISO datetime)
+      if (d == dateStr || d.startsWith(dateStr)) return true;
+      final lower = d.toLowerCase();
+      if (lower == dayName || lower == dayShort) return true;
+      // Weekday number stored in dates: "3" or 3 as string
+      final asInt = int.tryParse(d);
+      if (asInt != null && asInt == day.weekday) return true;
+    }
+    if (cr.recurringDays.contains(day.weekday)) return true;
+    return false;
+  }
+
   static Future<Map<String, dynamic>> _fetchClassRoutineData(
     SupabaseClient client, String userId, DateTime now, DateTime today, DateTime tomorrow,
   ) async {
+    // Always return a complete, valid payload so widgets never show an error.
     final result = <String, dynamic>{
       'hasToday': false,
-      'statusMessage': 'Nothing for today',
+      'statusMessage': 'Nothing to show',
+      'classItems': <Map<String, dynamic>>[],
     };
 
     try {
@@ -452,34 +496,86 @@ class WidgetDataProvider {
           .select()
           .eq('user_id', userId);
 
+      final rowsList = classRows as List;
+      debugPrint('[WidgetData][Class] fetched ${rowsList.length} rows, '
+          'today=$today weekday=${today.weekday}');
+
+      // Match the in-app Class tab: list ALL class routines (not only today),
+      // and flag which ones are today / current / past for today.
+      final displayClasses = <Map<String, dynamic>>[];
       final todayClasses = <Map<String, dynamic>>[];
-      for (final row in classRows) {
-        final cr = ClassRoutineModel.fromJson(row);
-        final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-        final isToday = cr.dates.contains(dateStr) ||
-            (cr.recurring && cr.recurringDays.contains(today.weekday));
-        if (isToday) {
-          final start = DateTime(today.year, today.month, today.day, cr.startTime.hour, cr.startTime.minute);
-          final end = start.add(Duration(minutes: cr.durationMinutes));
-          todayClasses.add({
+
+      for (final row in rowsList) {
+        try {
+          final cr = ClassRoutineModel.fromJson(row);
+          final isToday = _classMatchesDay(cr, today);
+          debugPrint('[WidgetData][Class] "${cr.subjectName}" dates=${cr.dates} '
+              'recurring=${cr.recurring} days=${cr.recurringDays} '
+              'start=${cr.startTime.hour}:${cr.startTime.minute} isToday=$isToday');
+
+          // Slot on today's calendar for time-of-day ordering / current check.
+          final startToday = DateTime(
+            today.year, today.month, today.day, cr.startTime.hour, cr.startTime.minute,
+          );
+          final endToday = startToday.add(Duration(minutes: cr.durationMinutes));
+
+          if (isToday) {
+            todayClasses.add({
+              'subject': cr.subjectName,
+              'start': startToday,
+              'end': endToday,
+              'timeText': cr.timeText,
+              'endTimeText': cr.endTimeText,
+              'location': cr.locationText,
+              'durationText': cr.durationText,
+            });
+          }
+
+          // Widget list row — every class the user has (same as UI Class tab).
+          displayClasses.add({
             'subject': cr.subjectName,
-            'start': start,
-            'end': end,
             'timeText': cr.timeText,
             'endTimeText': cr.endTimeText,
             'location': cr.locationText,
-            'durationText': cr.durationText,
+            'daysText': cr.daysText.isNotEmpty
+                ? cr.daysText
+                : (cr.dates.isNotEmpty ? cr.dates.join(', ') : 'One-time'),
+            'startTimestamp': startToday.millisecondsSinceEpoch,
+            'endTimestamp': endToday.millisecondsSinceEpoch,
+            'isToday': isToday,
+            'isCurrent': isToday &&
+                !now.isBefore(startToday) &&
+                now.isBefore(endToday),
+            'isPast': isToday && endToday.isBefore(now),
           });
+        } catch (rowErr) {
+          debugPrint('[WidgetData][Class] row parse failed: $rowErr raw=$row');
         }
       }
 
+      // Sort: today's classes first by time, then the rest by time-of-day.
+      displayClasses.sort((a, b) {
+        final aToday = a['isToday'] == true ? 0 : 1;
+        final bToday = b['isToday'] == true ? 0 : 1;
+        if (aToday != bToday) return aToday.compareTo(bToday);
+        return (a['startTimestamp'] as int).compareTo(b['startTimestamp'] as int);
+      });
+
       todayClasses.sort((a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
+      debugPrint('[WidgetData][Class] total=${displayClasses.length} today=${todayClasses.length}');
 
-      if (todayClasses.isEmpty) return result;
+      if (displayClasses.isEmpty) {
+        result['statusMessage'] = 'Nothing to show';
+        return result;
+      }
 
+      // Widget has content whenever the user has any class routine (matches UI).
       result['hasToday'] = true;
+      result['classItems'] = displayClasses;
+      result['todayItems'] =
+          displayClasses.where((e) => e['isToday'] == true).toList();
 
-      // Find current class
+      // Prefer a live "now" card from today's schedule.
       Map<String, dynamic>? currentClass;
       for (final cls in todayClasses) {
         final start = cls['start'] as DateTime;
@@ -492,8 +588,7 @@ class WidgetDataProvider {
 
       if (currentClass != null) {
         final end = currentClass['end'] as DateTime;
-        final remaining = end.difference(now);
-        final remainingMin = remaining.inMinutes;
+        final remainingMin = end.difference(now).inMinutes;
         result['currentSubject'] = currentClass['subject'] as String;
         result['currentTime'] = '${currentClass['timeText']} – ${currentClass['endTimeText']}';
         result['currentLocation'] = currentClass['location'] as String? ?? '';
@@ -501,44 +596,24 @@ class WidgetDataProvider {
             ? '${remainingMin ~/ 60}h ${remainingMin % 60}m left'
             : '${remainingMin}m left';
         result['statusMessage'] = 'Now: ${currentClass['subject']}';
+      } else if (todayClasses.isNotEmpty) {
+        final next = todayClasses.firstWhere(
+          (cls) => (cls['start'] as DateTime).isAfter(now),
+          orElse: () => todayClasses.first,
+        );
+        result['nextSubject'] = next['subject'] as String;
+        result['nextTime'] = '${next['timeText']} – ${next['endTimeText']}';
+        result['nextLocation'] = next['location'] as String? ?? '';
+        result['statusMessage'] = 'Next: ${next['subject']}';
       } else {
-        result['statusMessage'] = 'No class right now';
+        result['statusMessage'] = '${displayClasses.length} classes scheduled';
       }
-
-      // Find next class
-      Map<String, dynamic>? nextClass;
-      for (final cls in todayClasses) {
-        final start = cls['start'] as DateTime;
-        if (start.isAfter(now)) {
-          nextClass = cls;
-          break;
-        }
-      }
-
-      if (nextClass != null) {
-        result['nextSubject'] = nextClass['subject'] as String;
-        result['nextTime'] = '${nextClass['timeText']} – ${nextClass['endTimeText']}';
-        result['nextLocation'] = nextClass['location'] as String? ?? '';
-      }
-
-      // Build class items JSON for widget list display
-      final classItems = <Map<String, dynamic>>[];
-      for (final cls in todayClasses) {
-        final start = cls['start'] as DateTime;
-        final end = cls['end'] as DateTime;
-        final isCurrent = !now.isBefore(start) && now.isBefore(end);
-        classItems.add({
-          'subject': cls['subject'] as String,
-          'timeText': cls['timeText'] as String,
-          'endTimeText': cls['endTimeText'] as String,
-          'location': cls['location'] as String? ?? '',
-          'isCurrent': isCurrent,
-        });
-      }
-      result['classItems'] = classItems;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('[WidgetData] _fetchClassRoutineData error: $e');
-      result['statusMessage'] = 'Error loading classes';
+      debugPrint('[WidgetData] stack: $st');
+      result['hasToday'] = false;
+      result['statusMessage'] = 'Nothing to show';
+      result['classItems'] = <Map<String, dynamic>>[];
     }
 
     return result;
@@ -580,7 +655,13 @@ class WidgetDataProvider {
   static Future<void> _saveClassWidgetData(
     Map<String, dynamic> data,
   ) async {
-    await HomeWidget.saveWidgetData<String>(_kClassHasToday, (data['hasToday'] as bool? ?? false).toString());
+    final hasToday = data['hasToday'] as bool? ?? false;
+    final items = data['classItems'] as List? ?? [];
+    final todayItems = data['todayItems'] as List? ??
+        items.where((e) => (e as Map)['isToday'] == true).toList();
+    debugPrint('[WidgetData][Class] SAVING hasToday=$hasToday '
+        'all=${items.length} today=${todayItems.length} msg=${data['statusMessage']}');
+    await HomeWidget.saveWidgetData<String>(_kClassHasToday, hasToday.toString());
     await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, data['statusMessage'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassCurrentSubject, data['currentSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassCurrentTime, data['currentTime'] as String? ?? '');
@@ -589,16 +670,19 @@ class WidgetDataProvider {
     await HomeWidget.saveWidgetData<String>(_kClassNextSubject, data['nextSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassNextTime, data['nextTime'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassNextLocation, data['nextLocation'] as String? ?? '');
-    await HomeWidget.saveWidgetData<String>(_kClassItems, jsonEncode(data['classItems'] ?? []));
+    await HomeWidget.saveWidgetData<String>(_kClassItems, jsonEncode(items));
+    await HomeWidget.saveWidgetData<String>(_kClassTodayItems, jsonEncode(todayItems));
   }
 
   static Future<void> _setEmptyData() async {
     await HomeWidget.saveWidgetData<String>(_kDailyHasData, 'false');
-    await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, 'Sign in to see your routine');
+    await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, 'Nothing to show');
     await HomeWidget.saveWidgetData<String>(_kRevisionHasData, 'false');
-    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, 'Nothing for today');
+    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, 'Nothing planned yet');
     await HomeWidget.saveWidgetData<String>(_kClassHasToday, 'false');
-    await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, 'Nothing for today');
+    await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, 'Nothing to show');
+    await HomeWidget.saveWidgetData<String>(_kClassItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kClassTodayItems, '[]');
   }
 
   // ── Utility ──
@@ -617,8 +701,7 @@ class WidgetDataProvider {
   /// Schedule periodic widget updates via AlarmManager.
   static Future<void> schedulePeriodicUpdate() async {
     try {
-      // Re-register in case it was lost
-      await HomeWidget.registerInteractivityCallback(_onWidgetTapped);
+      await HomeWidget.registerInteractivityCallback(backgroundCallback);
     } catch (_) {}
   }
 

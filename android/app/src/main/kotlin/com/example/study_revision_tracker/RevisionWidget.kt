@@ -23,8 +23,6 @@ class RevisionWidget : AppWidgetProvider() {
                 val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
                 if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                     val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-                    // Set the mode of the button that was actually pressed.
-                    // Falls back to flipping the current mode if the extra is missing.
                     val targetMode = intent.getStringExtra(EXTRA_TARGET_MODE)
                         ?: run {
                             val currentMode = prefs.getString("widget_revision_toggle_mode", "missed")
@@ -35,7 +33,9 @@ class RevisionWidget : AppWidgetProvider() {
                     updateWidget(context, mgr, appWidgetId)
                 }
             }
-            ACTION_REFRESH -> {
+            ACTION_REFRESH,
+            "com.example.study_revision_tracker.UPDATE_WIDGETS",
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
                 val mgr = AppWidgetManager.getInstance(context)
                 val ids = mgr.getAppWidgetIds(ComponentName(context, RevisionWidget::class.java))
                 for (id in ids) updateWidget(context, mgr, id)
@@ -54,15 +54,17 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
     try {
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         val hasData = prefs.getString("widget_revision_has_data", "false") == "true"
-        val statusMessage = prefs.getString("widget_revision_status_message", "Nothing for today") ?: "Nothing for today"
+        // Never surface a raw error string on the home screen.
+        var statusMessage = prefs.getString("widget_revision_status_message", "Nothing planned yet") ?: "Nothing planned yet"
+        if (statusMessage.isBlank() || statusMessage.contains("Error", ignoreCase = true)) {
+            statusMessage = "Nothing planned yet"
+        }
         val toggleMode = prefs.getString("widget_revision_toggle_mode", "missed") ?: "missed"
         val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
 
-        // Counts for both sections (shown on the toggle buttons)
         val overdueCount = prefs.getString("widget_revision_overdue_count", "0")?.toIntOrNull() ?: 0
         val upcomingCount = prefs.getString("widget_revision_upcoming_count", "0")?.toIntOrNull() ?: 0
 
-        // Determine which items to show (mutual exclusion: missed OR upcoming)
         val isMissedMode = toggleMode != "upcoming"
         val itemsJson: String
         val statusText: String
@@ -86,10 +88,17 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             arr.length() > 0
         } catch (_: Exception) { false }
 
+        // Friendly empty message — never "error"
+        val emptyMessage = when {
+            hasItems -> statusMessage
+            isMissedMode && overdueCount == 0 && upcomingCount == 0 -> "Nothing planned yet"
+            isMissedMode -> "None overdue"
+            upcomingCount == 0 -> "Nothing planned yet"
+            else -> "None upcoming"
+        }
+
         val views = RemoteViews(context.packageName, R.layout.revision_widget)
 
-        // Toggle button labels with counts + states (white theme:
-        // active = solid blue with white text, inactive = gray text)
         views.setTextViewText(R.id.btn_missed, "MISSED ($overdueCount)")
         views.setTextViewText(R.id.btn_coming_soon, "COMING SOON ($upcomingCount)")
         if (isMissedMode) {
@@ -104,14 +113,11 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             views.setInt(R.id.btn_missed, "setTextColor", android.graphics.Color.parseColor("#80000000"))
         }
 
-        // Status badge (colorful text on light tinted background)
         views.setTextViewText(R.id.widget_status, statusText)
         views.setInt(R.id.widget_status, "setBackgroundResource", statusColorRes)
         views.setInt(R.id.widget_status, "setTextColor", android.graphics.Color.parseColor(statusTextColor))
-        views.setViewVisibility(R.id.widget_status, if (hasItems || (!hasData && !isMissedMode)) android.view.View.GONE else android.view.View.VISIBLE)
+        views.setViewVisibility(R.id.widget_status, if (hasItems) android.view.View.GONE else android.view.View.VISIBLE)
 
-        // Toggle click intents — one per button, each carrying its own target
-        // mode, so pressing MISSED shows missed and COMING SOON shows upcoming.
         val missedIntent = Intent(context, RevisionWidget::class.java).apply {
             action = RevisionWidget.ACTION_TOGGLE_MODE
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -134,35 +140,48 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         )
         views.setOnClickPendingIntent(R.id.btn_coming_soon, upcomingPending)
 
-        // Connect the ListView to the RemoteViewsService adapter for scrollable content
         val adapterIntent = Intent(context, RevisionWidgetService::class.java)
         adapterIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         adapterIntent.action = "android.appwidget.action.APPWIDGET_UPDATE"
         views.setRemoteAdapter(R.id.widget_list, adapterIntent)
 
-        // Set the empty view for when there's no data
         views.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
-        // Empty state
-        if (!hasData || !hasItems) {
+        if (!hasItems) {
             views.setViewVisibility(R.id.widget_list, android.view.View.GONE)
             views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE)
-            views.setTextViewText(R.id.widget_empty_message, statusMessage)
+            views.setTextViewText(R.id.widget_empty_message, emptyMessage)
         } else {
             views.setViewVisibility(R.id.widget_list, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_empty, android.view.View.GONE)
         }
 
-        // Timestamp
         if (lastUpdated.isNotEmpty()) {
             val time = lastUpdated.substringAfter("T", "").take(5)
-            views.setTextViewText(R.id.widget_updated, "Updated $time")
+            if (time.isNotEmpty()) {
+                views.setTextViewText(R.id.widget_updated, "Updated $time")
+            }
         }
 
+        // Deep-link to Today tab
+        val openIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("study-revision-tracker://today"))
+        openIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val openPending = PendingIntent.getActivity(
+            context, 0, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_root, openPending)
+
         appWidgetManager.updateAppWidget(appWidgetId, views)
-        // Notify the adapter to reload data
         appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
     } catch (e: Exception) {
         android.util.Log.e("RevisionWidget", "update error: ${e.message}")
+        try {
+            val views = RemoteViews(context.packageName, R.layout.revision_widget)
+            views.setViewVisibility(R.id.widget_list, android.view.View.GONE)
+            views.setViewVisibility(R.id.widget_empty, android.view.View.VISIBLE)
+            views.setTextViewText(R.id.widget_empty_message, "Nothing planned yet")
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        } catch (_: Exception) {}
     }
 }

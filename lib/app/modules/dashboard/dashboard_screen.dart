@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
@@ -6,6 +5,7 @@ import '../../core/constants/size_constants.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/stat_card.dart';
+import '../navigation/navigation_controller.dart';
 import 'dashboard_controller.dart';
 
 class DashboardScreen extends GetView<DashboardController> {
@@ -86,56 +86,79 @@ class DashboardScreen extends GetView<DashboardController> {
       ])),
     ]));
 
-  // Bug-06 FIX: Frosted glass hero card using ClipRRect + BackdropFilter.
+  // White hero card, no elevation, black/colored text with icons.
   Widget _heroCard(bool d) {
     final today = controller.stats['today_count'] ?? 0;
     final overdue = controller.stats['overdue_count'] ?? 0;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(S.radiusLg),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
-          padding: EdgeInsets.all(S.xl),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF6C63FF).withValues(alpha: 0.88),
-                const Color(0xFF9D97FF).withValues(alpha: 0.88),
-              ]),
-            borderRadius: BorderRadius.circular(S.radiusLg),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
-            boxShadow: [
-              BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.25),
-                blurRadius: 20, offset: const Offset(0, 8)),
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
+      padding: EdgeInsets.all(S.xl),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(S.radiusLg),
+        border: Border.all(color: AppColors.borderLight, width: 1),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: S.iconLg),
+          SizedBox(width: S.md),
+          Expanded(
+            child: Text(
+              today > 0 ? 'revisionsDueToday'.tr.replaceAll('{n}', '$today') : 'noRevisionsDueToday'.tr,
+              style: AppTextStyles.headlineSmall.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ]),
+        if (overdue > 0) ...[
+          SizedBox(height: S.md),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(S.radiusSm),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.warning_rounded, color: AppColors.error, size: S.iconSm),
+              SizedBox(width: S.sm),
+              Text(
+                'overdueBadge'.tr.replaceAll('{n}', '$overdue'),
+                style: AppTextStyles.labelLarge.copyWith(color: AppColors.error),
+              ),
             ]),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(today > 0 ? 'revisionsDueToday'.replaceAll('{n}', '$today') : 'noRevisionsDueToday'.tr,
-              style: AppTextStyles.headlineSmall.copyWith(color: Colors.white)),
-            if (overdue > 0) ...[SizedBox(height: S.sm),
-              Container(padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(S.radiusSm)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.warning_rounded, color: Colors.white, size: S.iconSm), SizedBox(width: S.sm),
-                  Text('overdueBadge'.replaceAll('{n}', '$overdue'), style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
-                ])),
-            ],
-            SizedBox(height: S.base),
-            ElevatedButton(onPressed: controller.startRevising,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white, foregroundColor: AppColors.primary,
-                minimumSize: Size(S.avatarSize * 2, S.buttonHeight * 0.75)),
-child: Text('startRevising'.tr)),
-          ]))));
+          ),
+        ],
+        SizedBox(height: S.base),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: controller.startRevising,
+            icon: const Icon(Icons.play_arrow_rounded, size: 18),
+            label: Text('startRevising'.tr),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: Size(double.infinity, S.buttonHeight * 0.8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(S.radiusMd),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
   }
 
   Widget _statsGrid(bool d) {
     final rate = (controller.stats['completion_rate'] as num?)?.toDouble() ?? 0;
     final items = [
-      ['statOverdue'.tr, '${controller.stats['overdue_count'] ?? 0}', Icons.warning_rounded, AppColors.error],
-      ['statToday'.tr, '${controller.stats['today_count'] ?? 0}', Icons.today_rounded, AppColors.primary],
-      ['statUpcoming'.tr, '${controller.stats['upcoming_count'] ?? 0}', Icons.upcoming_rounded, AppColors.info],
-      ['statCompletion'.tr, '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success],
+      ['statOverdue'.tr, '${controller.stats['overdue_count'] ?? 0}', Icons.warning_rounded, AppColors.error, _goToday],
+      ['statToday'.tr, '${controller.stats['today_count'] ?? 0}', Icons.today_rounded, AppColors.primary, _goToday],
+      ['statUpcoming'.tr, '${controller.stats['upcoming_count'] ?? 0}', Icons.upcoming_rounded, AppColors.info, _goCalendar],
+      ['statCompletion'.tr, '${(rate * 100).round()}%', Icons.check_circle_rounded, AppColors.success, _goSubjects],
     ];
     return Padding(
       padding: EdgeInsets.all(S.xl),
@@ -145,7 +168,8 @@ child: Text('startRevising'.tr)),
           crossAxisCount: 2,
           crossAxisSpacing: S.gridSpacing,
           mainAxisSpacing: S.gridSpacing,
-          childAspectRatio: 1.25,
+          // Fixed height avoids pixel overflow on smaller screens.
+          mainAxisExtent: S.statCardMinHeight + 12,
         ),
         itemCount: items.length,
         itemBuilder: (_, i) {
@@ -155,11 +179,16 @@ child: Text('startRevising'.tr)),
             value: it[1] as String,
             icon: it[2] as IconData,
             color: it[3] as Color,
+            onTap: it[4] as VoidCallback,
           );
         },
       ),
     );
   }
+
+  void _goToday() => NavigationController.to.goToToday();
+  void _goCalendar() => NavigationController.to.goToCalendar();
+  void _goSubjects() => NavigationController.to.goToSubjects();
 
   Widget _actions(bool d) => Padding(padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

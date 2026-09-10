@@ -228,13 +228,10 @@ class RoutineController extends GetxController {
   }
 
   bool _isClassToday(ClassRoutineModel cr, DateTime today) {
-    // Check specific dates
     final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    if (cr.dates.contains(dateStr)) return true;
-
-    // Check recurring days (1=Mon..7=Sun)
-    if (cr.recurring && cr.recurringDays.contains(today.weekday)) return true;
-
+    if (cr.dates.any((d) => d == dateStr || d.startsWith(dateStr))) return true;
+    // Recurring weekday (1=Mon..7=Sun); also match if flag was omitted.
+    if (cr.recurringDays.contains(today.weekday)) return true;
     return false;
   }
 

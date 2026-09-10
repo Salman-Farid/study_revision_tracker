@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:ui' show Color;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,15 +17,13 @@ import '../../data/models/revision_schedule_model.dart';
 /// Native notification service backed by `flutter_local_notifications`.
 ///
 /// Schedules three kinds of reminders from existing app data:
-///   • **Revision** — fires exactly at the scheduled date/time.
+///   • **Revision** — fires at the scheduled date (default 08:00 local).
 ///   • **Class Routine** — fires 30 minutes before every class.
 ///   • **Daily Routine** — fires at the start of each timeline block.
 ///
-/// All IDs are derived deterministically from the underlying data so the
-/// same schedule never produces duplicate notifications, and cancelling a
-/// record automatically cancels its reminder.
+/// Timezone is resolved via `flutter_timezone` so alarms fire on device
+/// local time (not UTC), which was the root cause of multi-hour delays.
 class NotificationService extends GetxService {
-  // ── Singleton ──
   static NotificationService get to => Get.find<NotificationService>();
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -30,19 +32,12 @@ class NotificationService extends GetxService {
   bool _initialized = false;
   bool _notificationsEnabled = true;
 
-  // ──────────────────────────────────────────────
-  //  Channels
-  // ──────────────────────────────────────────────
   static const _channelRevision = 'revision_channel';
   static const _channelRevisionName = 'Revision Reminders';
   static const _channelClass = 'class_channel';
   static const _channelClassName = 'Class Reminders';
   static const _channelDaily = 'daily_routine_channel';
   static const _channelDailyName = 'Daily Routine Reminders';
-
-  // ──────────────────────────────────────────────
-  //  Lifecycle
-  // ──────────────────────────────────────────────
 
   @override
   Future<NotificationService> onInit() async {
@@ -60,17 +55,11 @@ class NotificationService extends GetxService {
     if (_initialized) return;
     _initialized = true;
 
-    // Timezone
-    tz_data.initializeTimeZones();
-    try {
-      tz.setLocalLocation(tz.local);
-    } catch (_) {}
+    await _configureLocalTimeZone();
 
-    // Restore preference
     final prefs = await SharedPreferences.getInstance();
     _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
 
-    // Android channels
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -96,31 +85,24 @@ class NotificationService extends GetxService {
           _channelDaily,
           _channelDailyName,
           description: 'Reminders when each daily routine block starts',
-          importance: Importance.defaultImportance,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
         ),
       );
-
-      // Android 13+ runtime permission
       await androidPlugin.requestNotificationsPermission();
     }
 
-    // iOS permission
     final iosPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>();
     if (iosPlugin != null) {
-      await iosPlugin.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      await iosPlugin.requestPermissions(alert: true, badge: true, sound: true);
     }
 
-    // Initialize the plugin (required before scheduling)
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('ic_notif');
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false, // handled above
+      requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
@@ -128,13 +110,29 @@ class NotificationService extends GetxService {
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
-
-    // Listen to preference changes via SharedPreferences stream
-    _watchNotificationPreference();
   }
 
-  /// Poll the notification preference every time the app resumes.
-  /// Called by MainNavigation or app lifecycle handler.
+  /// Resolve the device timezone into the `timezone` package.
+  /// Without this, `tz.local` stays UTC and alarms fire hours late/early.
+  Future<void> _configureLocalTimeZone() async {
+    tz_data.initializeTimeZones();
+    try {
+      final String name = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(name));
+      debugPrint('[NotificationService] timezone set to $name');
+    } catch (e) {
+      debugPrint('[NotificationService] timezone resolve failed: $e');
+      // Fallback: try common mappings if the plugin fails.
+      try {
+        final now = DateTime.now();
+        final offset = now.timeZoneOffset;
+        // Keep UTC as last resort; exact alarms will still use absolute time.
+        tz.setLocalLocation(tz.UTC);
+        debugPrint('[NotificationService] fallback UTC, local offset=$offset');
+      } catch (_) {}
+    }
+  }
+
   Future<void> refreshNotificationPreference() async {
     final prefs = await SharedPreferences.getInstance();
     final newValue = prefs.getBool('notifications_enabled') ?? true;
@@ -148,71 +146,44 @@ class NotificationService extends GetxService {
     }
   }
 
-  void _watchNotificationPreference() {
-    // Use a periodic check as a fallback (SharedPreferences doesn't have streams)
-    // The primary trigger is refreshNotificationPreference() called from app lifecycle.
-  }
-
-  // ──────────────────────────────────────────────
-  //  Notification tap → deep-link
-  // ──────────────────────────────────────────────
-
   void _onNotificationTapped(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
-    // Navigate via deep-link URI.  The splash screen already handles
-    // `study-revision-tracker://` URIs, so we push a new one.
-    // When the app is already running we navigate directly.
     _handleDeepLink(payload);
   }
 
   void _handleDeepLink(String uri) {
     try {
       final parsed = Uri.parse(uri);
-      final pathSegments = parsed.pathSegments;
-      if (pathSegments.isEmpty) return;
-      // Route to the relevant section of MainNavigation.
-      // Tabs: 0=Dashboard, 1=Subjects, 2=Today, 3=Routine, 4=Calendar, 5=Settings
       if (parsed.host == 'revision') {
-        // Go to Today tab (index 2) — revisions are shown there
         Get.until((route) => route.settings.name == '/home');
-        // Nothing more specific to navigate to in current routing
       } else if (parsed.host == 'class' || parsed.host == 'routine') {
-        // Go to Routine tab (index 3)
         Get.until((route) => route.settings.name == '/home');
       }
     } catch (_) {}
   }
 
-  // ──────────────────────────────────────────────
-  //  Deterministic notification IDs
-  // ──────────────────────────────────────────────
+  // ── Deterministic notification IDs ──
 
-  /// Revision notification ID: stable hash of the schedule UUID.
-  static int _revisionNotifId(String scheduleId) {
-    return scheduleId.hashCode & 0x7FFFFFFF; // positive 31-bit
-  }
+  static int _revisionNotifId(String scheduleId) =>
+      scheduleId.hashCode & 0x7FFFFFFF;
 
-  /// Class notification ID: hash of routine UUID XOR'd with the
-  /// day-of-year so different days produce different IDs.
   static int _classNotifId(String routineId, DateTime date) {
     final dayOfYear = date.difference(DateTime(date.year)).inDays;
     return (routineId.hashCode ^ (dayOfYear << 16)) & 0x7FFFFFFF;
   }
 
-  /// Daily routine notification ID: hash of routine UUID XOR'd with
-  /// item index and day-of-year.
   static int _dailyNotifId(String routineId, int itemIndex, DateTime date) {
     final dayOfYear = date.difference(DateTime(date.year)).inDays;
     return (routineId.hashCode ^ (itemIndex << 8) ^ (dayOfYear << 20)) &
         0x7FFFFFFF;
   }
 
-  // ──────────────────────────────────────────────
-  //  Revision scheduling
-  // ──────────────────────────────────────────────
+  // ── Revision scheduling ──
 
-  /// Schedule a single revision reminder at [scheduledDate].
+  /// Schedule a single revision reminder at [schedule.scheduledDate], 08:00
+  /// device-local time. If that slot already passed today, fire soon (now+1min)
+  /// so overdue revisions still notify instead of waiting until tomorrow.
   Future<void> scheduleRevision({
     required RevisionScheduleModel schedule,
     required String topicName,
@@ -221,45 +192,44 @@ class NotificationService extends GetxService {
     if (!_notificationsEnabled) return;
     if (schedule.status != 'pending') return;
 
-    // Use the date from scheduledDate; schedule at 08:00 local time
-    // (the typical revision slot) unless the stored date is already in
-    // the future.
     final now = tz.TZDateTime.now(tz.local);
+    final scheduledDay = schedule.scheduledDate;
+
+    // 08:00 local on the scheduled calendar day.
     var scheduled = tz.TZDateTime(
       tz.local,
-      schedule.scheduledDate.year,
-      schedule.scheduledDate.month,
-      schedule.scheduledDate.day,
-      8, // default 8 AM
+      scheduledDay.year,
+      scheduledDay.month,
+      scheduledDay.day,
+      8,
       0,
     );
 
-    // If 8 AM today has already passed, try the user's stored time or
-    // fall back to "now + 1 min" so it still fires today.
+    // If today's 08:00 already passed but the revision is still due today,
+    // notify within the next minute instead of skipping to tomorrow.
     if (!scheduled.isAfter(now)) {
-      // Schedule for 8 AM tomorrow if today's slot is gone
-      final tomorrow = scheduled.add(const Duration(days: 1));
-      scheduled = tz.TZDateTime(
-        tz.local,
-        tomorrow.year,
-        tomorrow.month,
-        tomorrow.day,
-        8,
-        0,
-      );
+      final isSameDay = scheduledDay.year == now.year &&
+          scheduledDay.month == now.month &&
+          scheduledDay.day == now.day;
+      final isOverdueDay = scheduledDay.isBefore(DateTime(now.year, now.month, now.day));
+      if (isSameDay || isOverdueDay) {
+        scheduled = now.add(const Duration(minutes: 1));
+      } else {
+        // Future day whose 08:00 hasn't come yet — already handled above.
+        // If we get here the date is in the past beyond "today", skip.
+        return;
+      }
     }
 
-    // If even that is in the past, skip.
     if (!scheduled.isAfter(now)) return;
 
     final id = _revisionNotifId(schedule.id);
-    final payload =
-        'study-revision-tracker://revision/${schedule.id}';
+    final payload = 'study-revision-tracker://revision/${schedule.id}';
 
     await _plugin.zonedSchedule(
       id,
       '📚 Revision: $subjectName',
-      'Day ${schedule.dayNumber} — $topicName is due today',
+      'Day ${schedule.dayNumber} — $topicName is due',
       scheduled,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -268,7 +238,8 @@ class NotificationService extends GetxService {
           channelDescription: 'Reminders for scheduled revisions',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notif',
+          color: const Color(0xFF87CEEB),
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -283,14 +254,11 @@ class NotificationService extends GetxService {
     );
   }
 
-  /// Cancel a specific revision notification.
   Future<void> cancelRevision(String scheduleId) async {
     await _plugin.cancel(_revisionNotifId(scheduleId));
   }
 
-  // ──────────────────────────────────────────────
-  //  Class routine scheduling
-  // ──────────────────────────────────────────────
+  // ── Class routine scheduling ──
 
   /// Schedule class reminders for the next [daysAhead] days.
   /// Each class gets a notification 30 minutes before its start time.
@@ -308,11 +276,11 @@ class NotificationService extends GetxService {
       final dateStr =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-      final isToday = routine.dates.contains(dateStr) ||
-          (routine.recurring && routine.recurringDays.contains(date.weekday));
+      final isToday = routine.dates.any((d) =>
+              d == dateStr || d.startsWith(dateStr)) ||
+          routine.recurringDays.contains(date.weekday);
       if (!isToday) continue;
 
-      // Compute the 30-minute-before time
       final classStart = tz.TZDateTime(
         tz.local,
         date.year,
@@ -321,20 +289,27 @@ class NotificationService extends GetxService {
         routine.startTime.hour,
         routine.startTime.minute,
       );
-      final reminderTime = classStart.subtract(const Duration(minutes: 30));
+      var reminderTime = classStart.subtract(const Duration(minutes: 30));
 
-      if (!reminderTime.isAfter(now)) continue; // already passed
+      // If the 30-min-before slot already passed but class hasn't started,
+      // fire immediately so the user still gets a heads-up.
+      if (!reminderTime.isAfter(now)) {
+        if (classStart.isAfter(now)) {
+          reminderTime = now.add(const Duration(seconds: 30));
+        } else {
+          continue;
+        }
+      }
 
       final id = _classNotifId(routine.id, date);
       final locationPart = routine.locationText.isNotEmpty
           ? ' at ${routine.locationText}'
           : '';
-      final payload =
-          'study-revision-tracker://class/${routine.id}';
+      final payload = 'study-revision-tracker://class/${routine.id}';
 
       await _plugin.zonedSchedule(
         id,
-        '🏫 Class in 30 min: ${routine.subjectName}',
+        '🏫 Class soon: ${routine.subjectName}',
         '${routine.timeText}$locationPart — ${routine.durationText} class',
         reminderTime,
         const NotificationDetails(
@@ -344,7 +319,8 @@ class NotificationService extends GetxService {
             channelDescription: 'Reminders 30 minutes before class',
             importance: Importance.high,
             priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
+            icon: 'ic_notif',
+          color: const Color(0xFF87CEEB),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -360,7 +336,6 @@ class NotificationService extends GetxService {
     }
   }
 
-  /// Cancel all class notifications for a specific routine.
   Future<void> cancelClassRoutine(String routineId, {int daysAhead = 30}) async {
     final now = tz.TZDateTime.now(tz.local);
     final today = DateTime(now.year, now.month, now.day);
@@ -370,85 +345,125 @@ class NotificationService extends GetxService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  Daily routine scheduling
-  // ──────────────────────────────────────────────
+  // ── Daily routine scheduling ──
 
-  /// Schedule notifications for each block in today's (and upcoming)
-  /// daily routine.  A notification fires at the block's start time.
-  Future<void> scheduleDailyRoutine({
+  /// Parse "9:00", "09:30", "9:00 AM", "9 AM", "14:00:00" into [hour, minute].
+  /// Returns null if the string cannot be understood.
+  static List<int>? _parseClock(String raw) {
+    var s = raw.trim().toLowerCase();
+    if (s.isEmpty) return null;
+    var isPm = false;
+    var isAm = false;
+    if (s.endsWith('am') || s.endsWith('a.m.')) {
+      isAm = true;
+      s = s.replaceAll(RegExp(r'\s*a\.?m\.?\s*$'), '').trim();
+    } else if (s.endsWith('pm') || s.endsWith('p.m.')) {
+      isPm = true;
+      s = s.replaceAll(RegExp(r'\s*p\.?m\.?\s*$'), '').trim();
+    }
+    s = s.replaceAll(RegExp(r'\s+'), '');
+    if (s.isEmpty) return null;
+
+    final parts = s.split(':');
+    var h = int.tryParse(parts[0]) ?? -1;
+    if (h < 0) return null;
+    var m = 0;
+    if (parts.length > 1) {
+      m = int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    }
+    if (isPm && h < 12) h += 12;
+    if (isAm && h == 12) h = 0;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+    return [h, m];
+  }
+
+  /// Schedule a notification for every future block in [routine].
+  /// Fires exactly when each block starts (device-local time).
+  Future<int> scheduleDailyRoutine({
     required DailyRoutineModel routine,
     int daysAhead = 7,
   }) async {
-    if (!_notificationsEnabled) return;
+    if (!_notificationsEnabled) {
+      debugPrint('[NotificationService] scheduleDailyRoutine skipped (disabled)');
+      return 0;
+    }
 
     final now = tz.TZDateTime.now(tz.local);
-    final baseDate = routine.date;
+    // Normalize the routine's calendar day in LOCAL time (date-only DB
+    // strings parse as UTC midnight and would shift the day).
+    final rawDate = routine.date;
+    final baseDate = DateTime(rawDate.year, rawDate.month, rawDate.day);
 
+    int scheduled = 0;
     for (int d = 0; d < daysAhead; d++) {
-      final date = baseDate.add(Duration(days: d));
+      final day = baseDate.add(Duration(days: d));
 
       for (int i = 0; i < routine.items.length; i++) {
         final item = routine.items[i];
-        final parts = item.time.split(':');
-        if (parts.length < 2) continue;
-        final h = int.tryParse(parts[0]) ?? 0;
-        final m = int.tryParse(parts[1]) ?? 0;
+        final hm = _parseClock(item.time);
+        if (hm == null) {
+          debugPrint('[NotificationService] skip block #$i bad time="${item.time}"');
+          continue;
+        }
+        final h = hm[0];
+        final m = hm[1];
 
-        final blockStart = tz.TZDateTime(
-          tz.local,
-          date.year,
-          date.month,
-          date.day,
-          h,
-          m,
-        );
+        final blockStart = tz.TZDateTime(tz.local, day.year, day.month, day.day, h, m);
+        if (!blockStart.isAfter(now)) {
+          debugPrint('[NotificationService] skip past block #$i ${item.subject} $blockStart');
+          continue;
+        }
 
-        if (!blockStart.isAfter(now)) continue;
+        final id = _dailyNotifId(routine.id, i, day);
+        final label = item.subject.isNotEmpty ? item.subject : (item.type.isNotEmpty ? item.type : 'Study');
+        final topicPart = item.topic.isNotEmpty ? ': ${item.topic}' : '';
+        final payload = 'study-revision-tracker://routine/${routine.id}';
 
-        final id = _dailyNotifId(routine.id, i, date);
-        final label =
-            item.subject.isNotEmpty ? item.subject : item.type.capitalizeFirst;
-        final topicPart =
-            item.topic.isNotEmpty ? ': ${item.topic}' : '';
-        final payload =
-            'study-revision-tracker://routine/${routine.id}';
-
-        await _plugin.zonedSchedule(
-          id,
-          '📋 $label$topicPart',
-          '${_formatTime12(h, m)} — ${item.durationMinutes} min block',
-          blockStart,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              _channelDaily,
-              _channelDailyName,
-              channelDescription:
-                  'Reminders when each daily routine block starts',
-              importance: Importance.defaultImportance,
-              priority: Priority.defaultPriority,
-              icon: '@mipmap/ic_launcher',
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            '📋 $label$topicPart',
+            '${_formatTime12(h, m)} — ${item.durationMinutes} min block',
+            blockStart,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                _channelDaily,
+                _channelDailyName,
+                channelDescription: 'Reminders when each daily routine block starts',
+                importance: Importance.high,
+                priority: Priority.high,
+                icon: 'ic_notif',
+          color: const Color(0xFF87CEEB),
+                playSound: true,
+                enableVibration: true,
+                visibility: NotificationVisibility.public,
+              ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
             ),
-            iOS: DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          payload: payload,
-        );
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            payload: payload,
+          );
+          scheduled++;
+          debugPrint('[NotificationService] scheduled daily #$id "$label" at $blockStart');
+        } catch (e) {
+          debugPrint('[NotificationService] zonedSchedule failed for "$label": $e');
+        }
       }
     }
+    debugPrint('[NotificationService] scheduleDailyRoutine done id=${routine.id} '
+        'items=${routine.items.length} scheduled=$scheduled now=$now');
+    return scheduled;
   }
 
-  /// Cancel all daily-routine notifications for a specific routine.
   Future<void> cancelDailyRoutine(String routineId, {int daysAhead = 30}) async {
     final now = tz.TZDateTime.now(tz.local);
     final today = DateTime(now.year, now.month, now.day);
-    // Cancel up to max possible items per day × days
     for (int d = 0; d < daysAhead; d++) {
       final date = today.add(Duration(days: d));
       for (int i = 0; i < 20; i++) {
@@ -457,36 +472,34 @@ class NotificationService extends GetxService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  Bulk reschedule (called on data changes)
-  // ──────────────────────────────────────────────
+  // ── Bulk reschedule ──
+
+  DateTime? _lastReschedule;
+  bool _rescheduleRunning = false;
 
   /// Cancel everything and re-schedule from the database.
-  /// Debounced internally — safe to call many times quickly.
-  DateTime? _lastReschedule;
+  /// Batched name lookups; safe to call many times quickly.
   Future<void> rescheduleAll() async {
     if (!_notificationsEnabled) return;
+    if (_rescheduleRunning) return;
     final now = DateTime.now();
-    if (_lastReschedule != null && now.difference(_lastReschedule!).inSeconds < 2) {
+    if (_lastReschedule != null &&
+        now.difference(_lastReschedule!).inSeconds < 5) {
       return;
     }
     _lastReschedule = now;
+    _rescheduleRunning = true;
 
     try {
       await _plugin.cancelAll();
-      debugPrint('[NotificationService] Cancelled all existing notifications');
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
-      if (user == null) {
-        debugPrint('[NotificationService] rescheduleAll: no user, skipping');
-        return;
-      }
+      if (user == null) return;
       final userId = user.id;
       final today = DateTime.now();
       final todayStart = DateTime(today.year, today.month, today.day);
       final farFuture = todayStart.add(const Duration(days: 90));
 
-      // Fetch all data in parallel
       final results = await Future.wait([
         _fetchPendingRevisions(client, userId, todayStart, farFuture),
         _fetchActiveClassRoutines(client, userId),
@@ -497,59 +510,100 @@ class NotificationService extends GetxService {
       final classRoutines = results[1] as List<ClassRoutineModel>;
       final dailyRoutines = results[2] as List<DailyRoutineModel>;
 
-      debugPrint('[NotificationService] rescheduleAll: ${schedules.length} revision schedules, ${classRoutines.length} class routines, ${dailyRoutines.length} daily routines');
+      // Batch-fetch topic/subject names (one query each, not N).
+      final topicIds = schedules.map((s) => s.topicId).toSet();
+      final subjectIds = schedules.map((s) => s.subjectId).toSet();
+      final names = await Future.wait([
+        _fetchNames(client, 'topics', topicIds),
+        _fetchNames(client, 'subjects', subjectIds),
+      ]);
+      final topicNames = names[0];
+      final subjectNames = names[1];
 
-      // Schedule revisions
+      debugPrint(
+          '[NotificationService] rescheduleAll: ${schedules.length} revisions, '
+          '${classRoutines.length} classes, ${dailyRoutines.length} daily routines '
+          'tz=${tz.local.name} now=$now');
+
       for (final schedule in schedules) {
         try {
-          // Fetch topic/subject names
-          final topicRow = await client
-              .from('topics')
-              .select('name')
-              .eq('id', schedule.topicId)
-              .maybeSingle();
-          final subjectRow = await client
-              .from('subjects')
-              .select('name')
-              .eq('id', schedule.subjectId)
-              .maybeSingle();
-          final topicName = topicRow?['name'] as String? ?? 'Topic';
-          final subjectName = subjectRow?['name'] as String? ?? 'Subject';
           await scheduleRevision(
             schedule: schedule,
-            topicName: topicName,
-            subjectName: subjectName,
+            topicName: topicNames[schedule.topicId] ?? 'Topic',
+            subjectName: subjectNames[schedule.subjectId] ?? 'Subject',
           );
         } catch (_) {}
       }
 
-      // Schedule class reminders
       for (final routine in classRoutines) {
         try {
           await scheduleClassRoutine(routine: routine, daysAhead: 14);
         } catch (_) {}
       }
 
-      // Schedule daily routine reminders
       for (final routine in dailyRoutines) {
         try {
-          await scheduleDailyRoutine(routine: routine, daysAhead: 7);
-        } catch (_) {}
+          // Only 2 days ahead — 7 days × 25 blocks hits OS alarm limits
+          // and Samsung drops extras silently.
+          final n = await scheduleDailyRoutine(routine: routine, daysAhead: 2);
+          debugPrint('[NotificationService] daily routine ${routine.id} → $n alarms');
+        } catch (e) {
+          debugPrint('[NotificationService] daily schedule failed: $e');
+        }
+      }
+
+      // Prove the channel works: one immediate notification.
+      try {
+        await _plugin.show(
+          999001,
+          '✅ Notifications ready',
+          'Daily routine reminders will fire at each block start.',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _channelDaily,
+              _channelDailyName,
+              channelDescription: 'Reminders when each daily routine block starts',
+              importance: Importance.max,
+              priority: Priority.max,
+              icon: 'ic_notif',
+          color: const Color(0xFF87CEEB),
+            ),
+          ),
+        );
+      } catch (e) {
+        debugPrint('[NotificationService] test notification failed: $e');
       }
     } catch (e, stack) {
       debugPrint('[NotificationService] rescheduleAll error: $e');
       debugPrint('[NotificationService] stack: $stack');
+    } finally {
+      _rescheduleRunning = false;
+      try {
+        final pending = await getPending();
+        debugPrint('[NotificationService] pending alarms after reschedule: ${pending.length}');
+        for (final p in pending.take(12)) {
+          debugPrint('  id=${p.id} title=${p.title} payload=${p.payload}');
+        }
+      } catch (_) {}
     }
   }
 
-  /// Cancel all scheduled notifications.
   Future<void> cancelAll() async {
     await _plugin.cancelAll();
   }
 
-  // ──────────────────────────────────────────────
-  //  Data fetching helpers (direct Supabase, no GetX)
-  // ──────────────────────────────────────────────
+  // ── Data helpers ──
+
+  Future<Map<String, String>> _fetchNames(
+    SupabaseClient client,
+    String table,
+    Set<String> ids,
+  ) async {
+    if (ids.isEmpty) return {};
+    final rows =
+        await client.from(table).select('id, name').inFilter('id', ids.toList());
+    return {for (final r in rows as List) r['id'] as String: r['name'] as String? ?? ''};
+  }
 
   Future<List<RevisionScheduleModel>> _fetchPendingRevisions(
     SupabaseClient client,
@@ -602,43 +656,28 @@ class NotificationService extends GetxService {
         .toList();
   }
 
-  // ──────────────────────────────────────────────
-  //  Android exact-alarm permission
-  // ──────────────────────────────────────────────
+  // ── Android exact-alarm permission ──
 
-  /// Check and request the SCHEDULE_EXACT_ALARM permission on Android 12+.
-  /// Returns `true` if alarms can be scheduled exactly.
   Future<bool> requestExactAlarmPermission() async {
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin == null) return true; // not Android
+    if (androidPlugin == null) return true;
     final allowed = await androidPlugin.areNotificationsEnabled() ?? false;
     if (!allowed) {
       await androidPlugin.requestNotificationsPermission();
     }
-    // For Android 12+ exact alarms, the user must grant via system settings.
-    // We attempt the request and fall back to inexact if denied.
     try {
       final granted = await androidPlugin.requestExactAlarmsPermission();
       return granted ?? false;
     } catch (_) {
-      // Older Android — no permission needed
       return true;
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  Pending notifications (for debugging)
-  // ──────────────────────────────────────────────
-
   Future<List<PendingNotificationRequest>> getPending() async {
     return await _plugin.pendingNotificationRequests();
   }
-
-  // ──────────────────────────────────────────────
-  //  Utilities
-  // ──────────────────────────────────────────────
 
   static String _formatTime12(int hour, int minute) {
     final period = hour >= 12 ? 'PM' : 'AM';

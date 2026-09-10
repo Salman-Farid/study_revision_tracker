@@ -134,7 +134,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
                       Obx(() {
                         final count = controller.topicCountFor(sub);
                         return Text(
-                          count == 1 ? 'topicSingular'.tr : 'topicsCount'.replaceAll('{n}', '$count'),
+                          count == 1 ? 'topicSingular'.tr : 'topicsCount'.tr.replaceAll('{n}', '$count'),
                           style: AppTextStyles.bodySmall.copyWith(
                             color: hasImage ? Colors.white70 : AppColors.textMuted(d),
                           ),

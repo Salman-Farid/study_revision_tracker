@@ -199,11 +199,11 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.15),
+              color: AppColors.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.warning, width: 1.5),
+              border: Border.all(color: AppColors.primary, width: 1.5),
             ),
-            child: Icon(Icons.menu_book_rounded, color: AppColors.warning, size: 22),
+            child: Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 22),
           ),
           SizedBox(width: S.md),
           // Name + badge
@@ -216,7 +216,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                   style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d)),
                 ),
                 SizedBox(height: S.xs),
-                _badge(d, 'firstRead'.tr, AppColors.warning),
+                _badge(d, 'firstRead'.tr, AppColors.primary),
               ],
             ),
           ),
@@ -226,19 +226,18 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(S.radiusFull),
-                border: Border.all(color: AppColors.warning, width: 1.5),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_rounded, size: 16, color: AppColors.warning),
+                  Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
                   SizedBox(width: 4),
                   Text(
                     'Complete',
                     style: AppTextStyles.labelMedium.copyWith(
-                      color: AppColors.warning,
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -266,14 +265,21 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       '1st Revision', '2nd Revision', '3rd Revision',
       '4th Revision', '5th Revision', '6th Revision',
     ];
+    // Distinct base hues for the 6 revision stages (used for icons/text/borders).
     final List<Color> stageColors = [
-      const Color(0xFF4CAF50),
-      const Color(0xFF2196F3),
-      const Color(0xFF9C27B0),
-      const Color(0xFFFF9800),
-      const Color(0xFFE91E63),
-      const Color(0xFF00BCD4),
+      const Color(0xFF5B8DEF), // Day 1  — blue
+      const Color(0xFF4CAF7A), // Day 3  — green
+      const Color(0xFF9B7BFF), // Day 7  — violet
+      const Color(0xFFE8A33D), // Day 14 — amber
+      const Color(0xFFEF6B8A), // Day 30 — rose
+      const Color(0xFF3DB8C9), // Day 90 — teal
     ];
+
+    /// Soft card fill: ~1% color on white (very light pastel wash).
+    Color softTint(Color base, {bool dark = false}) {
+      final t = dark ? 0.12 : 0.06;
+      return Color.lerp(dark ? const Color(0xFF1A1D26) : Colors.white, base, t)!;
+    }
 
     return _ExpandableCard(
       key: Key('exp_${t.id}'),
@@ -285,7 +291,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
             borderRadius: BorderRadius.circular(S.radiusLg),
             border: Border.all(
               color: isExpanded
-                  ? (isCompleted ? AppColors.success : AppColors.info).withValues(alpha: 0.4)
+                  ? (isCompleted ? AppColors.success : AppColors.primary).withValues(alpha: 0.4)
                   : AppColors.border(d),
               width: isExpanded ? 1.5 : 1,
             ),
@@ -344,7 +350,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                   padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.base),
                   child: _deliveryTrailContent(
                     d, t, isCompleted,
-                    dayLabels, statusLabels, stageColors,
+                    dayLabels, statusLabels, stageColors, softTint,
                     controller.getSchedules(t.id),
                   ),
                 ),
@@ -362,7 +368,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     final progress = total / 6;
     final color = isCompleted
         ? AppColors.success
-        : AppColors.info;
+        : AppColors.primary;
 
     return SizedBox(
       width: 48,
@@ -415,13 +421,11 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     List<String> dayLabels,
     List<String> statusLabels,
     List<Color> stageColors,
+    Color Function(Color, {bool dark}) softTint,
     List<dynamic> schedules,
   ) {
     final completedCount = t.totalRevisions.clamp(0, 6);
     final nodeSize = 24.0;
-    final lineHeight = 20.0;
-    final trailWidth = 2.5;
-    final trailLeft = (nodeSize - trailWidth) / 2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,174 +442,121 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           ),
         ),
         SizedBox(height: S.md),
-        // Trail steps
+        // Each revision step is its own soft-tinted card (~1% color on white).
         ...List.generate(6, (i) {
           final isStepCompleted = i < completedCount;
           final isCurrent = i == completedCount && !isCompleted;
-          final isLast = i == 5;
-          final color = stageColors[i]; // each step ALWAYS gets its own color
+          final color = stageColors[i];
+          final bg = softTint(color, dark: d);
 
-          return GestureDetector(
-            onTap: (isCurrent && !isCompleted)
-                ? () => _confirmRevision(d, t, dayLabels[i])
-                : null,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Node + vertical line column
-                  SizedBox(
-                    width: nodeSize,
-                    height: nodeSize + lineHeight,
-                    child: Stack(
-                      children: [
-                        // Vertical connecting line — colored per step
-                        if (!isLast)
-                          Positioned(
-                            left: trailLeft,
-                            top: nodeSize,
-                            width: trailWidth,
-                            height: lineHeight,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isStepCompleted || isCompleted
-                                    ? color
-                                    : color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(trailWidth / 2),
-                              ),
-                            ),
-                          ),
-                        // Node circle — colored per step
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Container(
-                            width: nodeSize,
-                            height: nodeSize,
-                            decoration: BoxDecoration(
-                              color: isStepCompleted || isCompleted
-                                  ? color
-                                  : isCurrent
-                                      ? color.withValues(alpha: 0.12)
-                                      : Colors.transparent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isStepCompleted || isCompleted || isCurrent
-                                    ? color
-                                    : color.withValues(alpha: 0.25),
-                                width: isCurrent ? 2.5 : 2.0,
-                              ),
-                              boxShadow: (isStepCompleted || isCompleted)
-                                  ? [
-                                      BoxShadow(
-                                        color: color.withValues(alpha: 0.3),
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Center(
-                              child: isStepCompleted || isCompleted
-                                  ? Icon(Icons.check_rounded, size: 13, color: Colors.white)
-                                  : isCurrent
-                                      ? Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                            color: color,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        )
-                                      : null,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          return Padding(
+            padding: EdgeInsets.only(bottom: S.sm),
+            child: GestureDetector(
+              onTap: (isCurrent && !isCompleted)
+                  ? () => _confirmRevision(d, t, dayLabels[i])
+                  : null,
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(S.radiusMd),
+                  border: Border.all(
+                    color: isCurrent
+                        ? color.withValues(alpha: 0.45)
+                        : color.withValues(alpha: 0.12),
+                    width: isCurrent ? 1.5 : 1,
                   ),
-                  SizedBox(width: 10),
-                  // Labels + action
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Day ${dayLabels[i]} — ${statusLabels[i]}',
-                                  style: AppTextStyles.labelMedium.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isStepCompleted || isCompleted
-                                        ? color
-                                        : isCurrent
-                                            ? color
-                                            : color.withValues(alpha: 0.4),
-                                  ),
-                                ),
-                                // Show scheduled date
-                                if (i < schedules.length)
-                                  Text(
-                                    _formatDate(schedules[i].scheduledDate),
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                      fontSize: 10,
-                                      color: isStepCompleted || isCompleted
-                                          ? color.withValues(alpha: 0.8)
-                                          : isCurrent
-                                              ? color.withValues(alpha: 0.7)
-                                              : color.withValues(alpha: 0.35),
+                ),
+                child: Row(
+                  children: [
+                    // Status node
+                    Container(
+                      width: nodeSize,
+                      height: nodeSize,
+                      decoration: BoxDecoration(
+                        color: isStepCompleted || isCompleted
+                            ? color
+                            : isCurrent
+                                ? color.withValues(alpha: 0.15)
+                                : color.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color.withValues(
+                            alpha: (isStepCompleted || isCompleted || isCurrent) ? 1 : 0.35,
+                          ),
+                          width: isCurrent ? 2.2 : 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: isStepCompleted || isCompleted
+                            ? Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                            : isCurrent
+                                ? Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
                                     ),
-                                  ),
-                              ],
+                                  )
+                                : null,
+                      ),
+                    ),
+                    SizedBox(width: S.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Day ${dayLabels[i]} — ${statusLabels[i]}',
+                            style: AppTextStyles.labelMedium.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isStepCompleted || isCompleted || isCurrent
+                                  ? color
+                                  : AppColors.textMuted(d),
                             ),
                           ),
-                          // Mark complete button for current step
-                          if (isCurrent && !isCompleted)
-                            GestureDetector(
-                              onTap: () => _confirmRevision(d, t, dayLabels[i]),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(S.radiusFull),
-                                  border: Border.all(color: color, width: 1.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check_circle_rounded, size: 14, color: color),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Mark Done',
-                                      style: AppTextStyles.labelSmall.copyWith(
-                                        color: color,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          if (i < schedules.length)
+                            Text(
+                              _formatDate(schedules[i].scheduledDate),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                fontSize: 10,
+                                color: AppColors.textMuted(d),
                               ),
-                            ),
-                          // Completed checkmark
-                          if (isStepCompleted || isCompleted)
-                            Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.check_rounded, size: 14, color: color),
                             ),
                         ],
                       ),
                     ),
-                  ),
-                ],
+                    if (isCurrent && !isCompleted)
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(S.radiusFull),
+                          border: Border.all(color: color, width: 1.2),
+                        ),
+                        child: Text(
+                          'Mark Done',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    if (isStepCompleted || isCompleted)
+                      Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.check_rounded, size: 14, color: color),
+                      ),
+                  ],
+                ),
               ),
             ),
           );
@@ -629,7 +580,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       textConfirm: 'ok'.tr,
       textCancel: 'cancel'.tr,
       confirmTextColor: Colors.white,
-      buttonColor: AppColors.warning,
+      buttonColor: AppColors.primary,
       onConfirm: () {
         Get.back();
         controller.markFirstRead(t.id);
@@ -645,7 +596,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       textConfirm: 'ok'.tr,
       textCancel: 'cancel'.tr,
       confirmTextColor: Colors.white,
-      buttonColor: AppColors.info,
+      buttonColor: AppColors.primary,
       onConfirm: () {
         Get.back();
         controller.markRevisionComplete(t.id, dayNumber);
@@ -688,11 +639,11 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   // ══════════════════════════════════════════════════════════════
   Widget _statusBadge(bool d, dynamic t, List<String> dayLabels) {
     if (!t.firstReadCompleted) {
-      return _badge(d, 'firstRead'.tr, AppColors.warning);
+      return _badge(d, 'firstRead'.tr, AppColors.primary);
     } else if (t.totalRevisions >= 6) {
       return _badge(d, 'statCompleted'.tr, AppColors.success);
     } else {
-      return _badge(d, 'Day ${dayLabels[t.totalRevisions]} • ${t.totalRevisions + 1}/6', AppColors.info);
+      return _badge(d, 'Day ${dayLabels[t.totalRevisions]} • ${t.totalRevisions + 1}/6', AppColors.primary);
     }
   }
 

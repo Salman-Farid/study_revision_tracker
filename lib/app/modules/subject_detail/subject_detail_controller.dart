@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/services/notification_service.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/models/revision_schedule_model.dart';
@@ -73,12 +74,19 @@ class SubjectDetailController extends GetxController {
   }
 
   Future<void> _loadSchedules() async {
-    for (final topic in topics) {
-      try {
-        final schedules = await _revRepo.getSchedules(topicId: topic.id);
-        schedulesByTopic[topic.id] = schedules;
-      } catch (e) { Get.snackbar('Error', 'Failed to load revisions for "${topics.where((t) => t.id == topic.id).firstOrNull?.name}": $e', snackPosition: SnackPosition.BOTTOM); }
-    }
+    if (topics.isEmpty) return;
+    // Parallel fetch instead of sequential per-topic queries.
+    final results = await Future.wait(
+      topics.map((topic) async {
+        try {
+          final schedules = await _revRepo.getSchedules(topicId: topic.id);
+          return MapEntry(topic.id, schedules);
+        } catch (_) {
+          return MapEntry(topic.id, <RevisionScheduleModel>[]);
+        }
+      }),
+    );
+    schedulesByTopic.addEntries(results);
   }
 
   List<RevisionScheduleModel> getSchedules(String topicId) {
@@ -137,10 +145,10 @@ class SubjectDetailController extends GetxController {
       final rd = firstRead ?? DateTime.now();
       final t = await _topicRepo.create(subjectId: subject.id, name: name,
         notes: notes, referenceAnswer: refAnswer, firstReadDate: rd);
-      await _revRepo.createSchedules(topicId: t.id, subjectId: subject.id, firstReadDate: rd);
+      // Revision schedules are created only after first-read is marked complete.
       topics.insert(0, t);
       _subjectRepo.refresh();
-      Get.snackbar('Created', '"$name" with schedule', snackPosition: SnackPosition.BOTTOM,
+      Get.snackbar('Created', '"$name" added to first read', snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.success.withOpacity(0.1));
     } catch (e) { Get.snackbar('error'.tr, e.toString()); }
   }
@@ -203,6 +211,30 @@ class SubjectDetailController extends GetxController {
   Future<void> markFirstRead(String topicId) async {
     try {
       await _topicRepo.markFirstReadCompleted(topicId);
+
+      // Create revision schedules NOW that first read is complete.
+      final topic = topics.firstWhereOrNull((t) => t.id == topicId);
+      final subjectId = topic?.subjectId ?? subject.id;
+      final existing = await _revRepo.getSchedules(topicId: topicId);
+      if (existing.isEmpty) {
+        final created = await _revRepo.createSchedules(
+          topicId: topicId,
+          subjectId: subjectId,
+          firstReadDate: DateTime.now(),
+        );
+        // Schedule local notifications for each new revision.
+        try {
+          final notifications = Get.find<NotificationService>();
+          for (final schedule in created) {
+            await notifications.scheduleRevision(
+              schedule: schedule,
+              topicName: topic?.name ?? 'Topic',
+              subjectName: subject.name,
+            );
+          }
+        } catch (_) {}
+      }
+
       _topicRepo.refresh();
       // Refresh topics
       topics.assignAll(await _topicRepo.getBySubject(subject.id));

@@ -13,6 +13,7 @@ import '../../../app/data/repositories/routine_repository.dart';
 import '../../../app/data/models/daily_routine_model.dart';
 import '../../../app/data/services/supabase_service.dart';
 import '../../../app/data/services/image_search_service.dart';
+import '../../../app/core/services/notification_service.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';
@@ -224,7 +225,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     },
     {
       'name': 'addSubjectsBulk',
-      'description': 'Add one or more subjects, each optionally with its own topics, in ONE call. Use this for ANY request that adds subjects — a single subject or many (e.g. "add Physics with these 5 topics" -> one item in the array; "add 30 subjects with 10 topics each" -> 30 items, still ONE call). NEVER split this into multiple calls or loop it yourself, no matter how many subjects are requested. Creates each subject if it doesn\'t exist yet, or reuses it if it does. Revision dates for topics are auto-set from today.',
+      'description': 'Add one or more subjects, each optionally with its own topics, in ONE call. Use this for ANY request that adds subjects — a single subject or many (e.g. "add Physics with these 5 topics" -> one item in the array; "add 30 subjects with 10 topics each" -> 30 items, still ONE call). NEVER split this into multiple calls or loop it yourself, no matter how many subjects are requested. Creates each subject if it doesn\'t exist yet, or reuses it if it does. Topics stay in first read — revision dates are NOT set until markFirstReadCompleted.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -263,7 +264,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     },
     {
       'name': 'addTopic',
-      'description': 'Add a new topic to an EXISTING subject. Accepts subject NAME (not ID). If user is inside a subject (contextSubject is set), subjectName is optional - omit it to add to the current subject. If the subject doesn\'t exist yet, it will be auto-created. Revision dates are auto-set from today.',
+      'description': 'Add a new topic to an EXISTING subject. Accepts subject NAME (not ID). If user is inside a subject (contextSubject is set), subjectName is optional - omit it to add to the current subject. If the subject doesn\'t exist yet, it will be auto-created. Topic starts in first read — revision dates are set only after markFirstReadCompleted.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -275,7 +276,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     },
     {
       'name': 'addMultipleTopics',
-      'description': 'Add multiple topics to an EXISTING subject. Accepts subject NAME. If the subject and topics are being added together for the first time, prefer addSubjectsBulk instead. If this subject doesn\'t exist yet, it will be auto-created. Revision dates are auto-set.',
+      'description': 'Add multiple topics to an EXISTING subject. Accepts subject NAME. If the subject and topics are being added together for the first time, prefer addSubjectsBulk instead. If this subject doesn\'t exist yet, it will be auto-created. Topics start in first read — no revision dates until markFirstReadCompleted.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -795,7 +796,8 @@ DATA:
 
 FIRST READ & REVISION WORKFLOW:
 - Topics have a "first read" phase and a "revision" phase (6 revisions: Day 1, 3, 7, 14, 30, 90).
-- When user says "mark the topic as completed" or "I've read it" → call markFirstReadCompleted. This moves the topic from first read to revision tracking.
+- Topics start in the "first read" phase. Revision schedules (Day 1, 3, 7, 14, 30, 90) are created ONLY after first-read is marked completed — never when the topic is added.
+- When user says "mark the topic as completed" or "I've read it" → call markFirstReadCompleted. This moves the topic from first read to revision tracking and schedules the 6 revisions from today.
 - When user says "mark revision as completed" or "complete the revision" → call markRevisionCompleted. This completes the NEXT sequential revision only.
 - ALWAYS check getTopicStatus first if unsure about the current state before performing any action.
 - Revisions MUST follow strict sequential order: 1st → 2nd → 3rd → 4th → 5th → 6th. Never skip.
@@ -804,7 +806,7 @@ FIRST READ & REVISION WORKFLOW:
 - When user asks "what are all the revision dates?", "show me all revision dates for all topics", "when are all revisions due?" → call getAllTopicsRevisionDates(subjectName). It returns each topic with its 6 revision dates and status. Read ALL dates and tell the user for each topic.
 
 ACTIONS: addSubjectsBulk(subjects:[{name,topics?,color?}]) · addSubject(name,color?) · addTopic(subjectName?,name) · addMultipleTopics(subjectName,topics[]) · deleteAllSubjects() · deleteSubjectByName(name) · deleteTopicByName(subjectName,topicName) · getTopicStatus(subjectName,topicName) · getAllTopicsRevisionDates(subjectName) · markFirstReadCompleted(subjectName,topicName) · markRevisionCompleted(subjectName,topicName) · registerClassRoutine(subjectName,startTime,durationMinutes,dates?,recurringDays?,building?,room?,notes?) · registerDailyRoutine(date?,items[{time,subject,topic,type,durationMinutes,notes?}]) · deleteClassRoutine(subjectName) · deleteDailyRoutine(date?).
-New topics get revision dates auto-set (Day 1,3,7,14,30,90) from today.
+New topics start in first read. Revision dates (Day 1,3,7,14,30,90) are scheduled only after markFirstReadCompleted.
 
 CLASS ROUTINE WORKFLOW:
 - When user mentions classes, lectures, or wants to set up a class timetable → call registerClassRoutine.
@@ -1423,13 +1425,26 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     _batchCompleted = 0;
     _updateBatchProgress();
 
+    // Load existing subjects ONCE — avoid N sequential getAll() calls.
+    Map<String, dynamic> existingByName = {};
+    try {
+      final all = await _subjectRepo.getAll();
+      for (final s in all) {
+        existingByName[s.name.toLowerCase()] = s;
+      }
+    } catch (e) {
+      print('[Gemini] ⚠️ preload subjects failed: $e');
+    }
+
     final results = <Map<String, dynamic>>[];
     for (var i = 0; i < items.length; i += _bulkChunkSize) {
       final chunk = items.skip(i).take(_bulkChunkSize).toList();
 
       for (var j = 0; j < chunk.length; j += _bulkConcurrency) {
         final slice = chunk.skip(j).take(_bulkConcurrency);
-        final sliceResults = await Future.wait(slice.map(_processOneBulkSubject));
+        final sliceResults = await Future.wait(
+          slice.map((item) => _processOneBulkSubject(item, existingByName)),
+        );
         results.addAll(sliceResults);
         _batchCompleted = results.length;
         _updateBatchProgress();
@@ -1437,6 +1452,10 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     }
 
     _subjectCreationCompleters.clear();
+    try {
+      _subjectRepo.refresh();
+      _topicRepo.refresh();
+    } catch (_) {}
 
     final succeeded = results.where((r) => r['success'] == true).toList();
     final failed = results.where((r) => r['success'] != true).toList();
@@ -1460,7 +1479,10 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     }, params: args);
   }
 
-  Future<Map<String, dynamic>> _processOneBulkSubject(Map<String, dynamic> item) async {
+  Future<Map<String, dynamic>> _processOneBulkSubject(
+    Map<String, dynamic> item,
+    Map<String, dynamic> existingByName,
+  ) async {
     final name = _sanitizeName((item['name'] as String?)?.trim() ?? '');
     if (name.isEmpty) {
       return {'name': '(unnamed)', 'success': false, 'error': 'Subject name cannot be empty'};
@@ -1482,32 +1504,40 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       return _addTopicsToSubject(existing, name, topicNames);
     }
 
+    // Reuse preloaded map first — no extra network call.
+    final cached = existingByName[lower];
+    if (cached != null) {
+      return _addTopicsToSubject(cached, name, topicNames);
+    }
+
     final completer = Completer<dynamic>();
     _subjectCreationCompleters[lower] = completer;
     try {
-      var subject = await _querySubjectByName(lower);
-      final createdNew = subject == null;
-      subject ??= await _subjectRepo.create(name: name, imageUrl: null, colorHex: color ?? '#87CEEB');
-      _subjectRepo.refresh();
+      final subject = await _subjectRepo.create(
+        name: name,
+        imageUrl: null,
+        colorHex: color ?? '#87CEEB',
+      );
+      existingByName[lower] = subject;
       _summaryCache = null;
       completer.complete(subject);
 
-      if (createdNew) {
-        ImageSearchService.searchSubjectImage(name).then((imageUrl) async {
-          if (imageUrl != null) {
-            try {
-              await _subjectRepo.update(subject!.id, {'image_url': imageUrl});
-              _subjectRepo.refresh();
-            } catch (e) {
-              print('[Gemini] ⚠️ Failed to attach image for "$name": $e');
-            }
+      // Fire-and-forget image attach so bulk add stays fast.
+      unawaited(ImageSearchService.searchSubjectImage(name).then((imageUrl) async {
+        if (imageUrl != null) {
+          try {
+            await _subjectRepo.update(subject.id, {'image_url': imageUrl});
+          } catch (e) {
+            print('[Gemini] ⚠️ Failed to attach image for "$name": $e');
           }
-        }).catchError((e) {
-          print('[Gemini] ⚠️ Image search failed for "$name": $e');
-        });
-      }
+        }
+      }).catchError((e) {
+        print('[Gemini] ⚠️ Image search failed for "$name": $e');
+      }));
 
-      return await _addTopicsToSubject(subject, name, topicNames);
+      final topicResult = await _addTopicsToSubject(subject, name, topicNames);
+      // One refresh after the slice, not after every subject.
+      return topicResult;
     } catch (e) {
       if (!completer.isCompleted) completer.complete(null);
       return {'name': name, 'success': false, 'error': e.toString()};
@@ -1534,8 +1564,9 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           continue;
         }
         try {
-          final t = await _topicRepo.create(subjectId: subject.id, name: trimmed);
-          await _revRepo.createSchedules(topicId: t.id, subjectId: subject.id, firstReadDate: DateTime.now());
+          // Only create the topic. Revision schedules start after first-read
+          // completion — not here. This also keeps bulk add fast.
+          await _topicRepo.create(subjectId: subject.id, name: trimmed);
           existingLower.add(trimmed.toLowerCase());
           added++;
         } catch (e) {
@@ -1624,15 +1655,15 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       var subject = await _findSubjectByName(subjectName, retry: true);
       subject ??= await _findOrCreateSubjectByName(subjectName);
 
-      final t = await _topicRepo.create(subjectId: subject.id, name: name);
-      await _revRepo.createSchedules(topicId: t.id, subjectId: subject.id, firstReadDate: DateTime.now());
+      await _topicRepo.create(subjectId: subject.id, name: name);
+      // Schedules are created only after first-read completion.
       _subjectRepo.refresh();
       _topicRepo.refresh();
       _summaryCache = null;
 
       _respondToFunction(callId, 'addTopic', {
         'success': true,
-        'message': 'Topic "$name" added to "${subject.name}" with 6 revision dates auto-set from today',
+        'message': 'Topic "$name" added to "${subject.name}" in first read. Revision dates are set only after you mark the first read complete.',
       }, params: args);
     } catch (e) {
       Get.snackbar('addTopic Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
@@ -1672,8 +1703,8 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           continue;
         }
         try {
-          final t = await _topicRepo.create(subjectId: subject.id, name: trimmed);
-          await _revRepo.createSchedules(topicId: t.id, subjectId: subject.id, firstReadDate: DateTime.now());
+          await _topicRepo.create(subjectId: subject.id, name: trimmed);
+          // Schedules are created only after first-read completion.
           existingLower.add(trimmed.toLowerCase());
           added++;
         } catch (e) {
@@ -1692,10 +1723,10 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         }, params: args);
       } else {
         final dupNote = skippedDuplicates > 0 ? ' ($skippedDuplicates already existed, skipped)' : '';
+        final failNote = failedTopics.isNotEmpty ? ' (failed: ${failedTopics.join(", ")})' : '';
         _respondToFunction(callId, 'addMultipleTopics', {
           'success': true,
-          'message': '$added topics added to "${subject.name}" with revision dates auto-set$dupNote'
-              '${failedTopics.isNotEmpty ? " (failed: ${failedTopics.join(", ")})" : ""}',
+          'message': '$added topics added to "${subject.name}" in first read$dupNote$failNote. Revision dates are set only after markFirstReadCompleted.',
         }, params: args);
       }
     } catch (e) {
@@ -1977,13 +2008,36 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       }
 
       await _topicRepo.markFirstReadCompleted(topic.id);
+
+      // Create the 6 revision schedules FROM THIS MOMENT — not from add time.
+      final existing = await _revRepo.getSchedules(topicId: topic.id);
+      if (existing.isEmpty) {
+        final created = await _revRepo.createSchedules(
+          topicId: topic.id,
+          subjectId: subject.id,
+          firstReadDate: DateTime.now(),
+        );
+        try {
+          final notifications = NotificationService.to;
+          for (final schedule in created) {
+            await notifications.scheduleRevision(
+              schedule: schedule,
+              topicName: topic.name,
+              subjectName: subject.name,
+            );
+          }
+        } catch (e) {
+          print('[Gemini] ⚠️ Failed to schedule revision notifications: $e');
+        }
+      }
+
       _topicRepo.refresh();
       _summaryCache = null;
 
       _respondToFunction(callId, 'markFirstReadCompleted', {
         'success': true,
         'already_completed': false,
-        'message': 'First read for "${topic.name}" marked as completed. The topic is now in the revision phase with 6 scheduled revisions.',
+        'message': 'First read for "${topic.name}" marked as completed. 6 revision dates are now scheduled starting from today (Day 1, 3, 7, 14, 30, 90).',
       }, params: args);
     } catch (e, st) {
       print('[Gemini] markFirstReadCompleted FAILED: $e');
@@ -2287,6 +2341,14 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'blocks_count': items.length,
         'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} with ${items.length} blocks: $summary',
       }, params: args);
+
+      // Schedule a local notification for every future block right away.
+      try {
+        final n = await NotificationService.to.scheduleDailyRoutine(routine: routine);
+        print('[Gemini] scheduled $n daily-routine notifications for ${routine.id}');
+      } catch (e) {
+        print('[Gemini] ⚠️ Failed to schedule daily routine notifications: $e');
+      }
 
       // Force refresh so RoutineController picks it up immediately
       refreshDailyRoutines();
