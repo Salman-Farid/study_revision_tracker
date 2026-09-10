@@ -113,10 +113,8 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             views.setInt(R.id.btn_missed, "setTextColor", android.graphics.Color.parseColor("#80000000"))
         }
 
-        views.setTextViewText(R.id.widget_status, statusText)
-        views.setInt(R.id.widget_status, "setBackgroundResource", statusColorRes)
-        views.setInt(R.id.widget_status, "setTextColor", android.graphics.Color.parseColor(statusTextColor))
-        views.setViewVisibility(R.id.widget_status, if (hasItems) android.view.View.GONE else android.view.View.VISIBLE)
+        // Status chip is redundant with the empty message — never show it.
+        views.setViewVisibility(R.id.widget_status, android.view.View.GONE)
 
         val missedIntent = Intent(context, RevisionWidget::class.java).apply {
             action = RevisionWidget.ACTION_TOGGLE_MODE

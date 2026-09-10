@@ -7,15 +7,30 @@
     android:padding="14dp"
     android:background="@drawable/widget_bg_solid">
 
-    <TextView
-        android:id="@+id/widget_title"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Today's Classes"
-        android:textColor="#FF1A73E8"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="10dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@mipmap/ic_launcher"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="App icon" />
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Today's Classes"
+            android:textColor="#FF000000"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/widget_now_label"
@@ -32,7 +47,7 @@
         android:id="@+id/widget_now_subject"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#FF6A1B9A"
+        android:textColor="#FF1A237E"
         android:textSize="16sp"
         android:textStyle="bold"
         android:maxLines="1"
@@ -43,8 +58,17 @@
         android:id="@+id/widget_now_time"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#FF00897B"
+        android:textColor="#FF5C6BC0"
         android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_now_location"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#FFEF6C00"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:visibility="gone"
         android:layout_marginBottom="10dp" />

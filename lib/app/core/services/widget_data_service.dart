@@ -127,8 +127,8 @@ class WidgetDataProvider {
         _fetchClassRoutineData(client, userId, now, today, tomorrow),
       ]);
 
-      debugPrint('[WidgetData] updateAllWidgets daily.hasData=${results[0]['hasData']} '
-          'rev.hasData=${results[1]['hasData']} class.hasToday=${results[2]['hasToday']}');
+      debugPrint('[WidgetData] updateAllWidgets daily=${results[0]['hasData']} '
+          'rev=${results[1]['hasData']} class=${results[2]['hasToday']}');
 
       // Save data via HomeWidget (writes to the platform-native shared
       // preferences file that Android/iOS widgets can read).
@@ -497,23 +497,13 @@ class WidgetDataProvider {
           .eq('user_id', userId);
 
       final rowsList = classRows as List;
-      debugPrint('[WidgetData][Class] fetched ${rowsList.length} rows, '
-          'today=$today weekday=${today.weekday}');
-
-      // Match the in-app Class tab: list ALL class routines (not only today),
-      // and flag which ones are today / current / past for today.
-      final displayClasses = <Map<String, dynamic>>[];
       final todayClasses = <Map<String, dynamic>>[];
+      final displayClasses = <Map<String, dynamic>>[];
 
       for (final row in rowsList) {
         try {
           final cr = ClassRoutineModel.fromJson(row);
           final isToday = _classMatchesDay(cr, today);
-          debugPrint('[WidgetData][Class] "${cr.subjectName}" dates=${cr.dates} '
-              'recurring=${cr.recurring} days=${cr.recurringDays} '
-              'start=${cr.startTime.hour}:${cr.startTime.minute} isToday=$isToday');
-
-          // Slot on today's calendar for time-of-day ordering / current check.
           final startToday = DateTime(
             today.year, today.month, today.day, cr.startTime.hour, cr.startTime.minute,
           );
@@ -531,7 +521,6 @@ class WidgetDataProvider {
             });
           }
 
-          // Widget list row — every class the user has (same as UI Class tab).
           displayClasses.add({
             'subject': cr.subjectName,
             'timeText': cr.timeText,
@@ -540,6 +529,8 @@ class WidgetDataProvider {
             'daysText': cr.daysText.isNotEmpty
                 ? cr.daysText
                 : (cr.dates.isNotEmpty ? cr.dates.join(', ') : 'One-time'),
+            'durationMinutes': cr.durationMinutes,
+            'durationText': cr.durationText,
             'startTimestamp': startToday.millisecondsSinceEpoch,
             'endTimestamp': endToday.millisecondsSinceEpoch,
             'isToday': isToday,
@@ -548,9 +539,7 @@ class WidgetDataProvider {
                 now.isBefore(endToday),
             'isPast': isToday && endToday.isBefore(now),
           });
-        } catch (rowErr) {
-          debugPrint('[WidgetData][Class] row parse failed: $rowErr raw=$row');
-        }
+        } catch (_) {}
       }
 
       // Sort: today's classes first by time, then the rest by time-of-day.
@@ -659,8 +648,6 @@ class WidgetDataProvider {
     final items = data['classItems'] as List? ?? [];
     final todayItems = data['todayItems'] as List? ??
         items.where((e) => (e as Map)['isToday'] == true).toList();
-    debugPrint('[WidgetData][Class] SAVING hasToday=$hasToday '
-        'all=${items.length} today=${todayItems.length} msg=${data['statusMessage']}');
     await HomeWidget.saveWidgetData<String>(_kClassHasToday, hasToday.toString());
     await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, data['statusMessage'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kClassCurrentSubject, data['currentSubject'] as String? ?? '');

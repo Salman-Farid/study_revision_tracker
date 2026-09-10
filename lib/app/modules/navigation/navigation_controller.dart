@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:home_widget/home_widget.dart';
 
 /// Controls the bottom-navigation tab index so dashboard cards
 /// and deep links can route to a specific tab.
@@ -26,4 +27,38 @@ class NavigationController extends GetxController {
   void goToRoutine() => goTo(routine);
   void goToCalendar() => goTo(calendar);
   void goToSettings() => goTo(settings);
+
+  /// Map widget/deep-link hosts to a tab.
+  /// Class + daily routine widgets → Routine tab.
+  void applyHost(String? host) {
+    switch (host) {
+      case 'routine':
+      case 'class':
+      case 'daily':
+        goToRoutine();
+        break;
+      case 'today':
+      case 'revision':
+        goToToday();
+        break;
+      case 'calendar':
+        goToCalendar();
+        break;
+      case 'subjects':
+        goToSubjects();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Read the launch URI from a home-widget tap and open the right tab.
+  Future<void> applyInitialWidgetLink() async {
+    try {
+      final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (uri != null) {
+        applyHost(uri.host);
+      }
+    } catch (_) {}
+  }
 }

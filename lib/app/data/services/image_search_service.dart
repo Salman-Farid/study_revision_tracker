@@ -1,15 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 class ImageSearchService {
   static const _accessKey = String.fromEnvironment('UNSPLASH_ACCESS_KEY',
       defaultValue: '_15JEKa--q5dzR2bJUbfk1iDI69HtmFheP46idJTFpM');
 
+  static final _rng = Random();
+
   static Future<String?> searchSubjectImage(String subjectName) async {
     try {
       final query = Uri.encodeQueryComponent('$subjectName study');
       final uri = Uri.parse('https://api.unsplash.com/search/photos'
-          '?query=$query&per_page=1&orientation=landscape');
+          '?query=$query&per_page=12&orientation=landscape');
 
       final client = HttpClient();
       final req = await client.getUrl(uri);
@@ -24,7 +27,9 @@ class ImageSearchService {
         final data = jsonDecode(body) as Map<String, dynamic>;
         final results = data['results'] as List?;
         if (results != null && results.isNotEmpty) {
-          final urls = results[0]['urls'] as Map<String, dynamic>?;
+          // Random pick so the same subject can get a different image each time.
+          final pick = results[_rng.nextInt(results.length)];
+          final urls = pick['urls'] as Map<String, dynamic>?;
           return urls?['regular'] as String?;
         }
       }

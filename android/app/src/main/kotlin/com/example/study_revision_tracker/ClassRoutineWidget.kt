@@ -23,6 +23,15 @@ class ClassRoutineWidget : AppWidgetProvider() {
         for (id in ids) render(context, manager, id)
     }
 
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle,
+    ) {
+        render(context, appWidgetManager, appWidgetId)
+    }
+
     override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action
         if (action == ACTION_REFRESH ||
@@ -40,6 +49,8 @@ class ClassRoutineWidget : AppWidgetProvider() {
     companion object {
         private const val TAG = "ClassRoutineWidget"
         const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_CLASS"
+        /** Below this min-width (dp), hide the duration pill to keep the row readable. */
+        private const val MIN_WIDTH_FOR_DURATION = 250
 
         // Vivid subject/title colors (ARGB).
         private val PALETTE = intArrayOf(
@@ -69,6 +80,11 @@ class ClassRoutineWidget : AppWidgetProvider() {
                 val prefs =
                     context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
 
+                // Hide duration pill when the widget is resized narrow.
+                val options = manager.getAppWidgetOptions(appWidgetId)
+                val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+                val showDuration = minW >= MIN_WIDTH_FOR_DURATION
+
                 // Prefer today's items; fall back to full list filtered by isToday.
                 var itemsJson = prefs.getString("widget_class_today_items", null)
                 if (itemsJson == null) {
@@ -78,7 +94,6 @@ class ClassRoutineWidget : AppWidgetProvider() {
 
                 val arr = try { JSONArray(itemsJson) } catch (_: Exception) { JSONArray() }
                 val count = arr.length()
-                Log.d(TAG, "render id=$appWidgetId count=$count")
 
                 views.removeAllViews(R.id.widget_class_list)
 
@@ -87,6 +102,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_now_label, View.GONE)
                     views.setViewVisibility(R.id.widget_now_subject, View.GONE)
                     views.setViewVisibility(R.id.widget_now_time, View.GONE)
+                    views.setViewVisibility(R.id.widget_now_location, View.GONE)
                     views.setTextViewText(R.id.widget_footer, "")
                 } else {
                     views.setViewVisibility(R.id.widget_empty, View.GONE)
@@ -108,11 +124,9 @@ class ClassRoutineWidget : AppWidgetProvider() {
                             (endTs > 0L && nowMs >= endTs)
 
                         val timeLine = if (endText.isNotEmpty()) "$timeText – $endText" else timeText
-                        val meta = buildString {
-                            append(timeLine)
-                            if (location.isNotEmpty()) append("  ·  ").append(location)
-                            if (isPast) append("  ·  Done")
-                        }
+                        val timeCol: Int = if (isPast) 0x66000000.toInt() else 0xFF5C6BC0.toInt()
+                        val locCol: Int = if (isPast) 0x66000000.toInt() else 0xFFEF6C00.toInt()
+                        val subCol: Int = if (isPast) 0x88000000.toInt() else PALETTE[i % PALETTE.size]
 
                         if (isNow && !nowShown) {
                             nowShown = true
@@ -120,28 +134,54 @@ class ClassRoutineWidget : AppWidgetProvider() {
                             views.setViewVisibility(R.id.widget_now_subject, View.VISIBLE)
                             views.setViewVisibility(R.id.widget_now_time, View.VISIBLE)
                             views.setTextViewText(R.id.widget_now_subject, subject)
-                            views.setTextViewText(R.id.widget_now_time, meta)
-                            views.setTextColor(R.id.widget_now_subject, PALETTE[i % PALETTE.size])
-                            views.setTextColor(R.id.widget_now_time, META_PALETTE[i % META_PALETTE.size])
+                            views.setTextViewText(R.id.widget_now_time, timeLine + if (isPast) "  ·  Done" else "")
+                            if (location.isNotEmpty()) {
+                                views.setViewVisibility(R.id.widget_now_location, View.VISIBLE)
+                                views.setTextViewText(R.id.widget_now_location, location)
+                            } else {
+                                views.setViewVisibility(R.id.widget_now_location, View.GONE)
+                            }
+                            views.setTextColor(R.id.widget_now_subject, subCol)
+                            views.setTextColor(R.id.widget_now_time, timeCol)
+                            views.setTextColor(R.id.widget_now_location, locCol)
                             continue
                         }
 
                         val row = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
                         row.setTextViewText(R.id.row_subject, subject)
-                        row.setTextViewText(R.id.row_meta, meta)
-                        // Cycle a vivid palette so each class row is colorful.
-                        val accent = PALETTE[i % PALETTE.size]
-                        val metaColor = META_PALETTE[i % META_PALETTE.size]
-                        if (isPast) {
-                            row.setTextColor(R.id.row_subject, 0x88000000.toInt())
-                            row.setTextColor(R.id.row_meta, 0x66000000.toInt())
+                        row.setTextViewText(R.id.row_time, timeLine + if (isPast) "  ·  Done" else "")
+                        if (location.isNotEmpty()) {
+                            row.setViewVisibility(R.id.row_location, View.VISIBLE)
+                            row.setTextViewText(R.id.row_location, location)
                         } else {
-                            row.setTextColor(R.id.row_subject, accent)
-                            row.setTextColor(R.id.row_meta, metaColor)
+                            row.setViewVisibility(R.id.row_location, View.GONE)
                         }
-                        if (isNow) {
-                            row.setInt(R.id.row_subject, "setBackgroundResource", R.drawable.widget_row_bg_now)
+
+                        // Duration pill on the right
+                        val durMin = o.optInt("durationMinutes", 0)
+                        val durText = when {
+                            durMin > 0 -> {
+                                val hours = durMin / 60.0
+                                if (durMin % 60 == 0 && durMin >= 60) "${durMin / 60} hours"
+                                else if (hours >= 1) {
+                                    val formatted = String.format(java.util.Locale.US, "%.1f", hours)
+                                    "${formatted} hours"
+                                } else "$durMin min"
+                            }
+                            o.optString("durationText", "").isNotEmpty() -> o.optString("durationText")
+                            else -> ""
                         }
+                        if (showDuration && durText.isNotEmpty()) {
+                            row.setViewVisibility(R.id.row_duration_box, View.VISIBLE)
+                            row.setTextViewText(R.id.row_duration, durText)
+                            row.setTextColor(R.id.row_duration, subCol)
+                        } else {
+                            row.setViewVisibility(R.id.row_duration_box, View.GONE)
+                        }
+
+                        row.setTextColor(R.id.row_subject, subCol)
+                        row.setTextColor(R.id.row_time, timeCol)
+                        row.setTextColor(R.id.row_location, locCol)
                         views.addView(R.id.widget_class_list, row)
                     }
 
@@ -153,21 +193,22 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     )
                 }
 
-                val open = context.packageManager
-                    .getLaunchIntentForPackage(context.packageName)
-                    ?.apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    }
-                if (open != null) {
-                    val pi = PendingIntent.getActivity(
-                        context, 0, open,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_root, pi)
+                val open = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("study-revision-tracker://routine")
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    setPackage(context.packageName)
                 }
+                val pi = PendingIntent.getActivity(
+                    context, 0, open,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_root, pi)
 
                 manager.updateAppWidget(appWidgetId, views)
-                Log.d(TAG, "ok id=$appWidgetId count=$count")
             } catch (e: Exception) {
                 Log.e(TAG, "render failed id=$appWidgetId", e)
                 try {
@@ -175,6 +216,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_now_label, View.GONE)
                     views.setViewVisibility(R.id.widget_now_subject, View.GONE)
                     views.setViewVisibility(R.id.widget_now_time, View.GONE)
+                    views.setViewVisibility(R.id.widget_now_location, View.GONE)
                     views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
                     views.setTextViewText(R.id.widget_empty, "Nothing to show")
                     manager.updateAppWidget(appWidgetId, views)

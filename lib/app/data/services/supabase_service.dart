@@ -256,12 +256,22 @@ class SupabaseService extends GetxService {
       .gte('started_at', weekStart.toIso8601String());
     final completed = await client.from('revision_schedules').select('id')
       .eq('user_id', userId).eq('status', 'completed');
-    final total = await client.from('revision_schedules').select('id').eq('user_id', userId);
-    final tl = (total as List).length;
+    // Completion = completed revisions / (all topics × 6 planned revisions).
+    final topics = await client.from('topics').select('id')
+      .eq('user_id', userId);
     final cl = (completed as List).length;
-    return {'overdue_count': (overdue as List).length, 'today_count': (today as List).length,
-      'upcoming_count': (upcoming as List).length, 'sessions_this_week': (sessions as List).length,
-      'total_completed': cl, 'total_schedules': tl, 'completion_rate': tl == 0 ? 0.0 : cl / tl};
+    final topicCount = (topics as List).length;
+    final plannedTotal = topicCount * AppConstants.revisionDays.length;
+    return {
+      'overdue_count': (overdue as List).length,
+      'today_count': (today as List).length,
+      'upcoming_count': (upcoming as List).length,
+      'sessions_this_week': (sessions as List).length,
+      'total_completed': cl,
+      'total_topics': topicCount,
+      'total_schedules': plannedTotal,
+      'completion_rate': plannedTotal == 0 ? 0.0 : (cl / plannedTotal).clamp(0.0, 1.0),
+    };
   }
 
   // ── REALTIME SUBSCRIPTIONS ──
@@ -381,7 +391,7 @@ class SupabaseService extends GetxService {
   DateTime? _lastWidgetUpdate;
   void _debouncedWidgetUpdate() {
     final now = DateTime.now();
-    if (_lastWidgetUpdate != null && now.difference(_lastWidgetUpdate!).inSeconds < 10) return;
+    if (_lastWidgetUpdate != null && now.difference(_lastWidgetUpdate!).inSeconds < 20) return;
     _lastWidgetUpdate = now;
     Future.microtask(() {
       try { WidgetDataProvider.updateAllWidgets(); } catch (_) {}

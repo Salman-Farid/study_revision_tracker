@@ -12,78 +12,248 @@ class TodayRevisionsScreen extends GetView<TodayController> {
   @override
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(appBar: AppBar(title: Text('todaysRevisions'.tr)),
-      body: Obx(() {
-        if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
-        final total = controller.overdue.length + controller.today.length;
-        if (total == 0) return EmptyState(icon: Icons.check_circle_rounded,
-          title: 'allCaughtUpTitle'.tr, subtitle: 'allCaughtUpSub'.tr);
-        return RefreshIndicator(onRefresh: controller.load,
-          child: ListView(physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            padding: EdgeInsets.all(S.base), children: [
-              if (controller.overdue.isNotEmpty) ...[
-                _header('missed'.tr, controller.overdue.length, AppColors.error),
-                ...controller.overdue.map((s) => _tile(s, AppColors.error, () => controller.markMissed(s.id), d, isOverdue: true)),
-                SizedBox(height: S.base),
-              ],
-              if (controller.today.isNotEmpty) ...[
-                _header('dueToday'.tr, controller.today.length, AppColors.primary),
-                ...controller.today.map((s) => _tile(s, AppColors.primary, () => controller.markDone(s.id), d, isOverdue: false)),
-              ],
-              SizedBox(height: S.xxxl),
-            ]));
-      }));
+    return Scaffold(
+      appBar: AppBar(title: Text('todaysRevisions'.tr)),
+      body: Column(
+        children: [
+          _chips(d),
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final tab = controller.selectedTab.value;
+              final list = tab == 0
+                  ? controller.today
+                  : tab == 1
+                      ? controller.overdue
+                      : controller.upcoming;
+
+              if (list.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: controller.load,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: EmptyState(
+                          icon: tab == 1
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_rounded,
+                          title: tab == 0
+                              ? 'allCaughtUpTitle'.tr
+                              : tab == 1
+                                  ? 'missed'.tr
+                                  : 'statUpcoming'.tr,
+                          subtitle: tab == 0
+                              ? 'allCaughtUpSub'.tr
+                              : tab == 1
+                                  ? 'noPendingRevisions'.tr
+                                  : 'noRevisionsThisDay'.tr,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final accent = tab == 0
+                  ? AppColors.primary
+                  : tab == 1
+                      ? AppColors.error
+                      : AppColors.info;
+
+              return RefreshIndicator(
+                onRefresh: controller.load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics()),
+                  padding: EdgeInsets.all(S.base),
+                  children: [
+                    if (tab != 2) ...[
+                      // Completing a missed/today revision → completed.
+                      ...list.map((s) => _tile(
+                            s,
+                            accent,
+                            () => controller.markDone(s.id),
+                            d,
+                            isOverdue: tab == 1,
+                          )),
+                    ] else
+                      ...list.map((s) => _tile(
+                            s,
+                            accent,
+                            () => controller.markDone(s.id),
+                            d,
+                            isOverdue: false,
+                          )),
+                    SizedBox(height: S.xxxl),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _header(String t, int c, Color col) => Padding(padding: EdgeInsets.symmetric(vertical: S.md),
-    child: Row(children: [
-      Container(width: 4, height: 20, decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(2))),
-      SizedBox(width: S.sm), Text(t, style: AppTextStyles.titleMedium.copyWith(color: col)),
-      SizedBox(width: S.sm),
-      Container(padding: EdgeInsets.symmetric(horizontal: S.sm, vertical: 2),
-        decoration: BoxDecoration(color: col.withOpacity(0.12), borderRadius: BorderRadius.circular(S.radiusSm)),
-        child: Text('$c', style: AppTextStyles.labelSmall.copyWith(color: col))),
-    ]));
+  Widget _chips(bool d) {
+    return Obx(() {
+      final selected = controller.selectedTab.value;
+      final items = [
+        (0, 'statToday'.tr, controller.today.length, AppColors.primary),
+        (1, 'missed'.tr, controller.overdue.length, AppColors.error),
+        (2, 'statUpcoming'.tr, controller.upcoming.length, AppColors.info),
+      ];
+      return Padding(
+        padding: EdgeInsets.fromLTRB(S.base, S.sm, S.base, S.sm),
+        child: Row(
+          children: [
+            for (final it in items) ...[
+              Expanded(
+                child: _chip(
+                  d,
+                  it.$2,
+                  it.$3,
+                  it.$4,
+                  selected == it.$1,
+                  () => controller.selectedTab.value = it.$1,
+                ),
+              ),
+              if (it.$1 != 2) SizedBox(width: S.sm),
+            ],
+          ],
+        ),
+      );
+    });
+  }
 
-  Widget _tile(RevisionScheduleModel s, Color col, VoidCallback onDismiss, bool d, {required bool isOverdue}) {
+  Widget _chip(
+      bool d, String label, int count, Color col, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(vertical: S.sm, horizontal: S.xs),
+        decoration: BoxDecoration(
+          color: selected ? col.withValues(alpha: 0.12) : AppColors.surface(d),
+          borderRadius: BorderRadius.circular(S.radiusFull),
+          border: Border.all(
+            color: selected ? col : AppColors.border(d),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: selected ? col : AppColors.textSecondary(d),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+            if (count > 0) ...[
+              SizedBox(width: 4),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected ? col : AppColors.textMuted(d).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(S.radiusFull),
+                ),
+                child: Text(
+                  '$count',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: selected ? Colors.white : AppColors.textMuted(d),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tile(RevisionScheduleModel s, Color col, VoidCallback onDismiss, bool d,
+      {required bool isOverdue}) {
     final subjectLabel = s.subjectName ?? 'subject'.tr;
     final topicLabel = s.topicName ?? 'topic'.tr;
-    final dateStr = '${s.scheduledDate.day}/${s.scheduledDate.month}/${s.scheduledDate.year}';
+    final dateStr =
+        '${s.scheduledDate.day}/${s.scheduledDate.month}/${s.scheduledDate.year}';
 
-    return Dismissible(key: ValueKey(s.id),
-      direction: DismissDirection.endToStart, onDismissed: (_) => onDismiss(),
-      background: Container(alignment: Alignment.centerRight, padding: EdgeInsets.only(right: S.xl),
-        decoration: BoxDecoration(color: AppColors.success.withOpacity(0.2), borderRadius: BorderRadius.circular(S.radiusMd)),
-        child: Icon(Icons.check_rounded, color: AppColors.success)),
-      child: Container(margin: EdgeInsets.only(bottom: S.sm), padding: EdgeInsets.all(S.base),
+    return Dismissible(
+      key: ValueKey(s.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDismiss(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: EdgeInsets.only(right: S.xl),
+        decoration: BoxDecoration(
+          color: AppColors.success.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(S.radiusMd),
+        ),
+        child: Icon(Icons.check_rounded, color: AppColors.success),
+      ),
+      child: Container(
+        margin: EdgeInsets.only(bottom: S.sm),
+        padding: EdgeInsets.all(S.base),
         decoration: BoxDecoration(
           color: AppColors.surface(d),
           borderRadius: BorderRadius.circular(S.radiusMd),
-          border: Border.all(color: AppColors.border(d))),
+          border: Border.all(color: AppColors.border(d)),
+        ),
         child: Row(children: [
-          Container(width: 4, height: 48, decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 4,
+            height: 48,
+            decoration:
+                BoxDecoration(color: col, borderRadius: BorderRadius.circular(2)),
+          ),
           SizedBox(width: S.md),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Subject name
-            Text(subjectLabel, style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted(d))),
-            SizedBox(height: 2),
-            // Topic name
-            Text(topicLabel, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
-            SizedBox(height: 4),
-            // Day label + date or Missed badge
-            Row(children: [
-              Text('dayLabel'.tr.replaceAll('{n}', '${s.dayNumber}'), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-              SizedBox(width: S.sm),
-              Text('·', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-              SizedBox(width: S.sm),
-              Text(dateStr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-              if (isOverdue) ...[
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(subjectLabel,
+                  style: AppTextStyles.labelMedium
+                      .copyWith(color: AppColors.textMuted(d))),
+              SizedBox(height: 2),
+              Text(topicLabel,
+                  style: AppTextStyles.titleSmall
+                      .copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
+              SizedBox(height: 4),
+              Row(children: [
+                Text('dayLabel'.tr.replaceAll('{n}', '${s.dayNumber}'),
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textMuted(d))),
                 SizedBox(width: S.sm),
-                Text('missed'.tr, style: AppTextStyles.labelSmall.copyWith(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 10)),
-              ],
+                Text('·',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textMuted(d))),
+                SizedBox(width: S.sm),
+                Text(dateStr,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textMuted(d))),
+                if (isOverdue) ...[
+                  SizedBox(width: S.sm),
+                  Text('missed'.tr,
+                      style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10)),
+                ],
+              ]),
             ]),
-          ])),
+          ),
           Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
-        ])));
+        ]),
+      ),
+    );
   }
 }

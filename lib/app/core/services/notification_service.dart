@@ -100,7 +100,7 @@ class NotificationService extends GetxService {
       await iosPlugin.requestPermissions(alert: true, badge: true, sound: true);
     }
 
-    const androidSettings = AndroidInitializationSettings('ic_notif');
+    const androidSettings = AndroidInitializationSettings('ic_stat_notif');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -238,7 +238,8 @@ class NotificationService extends GetxService {
           channelDescription: 'Reminders for scheduled revisions',
           importance: Importance.high,
           priority: Priority.high,
-          icon: 'ic_notif',
+          icon: 'ic_stat_notif',
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           color: const Color(0xFF87CEEB),
         ),
         iOS: DarwinNotificationDetails(
@@ -319,7 +320,8 @@ class NotificationService extends GetxService {
             channelDescription: 'Reminders 30 minutes before class',
             importance: Importance.high,
             priority: Priority.high,
-            icon: 'ic_notif',
+            icon: 'ic_stat_notif',
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           color: const Color(0xFF87CEEB),
           ),
           iOS: DarwinNotificationDetails(
@@ -409,10 +411,7 @@ class NotificationService extends GetxService {
         final m = hm[1];
 
         final blockStart = tz.TZDateTime(tz.local, day.year, day.month, day.day, h, m);
-        if (!blockStart.isAfter(now)) {
-          debugPrint('[NotificationService] skip past block #$i ${item.subject} $blockStart');
-          continue;
-        }
+        if (!blockStart.isAfter(now)) continue;
 
         final id = _dailyNotifId(routine.id, i, day);
         final label = item.subject.isNotEmpty ? item.subject : (item.type.isNotEmpty ? item.type : 'Study');
@@ -432,7 +431,8 @@ class NotificationService extends GetxService {
                 channelDescription: 'Reminders when each daily routine block starts',
                 importance: Importance.high,
                 priority: Priority.high,
-                icon: 'ic_notif',
+                icon: 'ic_stat_notif',
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           color: const Color(0xFF87CEEB),
                 playSound: true,
                 enableVibration: true,
@@ -450,9 +450,8 @@ class NotificationService extends GetxService {
             payload: payload,
           );
           scheduled++;
-          debugPrint('[NotificationService] scheduled daily #$id "$label" at $blockStart');
         } catch (e) {
-          debugPrint('[NotificationService] zonedSchedule failed for "$label": $e');
+          debugPrint('[NotificationService] schedule failed: $e');
         }
       }
     }
@@ -565,7 +564,8 @@ class NotificationService extends GetxService {
               channelDescription: 'Reminders when each daily routine block starts',
               importance: Importance.max,
               priority: Priority.max,
-              icon: 'ic_notif',
+              icon: 'ic_stat_notif',
+          largeIcon: DrawableResourceAndroidBitmap('ic_launcher'),
           color: const Color(0xFF87CEEB),
             ),
           ),

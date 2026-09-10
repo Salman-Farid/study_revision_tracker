@@ -4,15 +4,12 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/revision_repository.dart';
-import '../../data/repositories/topic_repository.dart';
-import '../../data/repositories/subject_repository.dart';
 import '../../data/services/supabase_service.dart';
+import '../../modules/navigation/navigation_controller.dart';
 import '../../widgets/widget_promo_dialog.dart';
 
 class DashboardController extends GetxController {
   final _repo = Get.find<RevisionRepository>();
-  final _topicRepo = Get.find<TopicRepository>();
-  final _subjectRepo = Get.find<SubjectRepository>();
   final stats = <String, dynamic>{}.obs;
   final isLoading = true.obs;
   final pendingSchedules = <RevisionScheduleModel>[].obs;
@@ -61,28 +58,12 @@ class DashboardController extends GetxController {
   }
 
   Future<void> startRevising() async {
-    if (pendingSchedules.isEmpty) {
-      Get.snackbar('allCaughtUp'.tr, 'noPendingRevisions'.tr, snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    final schedule = pendingSchedules.first;
+    // Open the Subjects tab — pick a subject, then revise from there.
     try {
-      final topics = await _topicRepo.getBySubject(schedule.subjectId);
-      final topic = topics.firstWhereOrNull((t) => t.id == schedule.topicId);
-      if (topic == null) {
-        Get.snackbar('error'.tr, 'topicNotFound'.tr);
-        return;
-      }
-      final subjects = await _subjectRepo.getAll();
-      final subject = subjects.firstWhereOrNull((s) => s.id == schedule.subjectId);
-      if (subject == null) {
-        Get.snackbar('error'.tr, 'subjectNotFound'.tr);
-        return;
-      }
-      Get.toNamed('/topic/${topic.id}',
-        arguments: {'topic': topic, 'subject': subject});
-    } catch (e) {
-      Get.snackbar('error'.tr, 'startRevisionFailed'.tr);
+      NavigationController.to.goToSubjects();
+    } catch (_) {
+      // Controller may not exist yet if home just opened.
+      Get.put(NavigationController(), permanent: true).goToSubjects();
     }
   }
 }

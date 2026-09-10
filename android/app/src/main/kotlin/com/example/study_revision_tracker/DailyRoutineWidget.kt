@@ -82,9 +82,20 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
                 views.setString(R.id.widget_current_timer, "setText", remaining)
             }
 
-            // Click to open app
-            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            val pending = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            // Open the Routine tab in the app
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                android.net.Uri.parse("study-revision-tracker://routine")
+            ).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                setPackage(context.packageName)
+            }
+            val pending = PendingIntent.getActivity(
+                context, 1, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
             views.setOnClickPendingIntent(R.id.widget_current_card, pending)
         } else {
             views.setViewVisibility(R.id.widget_current_card, android.view.View.GONE)
@@ -130,6 +141,24 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             val time = lastUpdated.substringAfter("T", "").take(5)
             views.setTextViewText(R.id.widget_updated, "Updated $time")
         }
+
+        // Whole-widget tap → Routine tab
+        val rootIntent = Intent(
+            Intent.ACTION_VIEW,
+            android.net.Uri.parse("study-revision-tracker://routine")
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            setPackage(context.packageName)
+        }
+        views.setOnClickPendingIntent(
+            R.id.widget_root,
+            PendingIntent.getActivity(
+                context, 2, rootIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        )
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
         // Notify the adapter to reload data

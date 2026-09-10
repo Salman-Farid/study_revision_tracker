@@ -21,6 +21,15 @@ class _MainNavigationState extends State<MainNavigation> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // If opened from a home-widget tap while app was already running.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _nav.applyInitialWidgetLink();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Obx(() => AnimatedSwitcher(

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/widget_data_service.dart';
+import '../../modules/navigation/navigation_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 
@@ -32,52 +33,41 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // Determine the deep link target route
     String? targetRoute;
+    String? linkHost;
     try {
       final initialLink = await WidgetDataProvider.getInitialLink();
       if (initialLink != null) {
+        linkHost = initialLink.host;
         targetRoute = _resolveDeepLink(initialLink);
       }
     } catch (_) {}
 
+    void goHomeWithTab() {
+      Get.offAllNamed(targetRoute ?? AppRoutes.home);
+      // Open the right bottom-nav tab from the widget deep link.
+      Future.microtask(() {
+        Get.put(NavigationController(), permanent: true).applyHost(linkHost);
+      });
+    }
+
     if (user != null) {
-      // Session exists — go straight to home (or deep link target)
-      if (targetRoute != null) {
-        Get.offAllNamed(targetRoute);
-      } else {
-        Get.offAllNamed(AppRoutes.home);
-      }
+      goHomeWithTab();
       return;
     }
-    // No active session — check SharedPreferences for "remember me" login
     final prefs = await SharedPreferences.getInstance();
     final wasLoggedIn = prefs.getBool('logged_in') ?? false;
     final savedEmail = prefs.getString('user_email');
     if (wasLoggedIn && savedEmail != null) {
-      // Try to recover session silently; Supabase may have a refresh token stored
       try {
         final session = Supabase.instance.client.auth.currentSession;
         if (session != null && !session.isExpired) {
-          if (targetRoute != null) {
-            Get.offAllNamed(targetRoute);
-          } else {
-            Get.offAllNamed(AppRoutes.home);
-          }
+          goHomeWithTab();
           return;
         }
-        // Refresh token might be expired — still go home, user is remembered
-        if (targetRoute != null) {
-          Get.offAllNamed(targetRoute);
-        } else {
-          Get.offAllNamed(AppRoutes.home);
-        }
+        goHomeWithTab();
         return;
       } catch (_) {
-        // Fallback: go home anyway, app will work offline-ish
-        if (targetRoute != null) {
-          Get.offAllNamed(targetRoute);
-        } else {
-          Get.offAllNamed(AppRoutes.home);
-        }
+        goHomeWithTab();
         return;
       }
     }
