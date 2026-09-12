@@ -13,7 +13,6 @@ import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
-import java.util.Calendar
 
 class DailyRoutineWidget : AppWidgetProvider() {
 
@@ -33,9 +32,13 @@ class DailyRoutineWidget : AppWidgetProvider() {
         ) {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, DailyRoutineWidget::class.java))
-            for (id in ids) updateWidget(context, mgr, id)
-            // Keep ticking while a block is active so countdown + next block update.
-            scheduleNextTick(context)
+            var anyActive = false
+            for (id in ids) {
+                updateWidget(context, mgr, id)
+                if (hasActiveBlock(context)) anyActive = true
+            }
+            // Only keep ticking while a block is still running (stops infinite loop).
+            if (anyActive) scheduleNextTick(context)
             return
         }
         super.onReceive(context, intent)
@@ -44,16 +47,22 @@ class DailyRoutineWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_DAILY"
         const val ACTION_DAILY_TICK = "com.example.study_revision_tracker.DAILY_TICK"
+        private const val MAX_BLOCK_MS = 4L * 60L * 60L * 1000L // 4h safety cap
 
-        fun formatRemaining(ms: Long): String {
-            if (ms <= 0) return "0m"
-            val totalMin = ms / 60000L
-            val h = totalMin / 60
-            val m = totalMin % 60
-            return if (h > 0) "${h}h ${m}m" else "${m}m"
+        data class ActiveBlock(
+            val subject: String,
+            val topic: String,
+            val type: String,
+            val timeText: String,
+            val endMs: Long,
+        )
+
+        fun hasActiveBlock(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+            val now = System.currentTimeMillis()
+            return resolveActiveBlock(prefs, now)?.let { it.endMs > now } == true
         }
 
-        /** Tick every 30s so we can promote the next block without Flutter. */
         private fun scheduleNextTick(context: Context) {
             try {
                 val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -73,44 +82,59 @@ class DailyRoutineWidget : AppWidgetProvider() {
         }
 
         /**
-         * Prefer live prefs; if the stored current block already ended,
-         * pick the next future block from widget_daily_all_items.
+         * Resolve the block that is running now (preferred) or the next one today.
+         * Reads type + time from all_items so labels never go stale.
          */
-        fun resolveActiveBlock(prefs: android.content.SharedPreferences, nowMs: Long): Triple<String, String, Long>? {
-            val prefSubject = prefs.getString("widget_daily_current_subject", "") ?: ""
-            val prefEnd = prefs.getString("widget_daily_current_end_timestamp", "0")?.toLongOrNull() ?: 0L
-            val prefTopic = prefs.getString("widget_daily_current_topic", "") ?: ""
-            if (prefSubject.isNotEmpty() && prefEnd > nowMs) {
-                return Triple(prefSubject, prefTopic, prefEnd)
-            }
-
+        fun resolveActiveBlock(prefs: android.content.SharedPreferences, nowMs: Long): ActiveBlock? {
             val allJson = prefs.getString("widget_daily_all_items", "[]") ?: "[]"
-            return try {
+            try {
                 val arr = JSONArray(allJson)
+                var best: ActiveBlock? = null
                 var bestStart = Long.MAX_VALUE
-                var best: Triple<String, String, Long>? = null
                 for (i in 0 until arr.length()) {
                     val o = arr.getJSONObject(i)
                     val start = o.optLong("startTimestamp", 0L)
                     val end = o.optLong("endTimestamp", 0L)
-                    if (start <= 0L || end <= 0L) continue
-                    // Active now, or next upcoming today
+                    if (start <= 0L || end <= 0L || end <= start) continue
+                    // Ignore absurd end times (corrupt data → infinite timer).
+                    if (end - start > MAX_BLOCK_MS) continue
                     val isActive = nowMs in start until end
-                    val isUpcoming = start > nowMs
+                    val isUpcoming = start > nowMs && (start - nowMs) < 12L * 60L * 60L * 1000L
                     if (!isActive && !isUpcoming) continue
-                    if (start < bestStart) {
-                        bestStart = start
-                        best = Triple(
-                            o.optString("subject", ""),
-                            o.optString("topic", ""),
-                            end
+                    // Prefer an active block; otherwise earliest upcoming.
+                    val rank = if (isActive) start - 1_000_000_000_000L else start
+                    if (rank < bestStart) {
+                        bestStart = rank
+                        best = ActiveBlock(
+                            subject = o.optString("subject", ""),
+                            topic = o.optString("topic", ""),
+                            type = o.optString("type", ""),
+                            timeText = run {
+                                val a = o.optString("timeText", "")
+                                val b = o.optString("endTimeText", "")
+                                if (b.isNotEmpty()) "$a – $b" else a
+                            },
+                            endMs = end,
                         )
                     }
                 }
-                best
+                if (best != null) return best
             } catch (_: Exception) {
-                null
             }
+
+            // Fallback: single "current" pref if it hasn't ended yet.
+            val prefSubject = prefs.getString("widget_daily_current_subject", "") ?: ""
+            val prefEnd = prefs.getString("widget_daily_current_end_timestamp", "0")?.toLongOrNull() ?: 0L
+            if (prefSubject.isNotEmpty() && prefEnd > nowMs && (prefEnd - nowMs) <= MAX_BLOCK_MS) {
+                return ActiveBlock(
+                    subject = prefSubject,
+                    topic = prefs.getString("widget_daily_current_topic", "") ?: "",
+                    type = prefs.getString("widget_daily_current_type", "") ?: "",
+                    timeText = prefs.getString("widget_daily_current_time", "") ?: "",
+                    endMs = prefEnd,
+                )
+            }
+            return null
         }
     }
 }
@@ -123,27 +147,23 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         if (statusMessage.isBlank() || statusMessage.contains("Error", ignoreCase = true)) {
             statusMessage = "Nothing to show"
         }
-        val currentType = prefs.getString("widget_daily_current_type", "") ?: ""
-        val currentTime = prefs.getString("widget_daily_current_time", "") ?: ""
         val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
         val nowMs = System.currentTimeMillis()
 
         val active = DailyRoutineWidget.resolveActiveBlock(prefs, nowMs)
-        val hasCurrent = active != null && active.third > nowMs
+        val hasCurrent = active != null && active.endMs > nowMs
 
         val views = RemoteViews(context.packageName, R.layout.daily_routine_widget)
 
         if (hasCurrent && active != null) {
             views.setViewVisibility(R.id.widget_current_card, View.VISIBLE)
-            views.setTextViewText(R.id.widget_current_subject, active.first)
-            views.setTextViewText(R.id.widget_current_topic, active.second)
-            views.setTextViewText(R.id.widget_current_type, currentType)
-            views.setTextViewText(R.id.widget_current_time, currentTime)
+            views.setTextViewText(R.id.widget_current_subject, active.subject)
+            views.setTextViewText(R.id.widget_current_topic, active.topic)
+            // Use live type from the resolved block (not a stale pref).
+            views.setTextViewText(R.id.widget_current_type, active.type.ifEmpty { "Study" })
+            views.setTextViewText(R.id.widget_current_time, active.timeText)
 
-            // Second-by-second countdown (12:30 → 12:29 → …).
-            // setChronometerCountDown MUST be called BEFORE setChronometer
-            // or some OEMs count up and show a minus sign.
-            val remainingMs = (active.third - nowMs).coerceAtLeast(0L)
+            val remainingMs = (active.endMs - nowMs).coerceAtLeast(0L)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 views.setChronometerCountDown(R.id.widget_current_timer, true)
                 views.setChronometer(
@@ -153,7 +173,6 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
                     true
                 )
             } else {
-                // Pre-N: static fallback with seconds.
                 val totalSec = remainingMs / 1000
                 val h = totalSec / 3600
                 val m = (totalSec % 3600) / 60

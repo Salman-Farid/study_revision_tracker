@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <application
         android:label="Smart Revision Tracker"
         android:name="${applicationName}"
@@ -84,6 +87,15 @@
                 android:resource="@xml/class_routine_widget_info" />
         </receiver>
 
+        <!-- Native periodic refresh for all widgets (works with Flutter closed) -->
+        <receiver
+            android:name=".WidgetTickReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.study_revision_tracker.WIDGET_TICK" />
+            </intent-filter>
+        </receiver>
+
         <!-- Daily Routine Widget RemoteViewsService (for scrollable ListView) -->
         <service
             android:name=".DailyRoutineWidgetService"
@@ -93,6 +105,12 @@
         <!-- Revision Widget RemoteViewsService (for scrollable ListView) -->
         <service
             android:name=".RevisionWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Class Routine Widget RemoteViewsService (for scrollable ListView) -->
+        <service
+            android:name=".ClassRoutineWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 

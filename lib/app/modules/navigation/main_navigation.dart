@@ -6,6 +6,10 @@ import '../today/today_revisions_screen.dart';
 import '../routine/routine_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../calendar/calendar_controller.dart';
+import '../dashboard/dashboard_controller.dart';
+import '../subjects/subjects_controller.dart';
+import '../today/today_controller.dart';
+import '../routine/routine_controller.dart';
 import '../settings/settings_screen.dart';
 import 'navigation_controller.dart';
 
@@ -29,10 +33,29 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    // Ensure tab controllers exist when opened from a cold widget deep-link
+    // (unknownRoute /not-found does not run home bindings).
+    try {
+      Get.put(NavigationController(), permanent: true);
+      if (!Get.isRegistered<DashboardController>()) {
+        Get.put(DashboardController(), permanent: true);
+      }
+      if (!Get.isRegistered<SubjectsController>()) {
+        Get.put(SubjectsController(), permanent: true);
+      }
+      if (!Get.isRegistered<TodayController>()) {
+        Get.put(TodayController(), permanent: true);
+      }
+      if (!Get.isRegistered<RoutineController>()) {
+        Get.put(RoutineController(), permanent: true);
+      }
+      if (!Get.isRegistered<CalendarController>()) {
+        Get.put(CalendarController(), permanent: true);
+      }
+    } catch (_) {}
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _nav.applyInitialWidgetLink();
     });
-    // Refresh Calendar (and keep Today live) whenever the tab changes.
     ever(_nav.currentIndex, (i) {
       if (i == NavigationController.calendar) {
         try {

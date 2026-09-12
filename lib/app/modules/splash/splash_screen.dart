@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,53 +30,72 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _go() async {
-    // Short splash when a session already exists — don't block first paint.
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      await Future.delayed(const Duration(milliseconds: 400));
-    } else {
-      await Future.delayed(const Duration(milliseconds: 1200));
-    }
-
-    // Determine the deep link target route
-    String? targetRoute;
-    String? linkHost;
-    try {
-      final initialLink = await WidgetDataProvider.getInitialLink();
-      if (initialLink != null) {
-        linkHost = initialLink.host;
-        targetRoute = _resolveDeepLink(initialLink);
+    // Absolute fail-safe: never leave the user on a blank splash.
+    var navigated = false;
+    void finish(String route, {String? host}) {
+      if (navigated || !mounted) return;
+      navigated = true;
+      try {
+        Get.offAllNamed(route);
+        if (host != null) {
+          Future.microtask(() {
+            try {
+              Get.put(NavigationController(), permanent: true).applyHost(host);
+            } catch (_) {}
+          });
+        }
+      } catch (_) {
+        try {
+          Get.offAllNamed(AppRoutes.home);
+        } catch (_) {}
       }
-    } catch (_) {}
-
-    void goHomeWithTab() {
-      Get.offAllNamed(targetRoute ?? AppRoutes.home);
-      Future.microtask(() {
-        Get.put(NavigationController(), permanent: true).applyHost(linkHost);
-      });
     }
 
-    if (user != null) {
-      goHomeWithTab();
-      return;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final wasLoggedIn = prefs.getBool('logged_in') ?? false;
-    final savedEmail = prefs.getString('user_email');
-    if (wasLoggedIn && savedEmail != null) {
-      goHomeWithTab();
-      return;
-    }
-    Get.offAllNamed(AppRoutes.auth);
-  }
+    // Force leave splash if anything hangs (deep link, prefs, Supabase).
+    Timer(const Duration(seconds: 8), () {
+      if (!navigated && mounted) {
+        finish(AppRoutes.home);
+      }
+    });
 
-  /// Resolve a deep link URI to a GetX route.
-  String? _resolveDeepLink(Uri uri) {
-    final path = uri.path;
-    if (path.contains('routine')) return AppRoutes.home;
-    if (path.contains('today')) return AppRoutes.home;
-    if (path.contains('subject')) return AppRoutes.home;
-    return AppRoutes.home;
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Future.delayed(const Duration(milliseconds: 350));
+      } else {
+        await Future.delayed(const Duration(milliseconds: 700));
+      }
+
+      String? linkHost;
+      try {
+        final initialLink = await WidgetDataProvider.getInitialLink().timeout(
+          const Duration(seconds: 2),
+        );
+        if (initialLink != null) linkHost = initialLink.host;
+      } catch (_) {}
+
+      if (user != null) {
+        finish(AppRoutes.home, host: linkHost);
+        return;
+      }
+
+      bool wasLoggedIn = false;
+      String? savedEmail;
+      try {
+        final prefs =
+            await SharedPreferences.getInstance().timeout(const Duration(seconds: 2));
+        wasLoggedIn = prefs.getBool('logged_in') ?? false;
+        savedEmail = prefs.getString('user_email');
+      } catch (_) {}
+
+      if (wasLoggedIn && savedEmail != null) {
+        finish(AppRoutes.home, host: linkHost);
+        return;
+      }
+      finish(AppRoutes.auth);
+    } catch (_) {
+      finish(AppRoutes.home);
+    }
   }
 
   @override void dispose() { _c.dispose(); super.dispose(); }

@@ -11,20 +11,24 @@ import java.util.Locale
 class RevisionWidgetFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
 
     private val items = mutableListOf<Map<String, String>>()
-    private var isMissedMode = true
+    private var toggleMode = RevisionWidget.MODE_TODAY
 
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
         items.clear()
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-        val toggleMode = prefs.getString("widget_revision_toggle_mode", "missed") ?: "missed"
-        isMissedMode = toggleMode != "upcoming"
+        toggleMode = RevisionWidget.normalizeMode(
+            prefs.getString(RevisionWidget.KEY_TOGGLE_MODE, RevisionWidget.MODE_TODAY)
+        )
 
-        val itemsJson = if (isMissedMode) {
-            prefs.getString("widget_revision_overdue_items", "[]") ?: "[]"
-        } else {
-            prefs.getString("widget_revision_upcoming_items", "[]") ?: "[]"
+        val itemsJson = when (toggleMode) {
+            RevisionWidget.MODE_MISSED ->
+                prefs.getString("widget_revision_overdue_items", "[]") ?: "[]"
+            RevisionWidget.MODE_UPCOMING ->
+                prefs.getString("widget_revision_upcoming_items", "[]") ?: "[]"
+            else ->
+                prefs.getString("widget_revision_today_items", "[]") ?: "[]"
         }
 
         try {
@@ -69,29 +73,46 @@ class RevisionWidgetFactory(private val context: Context, intent: Intent) : Remo
         val date = prettyDate(item["scheduledDate"] ?: "")
         val day = item["dayLabel"] ?: ""
 
-        // Date is the card title on BOTH tabs.
         row.setTextViewText(R.id.item_date, date.ifEmpty { day })
         row.setTextViewText(R.id.item_name, topic)
         row.setTextViewText(R.id.item_subject, subject)
-        // Badge: day number (Day 1 / Day 3…); Missed tab also shows "Missed".
-        val badge = if (isMissedMode) {
-            if (day.isNotEmpty() && day != "Missed") day else "Missed"
-        } else {
-            day
-        }
-        row.setTextViewText(R.id.item_day_badge, badge)
 
-        if (isMissedMode) {
-            row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_overdue)
-            row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_overdue_bg)
-            row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#D93025"))
-            row.setTextColor(R.id.item_date, android.graphics.Color.parseColor("#D93025"))
-        } else {
-            row.setInt(R.id.item_dot, "setBackgroundResource", R.drawable.dot_circle_today)
-            row.setInt(R.id.item_day_badge, "setBackgroundResource", R.drawable.badge_today_bg)
-            row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor("#1A73E8"))
-            row.setTextColor(R.id.item_date, android.graphics.Color.parseColor("#1A73E8"))
+        val badge: String
+        val dateColor: String
+        val badgeBg: Int
+        val badgeColor: String
+        val dotBg: Int
+
+        when (toggleMode) {
+            RevisionWidget.MODE_MISSED -> {
+                badge = if (day.isNotEmpty() && day != "Missed") day else "Missed"
+                dateColor = "#D93025"
+                badgeBg = R.drawable.badge_overdue_bg
+                badgeColor = "#D93025"
+                dotBg = R.drawable.dot_circle_overdue
+            }
+            RevisionWidget.MODE_UPCOMING -> {
+                badge = day
+                dateColor = "#1E8E3E"
+                badgeBg = R.drawable.badge_upcoming_bg
+                badgeColor = "#1E8E3E"
+                dotBg = R.drawable.dot_circle_today
+            }
+            else -> {
+                // Today
+                badge = day
+                dateColor = "#1A73E8"
+                badgeBg = R.drawable.badge_today_bg
+                badgeColor = "#1A73E8"
+                dotBg = R.drawable.dot_circle_today
+            }
         }
+
+        row.setTextViewText(R.id.item_day_badge, badge)
+        row.setInt(R.id.item_dot, "setBackgroundResource", dotBg)
+        row.setInt(R.id.item_day_badge, "setBackgroundResource", badgeBg)
+        row.setTextColor(R.id.item_day_badge, android.graphics.Color.parseColor(badgeColor))
+        row.setTextColor(R.id.item_date, android.graphics.Color.parseColor(dateColor))
         return row
     }
 

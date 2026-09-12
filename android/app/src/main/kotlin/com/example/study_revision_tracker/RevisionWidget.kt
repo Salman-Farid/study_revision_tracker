@@ -23,12 +23,18 @@ class RevisionWidget : AppWidgetProvider() {
                 val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
                 if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                     val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-                    val targetMode = intent.getStringExtra(EXTRA_TARGET_MODE)
-                        ?: run {
-                            val currentMode = prefs.getString("widget_revision_toggle_mode", "missed")
-                            if (currentMode == "missed") "upcoming" else "missed"
-                        }
-                    prefs.edit().putString("widget_revision_toggle_mode", targetMode).apply()
+                    val targetMode = normalizeMode(
+                        intent.getStringExtra(EXTRA_TARGET_MODE)
+                            ?: run {
+                                val currentMode = prefs.getString(KEY_TOGGLE_MODE, MODE_TODAY) ?: MODE_TODAY
+                                when (currentMode) {
+                                    MODE_TODAY -> MODE_MISSED
+                                    MODE_MISSED -> MODE_UPCOMING
+                                    else -> MODE_TODAY
+                                }
+                            }
+                    )
+                    prefs.edit().putString(KEY_TOGGLE_MODE, targetMode).apply()
                     val mgr = AppWidgetManager.getInstance(context)
                     updateWidget(context, mgr, appWidgetId)
                 }
@@ -47,40 +53,46 @@ class RevisionWidget : AppWidgetProvider() {
         const val ACTION_TOGGLE_MODE = "com.example.study_revision_tracker.TOGGLE_MODE"
         const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_REVISION"
         const val EXTRA_TARGET_MODE = "target_mode"
+        const val KEY_TOGGLE_MODE = "widget_revision_toggle_mode"
+        const val MODE_TODAY = "today"
+        const val MODE_MISSED = "missed"
+        const val MODE_UPCOMING = "upcoming"
+
+        fun normalizeMode(raw: String?): String = when (raw) {
+            MODE_TODAY, MODE_MISSED, MODE_UPCOMING -> raw
+            // Legacy values from older builds.
+            "coming_soon", "comingup", "coming-up" -> MODE_UPCOMING
+            else -> MODE_TODAY
+        }
     }
 }
 
 private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
     try {
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-        val hasData = prefs.getString("widget_revision_has_data", "false") == "true"
-        // Never surface a raw error string on the home screen.
         var statusMessage = prefs.getString("widget_revision_status_message", "Nothing planned yet") ?: "Nothing planned yet"
         if (statusMessage.isBlank() || statusMessage.contains("Error", ignoreCase = true)) {
             statusMessage = "Nothing planned yet"
         }
-        val toggleMode = prefs.getString("widget_revision_toggle_mode", "missed") ?: "missed"
+        val toggleMode = RevisionWidget.normalizeMode(prefs.getString(RevisionWidget.KEY_TOGGLE_MODE, RevisionWidget.MODE_TODAY))
         val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
 
         val overdueCount = prefs.getString("widget_revision_overdue_count", "0")?.toIntOrNull() ?: 0
+        val todayCount = prefs.getString("widget_revision_today_count", "0")?.toIntOrNull() ?: 0
         val upcomingCount = prefs.getString("widget_revision_upcoming_count", "0")?.toIntOrNull() ?: 0
 
-        val isMissedMode = toggleMode != "upcoming"
         val itemsJson: String
-        val statusText: String
-        val statusColorRes: Int
-        val statusTextColor: String
 
-        if (isMissedMode) {
-            itemsJson = prefs.getString("widget_revision_overdue_items", "[]") ?: "[]"
-            statusText = if (overdueCount > 0) "Overdue" else "None overdue"
-            statusColorRes = if (overdueCount > 0) R.drawable.badge_overdue_bg else R.drawable.badge_completed_bg
-            statusTextColor = if (overdueCount > 0) "#D93025" else "#1E8E3E"
-        } else {
-            itemsJson = prefs.getString("widget_revision_upcoming_items", "[]") ?: "[]"
-            statusText = if (upcomingCount > 0) "Upcoming" else "None upcoming"
-            statusColorRes = if (upcomingCount > 0) R.drawable.badge_upcoming_bg else R.drawable.badge_completed_bg
-            statusTextColor = if (upcomingCount > 0) "#1E8E3E" else "#1E8E3E"
+        when (toggleMode) {
+            RevisionWidget.MODE_MISSED -> {
+                itemsJson = prefs.getString("widget_revision_overdue_items", "[]") ?: "[]"
+            }
+            RevisionWidget.MODE_UPCOMING -> {
+                itemsJson = prefs.getString("widget_revision_upcoming_items", "[]") ?: "[]"
+            }
+            else -> {
+                itemsJson = prefs.getString("widget_revision_today_items", "[]") ?: "[]"
+            }
         }
 
         val hasItems = try {
@@ -88,55 +100,47 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             arr.length() > 0
         } catch (_: Exception) { false }
 
-        // Friendly empty message — never "error"
         val emptyMessage = when {
             hasItems -> statusMessage
-            isMissedMode && overdueCount == 0 && upcomingCount == 0 -> "Nothing planned yet"
-            isMissedMode -> "None overdue"
-            upcomingCount == 0 -> "Nothing planned yet"
-            else -> "None upcoming"
+            overdueCount == 0 && todayCount == 0 && upcomingCount == 0 -> "Nothing planned yet"
+            toggleMode == RevisionWidget.MODE_MISSED -> "None overdue"
+            toggleMode == RevisionWidget.MODE_TODAY -> "None due today"
+            else -> "None coming up"
         }
 
         val views = RemoteViews(context.packageName, R.layout.revision_widget)
 
+        views.setTextViewText(R.id.btn_today, "TODAY ($todayCount)")
         views.setTextViewText(R.id.btn_missed, "MISSED ($overdueCount)")
-        views.setTextViewText(R.id.btn_coming_soon, "COMING SOON ($upcomingCount)")
-        if (isMissedMode) {
-            views.setInt(R.id.btn_missed, "setBackgroundResource", R.drawable.btn_toggle_active)
-            views.setInt(R.id.btn_missed, "setTextColor", android.graphics.Color.parseColor("#FFFFFF"))
-            views.setInt(R.id.btn_coming_soon, "setBackgroundResource", R.drawable.btn_toggle_inactive)
-            views.setInt(R.id.btn_coming_soon, "setTextColor", android.graphics.Color.parseColor("#80000000"))
-        } else {
-            views.setInt(R.id.btn_coming_soon, "setBackgroundResource", R.drawable.btn_toggle_active)
-            views.setInt(R.id.btn_coming_soon, "setTextColor", android.graphics.Color.parseColor("#FFFFFF"))
-            views.setInt(R.id.btn_missed, "setBackgroundResource", R.drawable.btn_toggle_inactive)
-            views.setInt(R.id.btn_missed, "setTextColor", android.graphics.Color.parseColor("#80000000"))
-        }
+        views.setTextViewText(R.id.btn_coming_up, "COMING UP ($upcomingCount)")
 
-        // Status chip is redundant with the empty message — never show it.
+        val activeColor = android.graphics.Color.parseColor("#FFFFFF")
+        val inactiveColor = android.graphics.Color.parseColor("#80000000")
+
+        fun setBtn(id: Int, active: Boolean) {
+            views.setInt(id, "setBackgroundResource", if (active) R.drawable.btn_toggle_active else R.drawable.btn_toggle_inactive)
+            views.setInt(id, "setTextColor", if (active) activeColor else inactiveColor)
+        }
+        setBtn(R.id.btn_today, toggleMode == RevisionWidget.MODE_TODAY)
+        setBtn(R.id.btn_missed, toggleMode == RevisionWidget.MODE_MISSED)
+        setBtn(R.id.btn_coming_up, toggleMode == RevisionWidget.MODE_UPCOMING)
+
         views.setViewVisibility(R.id.widget_status, android.view.View.GONE)
 
-        val missedIntent = Intent(context, RevisionWidget::class.java).apply {
-            action = RevisionWidget.ACTION_TOGGLE_MODE
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            putExtra(RevisionWidget.EXTRA_TARGET_MODE, "missed")
+        fun modePending(mode: String, requestCode: Int): PendingIntent {
+            val i = Intent(context, RevisionWidget::class.java).apply {
+                action = RevisionWidget.ACTION_TOGGLE_MODE
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                putExtra(RevisionWidget.EXTRA_TARGET_MODE, mode)
+            }
+            return PendingIntent.getBroadcast(
+                context, requestCode, i,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val missedPending = PendingIntent.getBroadcast(
-            context, appWidgetId, missedIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.btn_missed, missedPending)
-
-        val upcomingIntent = Intent(context, RevisionWidget::class.java).apply {
-            action = RevisionWidget.ACTION_TOGGLE_MODE
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            putExtra(RevisionWidget.EXTRA_TARGET_MODE, "upcoming")
-        }
-        val upcomingPending = PendingIntent.getBroadcast(
-            context, 100000 + appWidgetId, upcomingIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.btn_coming_soon, upcomingPending)
+        views.setOnClickPendingIntent(R.id.btn_today, modePending(RevisionWidget.MODE_TODAY, appWidgetId))
+        views.setOnClickPendingIntent(R.id.btn_missed, modePending(RevisionWidget.MODE_MISSED, 100000 + appWidgetId))
+        views.setOnClickPendingIntent(R.id.btn_coming_up, modePending(RevisionWidget.MODE_UPCOMING, 200000 + appWidgetId))
 
         val adapterIntent = Intent(context, RevisionWidgetService::class.java)
         adapterIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -161,7 +165,6 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             }
         }
 
-        // Deep-link to Today tab
         val openIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("study-revision-tracker://today"))
         openIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         val openPending = PendingIntent.getActivity(

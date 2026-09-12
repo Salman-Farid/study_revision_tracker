@@ -210,49 +210,81 @@ class TodayRevisionsScreen extends GetView<TodayController> {
           borderRadius: BorderRadius.circular(S.radiusMd),
           border: Border.all(color: AppColors.border(d)),
         ),
-        child: Row(children: [
-          Container(
-            width: 4,
-            height: 48,
-            decoration:
-                BoxDecoration(color: col, borderRadius: BorderRadius.circular(2)),
-          ),
-          SizedBox(width: S.md),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(subjectLabel,
-                  style: AppTextStyles.labelMedium
-                      .copyWith(color: AppColors.textMuted(d))),
-              SizedBox(height: 2),
-              Text(topicLabel,
-                  style: AppTextStyles.titleSmall
-                      .copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
-              SizedBox(height: 4),
-              Row(children: [
-                Text('dayLabel'.tr.replaceAll('{n}', '${s.dayNumber}'),
-                    style: AppTextStyles.bodySmall
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              width: 4,
+              decoration:
+                  BoxDecoration(color: col, borderRadius: BorderRadius.circular(2)),
+            ),
+            SizedBox(width: S.md),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text(subjectLabel,
+                    style: AppTextStyles.labelMedium
                         .copyWith(color: AppColors.textMuted(d))),
-                SizedBox(width: S.sm),
-                Text('·',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textMuted(d))),
-                SizedBox(width: S.sm),
-                Text(dateStr,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textMuted(d))),
-                if (isOverdue) ...[
-                  SizedBox(width: S.sm),
-                  Text('missed'.tr,
-                      style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10)),
-                ],
+                SizedBox(height: 2),
+                Text(topicLabel,
+                    style: AppTextStyles.titleSmall
+                        .copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
+                SizedBox(height: 4),
+                Flexible(
+                  child: Wrap(children: [
+                    Text('dayLabel'.tr.replaceAll('{n}', '${s.dayNumber}'),
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textMuted(d))),
+                    SizedBox(width: S.sm),
+                    Text('·',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textMuted(d))),
+                    SizedBox(width: S.sm),
+                    Text(dateStr,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textMuted(d))),
+                    if (isOverdue) ...[
+                      SizedBox(width: S.sm),
+                      Text('missed'.tr,
+                          style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10)),
+                    ],
+                  ]),
+                ),
               ]),
-            ]),
-          ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
-        ]),
+            ),
+            // Full-height swap box (no top/bottom margin)
+            Container(
+              margin: EdgeInsets.only(left: S.sm),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              width: 72,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(S.radiusSm),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.swap_horiz_rounded, color: AppColors.success, size: 20),
+                  SizedBox(height: 4),
+                  Text(
+                    'swap left\nto complete',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

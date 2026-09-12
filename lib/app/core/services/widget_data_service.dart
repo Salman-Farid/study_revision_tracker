@@ -361,21 +361,24 @@ class WidgetDataProvider {
           .gte('scheduled_date', tomorrow.toIso8601String())
           .order('scheduled_date', ascending: true);
 
-      result['overdueCount'] = (overdueRows as List).length;
-      result['todayCount'] = (todayRows as List).length;
-      result['upcomingCount'] = (upcomingRows as List).length;
-
-      final totalPending = result['overdueCount'] + result['todayCount'];
-      if (totalPending == 0 && result['upcomingCount'] == 0) {
-        result['statusMessage'] = 'Nothing planned yet';
-      } else if (result['overdueCount'] > 0) {
-        result['statusMessage'] = '${result['overdueCount']} overdue, ${result['todayCount']} due today';
-      } else {
-        result['statusMessage'] = '${result['todayCount']} due today, ${result['upcomingCount']} upcoming';
+      // Calendar-date-only helpers. scheduled_date may parse as UTC midnight
+      // while [today] is local midnight — instant compare wrongly puts today
+      // into "upcoming". Always compare yyyy-MM-dd strings.
+      String dayKey(DateTime d) {
+        if (d.isUtc) return d.toIso8601String().substring(0, 10);
+        final m = d.month.toString().padLeft(2, '0');
+        final day = d.day.toString().padLeft(2, '0');
+        return '${d.year.toString().padLeft(4, '0')}-$m-$day';
       }
 
+      final todayKey = dayKey(today);
+
       // Build items list for display — all overdue + today + upcoming
-      final allPending = [...overdueRows as List, ...todayRows as List, ...upcomingRows as List];
+      final allPending = [
+        ...?overdueRows as List?,
+        ...?todayRows as List?,
+        ...?upcomingRows as List?,
+      ];
       final items = <Map<String, dynamic>>[];
       final overdueItems = <Map<String, dynamic>>[];
       final todayItems = <Map<String, dynamic>>[];
@@ -413,8 +416,12 @@ class WidgetDataProvider {
         final topicName = topicNames[schedule.topicId] ?? '';
         final subjectName = subjectNames[schedule.subjectId] ?? '';
 
-        final isOverdue = schedule.scheduledDate.isBefore(today);
-        final isUpcoming = schedule.scheduledDate.isAfter(tomorrow.subtract(const Duration(days: 1)));
+        final dateStr = dayKey(schedule.scheduledDate);
+        final cmp = dateStr.compareTo(todayKey);
+        final isOverdue = cmp < 0;
+        final isToday = cmp == 0;
+        // Upcoming is strictly after today — today never belongs here.
+        final isUpcoming = cmp > 0;
         final dayLabel = isOverdue ? 'Missed' : 'Day ${schedule.dayNumber}';
         final item = {
           'topicName': topicName,
@@ -422,29 +429,46 @@ class WidgetDataProvider {
           'dayLabel': dayLabel,
           'dayNumber': schedule.dayNumber,
           'isOverdue': isOverdue,
+          'isToday': isToday,
           'scheduleId': schedule.id,
           'topicId': schedule.topicId,
           'subjectId': schedule.subjectId,
-          'scheduledDate': schedule.scheduledDate.toIso8601String().substring(0, 10),
+          'scheduledDate': dateStr,
         };
         items.add(item);
         if (isOverdue) {
           overdueItems.add(item);
         } else if (isUpcoming) {
           upcomingItems.add(item);
-        } else {
+        } else if (isToday) {
           todayItems.add(item);
         }
       }
+      result['overdueCount'] = overdueItems.length;
+      result['todayCount'] = todayItems.length;
+      result['upcomingCount'] = upcomingItems.length;
       result['items'] = items;
       result['overdueItems'] = overdueItems;
       result['todayItems'] = todayItems;
       result['upcomingItems'] = upcomingItems;
-      result['hasData'] = totalPending > 0 || result['upcomingCount'] > 0;
+      result['hasData'] = items.isNotEmpty;
+
+      final totalPending = result['overdueCount'] + result['todayCount'];
+      if (totalPending == 0 && result['upcomingCount'] == 0) {
+        result['statusMessage'] = 'Nothing planned yet';
+      } else if (result['overdueCount'] > 0) {
+        result['statusMessage'] = '${result['overdueCount']} overdue, ${result['todayCount']} due today';
+      } else {
+        result['statusMessage'] = '${result['todayCount']} due today, ${result['upcomingCount']} upcoming';
+      }
     } catch (e) {
       debugPrint('[WidgetData] _fetchRevisionData error: $e');
       // Never surface a raw error on the home screen widget.
       result['statusMessage'] = 'Nothing planned yet';
+      result['items'] = <Map<String, dynamic>>[];
+      result['overdueItems'] = <Map<String, dynamic>>[];
+      result['todayItems'] = <Map<String, dynamic>>[];
+      result['upcomingItems'] = <Map<String, dynamic>>[];
     }
 
     return result;

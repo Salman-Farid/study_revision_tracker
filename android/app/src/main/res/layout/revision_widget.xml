@@ -34,40 +34,66 @@
             android:letterSpacing="0.04" />
     </LinearLayout>
 
-    <!-- Toggle buttons -->
-    <LinearLayout
+    <!-- 3-way toggle: Today / Missed / Coming Up (scrollable row) -->
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:scrollbars="none"
+        android:fadeScrollbars="false"
         android:layout_marginBottom="8dp">
 
-        <TextView
-            android:id="@+id/btn_missed"
-            android:layout_width="0dp"
-            android:layout_height="30dp"
-            android:layout_weight="1"
-            android:text="MISSED"
-            android:textColor="#DE000000"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/btn_toggle_active" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/btn_coming_soon"
-            android:layout_width="0dp"
-            android:layout_height="30dp"
-            android:layout_weight="1"
-            android:text="COMING SOON"
-            android:textColor="#80000000"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:background="@drawable/btn_toggle_inactive" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/btn_today"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:minWidth="88dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="TODAY"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/btn_toggle_active" />
 
-    <!-- Status badge -->
+            <TextView
+                android:id="@+id/btn_missed"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:minWidth="88dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="MISSED"
+                android:textColor="#80000000"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/btn_toggle_inactive" />
+
+            <TextView
+                android:id="@+id/btn_coming_up"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:minWidth="88dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="COMING UP"
+                android:textColor="#80000000"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:background="@drawable/btn_toggle_inactive" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Status badge (hidden — empty message is enough) -->
     <TextView
         android:id="@+id/widget_status"
         android:layout_width="wrap_content"

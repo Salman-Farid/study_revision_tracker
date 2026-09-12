@@ -240,6 +240,9 @@ class NotificationService extends GetxService {
           priority: Priority.high,
           icon: 'ic_stat_notif',
           largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
                     color: const Color(0xFF87CEEB),
         ),
         iOS: DarwinNotificationDetails(
@@ -322,6 +325,9 @@ class NotificationService extends GetxService {
             priority: Priority.high,
             icon: 'ic_stat_notif',
           largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
                     color: const Color(0xFF87CEEB),
           ),
           iOS: DarwinNotificationDetails(
@@ -433,6 +439,9 @@ class NotificationService extends GetxService {
                 priority: Priority.high,
                 icon: 'ic_stat_notif',
           largeIcon: const DrawableResourceAndroidBitmap('ic_launcher_large'),
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
                     color: const Color(0xFF87CEEB),
                 playSound: true,
                 enableVibration: true,
@@ -598,6 +607,8 @@ class NotificationService extends GetxService {
               priority: Priority.max,
               icon: 'ic_stat_notif',
               color: const Color(0xFF87CEEB),
+              fullScreenIntent: true,
+              category: AndroidNotificationCategory.alarm,
             ),
             iOS: const DarwinNotificationDetails(
               presentAlert: true,

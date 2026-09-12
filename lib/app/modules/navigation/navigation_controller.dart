@@ -53,9 +53,11 @@ class NavigationController extends GetxController {
   }
 
   /// Read the launch URI from a home-widget tap and open the right tab.
+  /// Never throws — worst case stays on the current tab.
   Future<void> applyInitialWidgetLink() async {
     try {
-      final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      final uri = await HomeWidget.initiallyLaunchedFromHomeWidget()
+          .timeout(const Duration(seconds: 2));
       if (uri != null) {
         applyHost(uri.host);
       }

@@ -111,7 +111,15 @@ void main() async {
   Get.lazyPut<VoiceAssistantController>(() => VoiceAssistantController(), fenix: true);
   Get.put(LanguageController(), permanent: true);
   Get.put(SettingsController(), permanent: true);
-  await Get.putAsync<NotificationService>(() => NotificationService().init());
+  try {
+    await Get.putAsync<NotificationService>(
+      () => NotificationService().init(),
+    ).timeout(const Duration(seconds: 8));
+  } catch (e) {
+    debugPrint('[main] NotificationService init failed/slow: $e');
+    // App must still launch; register lazily on first use.
+    Get.put(NotificationService(), permanent: true);
+  }
 
   if (Get.find<SupabaseService>().currentUser != null) {
     Get.find<SupabaseService>().initRealtime();
@@ -145,6 +153,13 @@ Future<void> _postFrameBoot() async {
         await Get.find<NotificationService>().requestExactAlarmPermission();
     debugPrint('[main] exactAlarmPermission granted=$granted');
   } catch (_) {}
+  // Kick native AlarmManager tick so all 3 widgets refresh even if Flutter dies.
+  try {
+    const channel = MethodChannel('study_revision_tracker/widget_tick');
+    await channel.invokeMethod('schedule');
+  } catch (e) {
+    debugPrint('[main] widget tick channel failed: $e');
+  }
   unawaited(Get.find<NotificationService>().rescheduleAll());
   unawaited(WidgetDataProvider.updateAllWidgets());
   _startPeriodicWidgetRefresh();
@@ -153,7 +168,8 @@ Future<void> _postFrameBoot() async {
 
 void _startPeriodicWidgetRefresh() {
   _periodicWidgetTimer?.cancel();
-  _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+  // Refresh widgets more often while app is alive (5 min).
+  _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 5), (_) {
     if (Get.find<SupabaseService>().currentUser != null) {
       unawaited(WidgetDataProvider.updateAllWidgets());
     }
@@ -187,22 +203,11 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _onResume();
+      if (Get.find<SupabaseService>().currentUser != null) {
+        unawaited(WidgetDataProvider.updateAllWidgets());
+        unawaited(Get.find<NotificationService>().refreshNotificationPreference());
+      }
     }
-  }
-
-  DateTime? _lastResumeRefresh;
-  void _onResume() {
-    if (Get.find<SupabaseService>().currentUser == null) return;
-    final now = DateTime.now();
-    if (_lastResumeRefresh != null &&
-        now.difference(_lastResumeRefresh!).inSeconds < 20) {
-      return;
-    }
-    _lastResumeRefresh = now;
-    unawaited(WidgetDataProvider.updateAllWidgets());
-    unawaited(
-        Get.find<NotificationService>().refreshNotificationPreference());
   }
 
   @override
@@ -228,8 +233,6 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
       unknownRoute: GetPage(
         name: '/not-found',
         page: () => const MainNavigation(),
-        // Avoid stacking a second MainNavigation when a widget deep-link
-        // arrives after home is already open.
         preventDuplicates: true,
       ),
       defaultTransition: Transition.fadeIn,
