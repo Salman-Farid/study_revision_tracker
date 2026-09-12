@@ -41,14 +41,12 @@ class SettingsScreen extends StatelessWidget {
                 activeColor: AppConstants.primaryColor,
                 onChanged: c.toggleNotifications),
             )),
-            _tile(Icons.calendar_month_rounded, 'calendarIntegration'.tr,
-                'deviceIntegration'.tr, () {}),
           ]),
           SizedBox(height: S.xl),
           _section('account'.tr, [
-            Obx(() => _tile(Icons.alternate_email_rounded, 'email'.tr, c.email.value.isEmpty
-                ? 'notSignedIn'.tr : c.email.value, () {})),
-            _tile(Icons.info_outline_rounded, 'appVersion'.tr, AppConstants.appVersion, () {}),
+            Obx(() => _infoTile(Icons.alternate_email_rounded, 'email'.tr,
+                c.email.value.isEmpty ? 'notSignedIn'.tr : c.email.value)),
+            _infoTile(Icons.info_outline_rounded, 'appVersion'.tr, AppConstants.appVersion),
             Obx(() => _tile(Icons.logout_rounded, 'signOut'.tr, 'signOutQ'.tr,
                 () => _confirmSignOut(c), destructive: c.isSignedIn.value)),
           ]),
@@ -169,6 +167,24 @@ class SettingsScreen extends StatelessWidget {
           ])),
           Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d), size: S.iconSm),
         ]))));
+  }
+
+  /// Read-only row — no chevron, no fake tap target.
+  Widget _infoTile(IconData icon, String title, String sub) {
+    final d = Get.isDarkMode;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: S.base, vertical: S.md),
+      child: Row(children: [
+        Icon(icon, color: AppColors.textMuted(d), size: S.iconMd),
+        SizedBox(width: S.md),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: AppTextStyles.titleSmall.copyWith(
+              color: AppColors.textPrimary(d))),
+          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
+        ])),
+      ]),
+    );
   }
 
   String _themeLabel(ThemeMode mode) {

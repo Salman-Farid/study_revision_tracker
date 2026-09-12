@@ -21,12 +21,12 @@ class AuthScreen extends StatelessWidget {
       );
     }
 
-    // Desktop/tablet: form on one half, study art on the other.
+    // Desktop/tablet: study art LEFT, form RIGHT.
     return Scaffold(
       body: Row(
         children: [
-          Expanded(flex: 5, child: SafeArea(child: _formPane(c, d, compact: true))),
           Expanded(flex: 5, child: _imagePane(d)),
+          Expanded(flex: 5, child: SafeArea(child: _formPane(c, d, compact: true))),
         ],
       ),
     );
@@ -37,7 +37,7 @@ class AuthScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.08),
         border: Border(
-          left: BorderSide(color: AppColors.border(d)),
+          right: BorderSide(color: AppColors.border(d)),
         ),
       ),
       child: Stack(
@@ -48,15 +48,15 @@ class AuthScreen extends StatelessWidget {
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _fallbackArt(d),
           ),
-          // Soft brand wash so the form side stays the focus.
+          // Soft wash toward the form side so fields stay the focus.
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  AppColors.bg(d).withValues(alpha: 0.35),
                   Colors.transparent,
+                  AppColors.bg(d).withValues(alpha: 0.4),
                 ],
               ),
             ),

@@ -18,6 +18,9 @@ import '../calendar/calendar_controller.dart';
 import '../statistics/statistics_screen.dart';
 import '../statistics/statistics_controller.dart';
 import '../settings/settings_screen.dart';
+import '../settings/settings_controller.dart';
+import '../settings/about_this_app_panel.dart';
+import 'app_side_bar.dart';
 import 'navigation_controller.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -28,6 +31,8 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   final _nav = Get.put(NavigationController(), permanent: true);
+  bool _sidebarExpanded = true;
+  bool _sidebarInitialized = false;
   final _pages = const [
     DashboardScreen(),
     SubjectsScreen(),
@@ -36,6 +41,17 @@ class _MainNavigationState extends State<MainNavigation> {
     CalendarScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Responsive.init(context);
+    // Default to expanded on first wide layout; user toggle is kept after.
+    if (!_sidebarInitialized) {
+      _sidebarExpanded = Responsive.width >= 1100;
+      _sidebarInitialized = true;
+    }
+  }
 
   @override
   void initState() {
@@ -76,6 +92,13 @@ class _MainNavigationState extends State<MainNavigation> {
           if (!Get.isRegistered<HistoryController>()) {
             Get.put(HistoryController(), permanent: true);
           }
+        } catch (_) {}
+      }
+      if (i == NavigationController.settings) {
+        // Profile must reflect the live session every time Settings opens.
+        try {
+          Get.find<SettingsController>().refreshAccount();
+          Get.find<SettingsController>().loadStats();
         } catch (_) {}
       }
     });
@@ -160,97 +183,65 @@ class _MainNavigationState extends State<MainNavigation> {
       backgroundColor: AppColors.bg(d),
       body: Row(
         children: [
-          Obx(() => _rail(_nav.currentIndex.value, d)),
-          VerticalDivider(width: 1, thickness: 1, color: AppColors.border(d)),
-          Expanded(child: Obx(() => _workspace(_nav.currentIndex.value, d))),
+          Obx(() => AppSidebar(
+                selectedIndex: _sidebarIndex(_nav.currentIndex.value),
+                onSelect: (i) => _nav.goTo(_sidebarToApp(i)),
+                expanded: _sidebarExpanded,
+                onToggleExpanded: () =>
+                    setState(() => _sidebarExpanded = !_sidebarExpanded),
+              )),
+          Expanded(
+            child: Obx(() {
+              final tab = _nav.currentIndex.value;
+              // Slow ease-in crossfade when the sidebar tab changes.
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 520),
+                switchInCurve: Curves.easeInOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, anim) {
+                  return FadeTransition(
+                    opacity: anim,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.02, 0.015),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: anim,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey('workspace_$tab'),
+                  child: _workspace(tab, d),
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );
   }
 
-  /// Rail hides Calendar — it lives in the Today split pane.
-  Widget _rail(int index, bool d) {
-    // Map calendar index → today so selection highlight stays valid.
-    final railIndex = index == NavigationController.calendar
-        ? NavigationController.today
-        : index;
-    // Compact indices: 0 dash, 1 subjects, 2 today, 3 routine, 4 settings
-    // (calendar skipped).
-    int toRail(int appIndex) => switch (appIndex) {
-          NavigationController.dashboard => 0,
-          NavigationController.subjects => 1,
-          NavigationController.today ||
-          NavigationController.calendar =>
-            2,
-          NavigationController.routine => 3,
-          NavigationController.settings => 4,
-          _ => 0,
-        };
-    int toApp(int railIdx) => switch (railIdx) {
-          0 => NavigationController.dashboard,
-          1 => NavigationController.subjects,
-          2 => NavigationController.today,
-          3 => NavigationController.routine,
-          _ => NavigationController.settings,
-        };
+  /// Sidebar indices skip Calendar (it sits in the Today pane).
+  int _sidebarIndex(int appIndex) => switch (appIndex) {
+        NavigationController.dashboard => 0,
+        NavigationController.subjects => 1,
+        NavigationController.today || NavigationController.calendar => 2,
+        NavigationController.routine => 3,
+        NavigationController.settings => 4,
+        _ => 0,
+      };
 
-    return NavigationRail(
-      selectedIndex: toRail(railIndex),
-      onDestinationSelected: (i) => _nav.goTo(toApp(i)),
-      extended: Responsive.width >= 1180,
-      minExtendedWidth: 180,
-      backgroundColor: AppColors.surface(d),
-      indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-      selectedIconTheme: IconThemeData(color: AppColors.primary),
-      unselectedIconTheme: IconThemeData(color: AppColors.textMuted(d)),
-      selectedLabelTextStyle: AppTextStyles.labelMedium.copyWith(
-        color: AppColors.primary,
-        fontWeight: FontWeight.w600,
-      ),
-      unselectedLabelTextStyle: AppTextStyles.labelMedium.copyWith(
-        color: AppColors.textMuted(d),
-      ),
-      labelType: Responsive.width >= 1180
-          ? NavigationRailLabelType.none
-          : NavigationRailLabelType.all,
-      leading: Padding(
-        padding: const EdgeInsets.only(bottom: 8, top: 4),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.secondary],
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 22),
-        ),
-      ),
-      destinations: const [
-        NavigationRailDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: Text('Dashboard')),
-        NavigationRailDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book_rounded),
-            label: Text('Subjects')),
-        NavigationRailDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today_rounded),
-            label: Text('Today')),
-        NavigationRailDestination(
-            icon: Icon(Icons.event_note_outlined),
-            selectedIcon: Icon(Icons.event_note_rounded),
-            label: Text('Routine')),
-        NavigationRailDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: Text('Settings')),
-      ],
-    );
-  }
+  int _sidebarToApp(int railIdx) => switch (railIdx) {
+        0 => NavigationController.dashboard,
+        1 => NavigationController.subjects,
+        2 => NavigationController.today,
+        3 => NavigationController.routine,
+        _ => NavigationController.settings,
+      };
 
   Widget _workspace(int primary, bool d) {
     // Calendar deep-links land on Today (calendar is a side pane).
@@ -260,6 +251,31 @@ class _MainNavigationState extends State<MainNavigation> {
     final panes = _panes(effective);
 
     if (effective == NavigationController.settings) {
+      // Desktop: Settings list | animated About this app guide.
+      if (Responsive.useSplitLayout) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 5,
+                child: _PaneFrame(
+                  child: const SettingsScreen(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 6,
+                child: _PaneFrame(
+                  child: const AboutThisAppPanel(),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      // Tablet mid-width: settings only, centered.
       return Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(

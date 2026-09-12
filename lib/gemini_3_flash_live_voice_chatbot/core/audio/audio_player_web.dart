@@ -1,7 +1,8 @@
-// Web playback: PCM16 → float → AudioContext at the *context* sample rate.
-// Gapless scheduling + tiny edge fades — eliminates the "beep beep" clicks
-// from discontinuous buffer starts on Chrome/Safari/Firefox.
+// Web playback: PCM16 → float → AudioContext at the context sample rate.
+// Longer edge fades + micro-overlap between chunks for smoother speech
+// (remaining "beep" is buffer-seam clicks).
 import 'dart:js_interop';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
@@ -13,8 +14,12 @@ class PcmAudioPlayer {
   bool _streaming = false;
   final List<web.AudioBufferSourceNode> _sources = [];
   Float32List _pending = Float32List(0);
-  static const int _minFrames = 480; // ~10ms @ 48k — avoid tiny click buffers
-  static const int _fadeFrames = 64;
+  double _lastSample = 0;
+
+  // ~40ms minimum chunk; ~12ms fade; 6ms overlap so seams are inaudible.
+  static const int _minFrames = 2048;
+  static const int _fadeFrames = 512;
+  static const double _overlapSec = 0.006;
 
   Future<void> init() async {
     if (_streaming && _ctx != null) return;
@@ -27,7 +32,7 @@ class PcmAudioPlayer {
     try {
       _gain!.connect(_ctx!.destination);
     } catch (_) {}
-    _nextTime = _ctx!.currentTime + 0.05;
+    _nextTime = _ctx!.currentTime + 0.08;
     _streaming = true;
   }
 
@@ -39,49 +44,57 @@ class PcmAudioPlayer {
     if (ctx == null || gain == null) return;
 
     try {
-      // Decode PCM16 → float at Gemini's 24 kHz.
       final inSamples = data.length ~/ 2;
       if (inSamples == 0) return;
-      final src = Float32List(inSamples);
+      final raw = Float32List(inSamples);
       final bd = ByteData.sublistView(data);
       for (var i = 0; i < inSamples; i++) {
-        src[i] = bd.getInt16(i * 2, Endian.little) / 32768.0;
+        raw[i] = bd.getInt16(i * 2, Endian.little) / 32768.0;
       }
 
-      // Resample 24 kHz → AudioContext rate (usually 48 kHz).
       final ctxRate = ctx.sampleRate;
-      final out = _resample(src, 24000.0, ctxRate);
+      var out = _resample(raw, 24000.0, ctxRate);
       if (out.isEmpty) return;
 
-      // Skip micro-chunks that only add clicks.
+      // Soft-start from the previous last sample to kill DC steps.
+      if (_lastSample != 0 && out.isNotEmpty) {
+        out[0] = (out[0] + _lastSample) * 0.5;
+      }
+
       if (out.length < _minFrames) {
         final merged = Float32List(_pending.length + out.length);
         merged.setAll(0, _pending);
         merged.setAll(_pending.length, out);
         _pending = merged;
         if (_pending.length < _minFrames) return;
+        out = _pending;
+        _pending = Float32List(0);
+      } else if (_pending.isNotEmpty) {
+        out = _concat(_pending, out);
+        _pending = Float32List(0);
       }
 
-      final play = _pending.isEmpty ? out : _concat(_pending, out);
-      _pending = Float32List(0);
+      if (out.isNotEmpty) _lastSample = out[out.length - 1];
+      _applyEdgeFades(out);
 
-      _applyEdgeFades(play);
-
-      final buffer = ctx.createBuffer(1, play.length, ctxRate.toInt());
-      buffer.copyToChannel(play.toJS, 0);
+      final buffer = ctx.createBuffer(1, out.length, ctxRate.toInt());
+      buffer.copyToChannel(out.toJS, 0);
 
       final node = ctx.createBufferSource();
       node.buffer = buffer;
       node.connect(gain);
 
       final now = ctx.currentTime;
-      // If we fell more than 200ms behind, restart the timeline cleanly.
-      if (_nextTime < now - 0.2) {
-        _nextTime = now + 0.03;
+      if (_nextTime < now - 0.25) {
+        _nextTime = now + 0.04;
       }
-      final startAt = _nextTime > now ? _nextTime : now + 0.03;
+      // Start slightly early so the fade-in overlaps the previous fade-out.
+      var startAt = _nextTime > now + _overlapSec
+          ? _nextTime - _overlapSec
+          : now + 0.04;
+      if (startAt < now) startAt = now + 0.01;
       node.start(startAt);
-      _nextTime = startAt + (play.length / ctxRate);
+      _nextTime = startAt + (out.length / ctxRate);
 
       final srcNode = node;
       _sources.add(srcNode);
@@ -100,9 +113,11 @@ class PcmAudioPlayer {
     for (var i = 0; i < outLen; i++) {
       final srcPos = i * ratio;
       final i0 = srcPos.floor();
-      final i1 = (i0 + 1 < input.length) ? i0 + 1 : i0;
+      final i1 = math.min(i0 + 1, input.length - 1);
       final t = srcPos - i0;
-      out[i] = input[i0] * (1 - t) + input[i1] * t;
+      // Smoothstep interpolation — fewer zipper artifacts than linear.
+      final s = t * t * (3 - 2 * t);
+      out[i] = input[i0] * (1 - s) + input[i1] * s;
     }
     return out;
   }
@@ -114,12 +129,13 @@ class PcmAudioPlayer {
     return out;
   }
 
-  /// Short linear fades kill the square-wave "beep" at buffer seams.
   void _applyEdgeFades(Float32List samples) {
     final n = samples.length;
     if (n < _fadeFrames * 2) return;
     for (var i = 0; i < _fadeFrames; i++) {
-      final g = i / _fadeFrames;
+      // Raised-cosine (equal-power-ish) fade — smoother than linear.
+      final t = i / _fadeFrames;
+      final g = 0.5 - 0.5 * math.cos(math.pi * t);
       samples[i] *= g;
       samples[n - 1 - i] *= g;
     }
@@ -128,6 +144,7 @@ class PcmAudioPlayer {
   void clear() {
     _streaming = false;
     _pending = Float32List(0);
+    _lastSample = 0;
     for (final s in List.of(_sources)) {
       try {
         s.stop();

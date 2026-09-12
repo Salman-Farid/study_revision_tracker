@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/supabase_service.dart';
+import '../../modules/settings/settings_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 
@@ -48,6 +49,10 @@ class AuthController extends GetxController {
       await prefs.setBool('logged_in', true);
       await prefs.setString('user_email', emailCtrl.text.trim());
       Get.find<SupabaseService>().initRealtime();
+      try {
+        Get.find<SettingsController>().refreshAccount();
+        Get.find<SettingsController>().loadStats();
+      } catch (_) {}
       Get.offAllNamed(AppRoutes.home);
     } on AuthException catch (e) {
       String msg = e.message;
@@ -103,6 +108,10 @@ class AuthController extends GetxController {
       await prefs.setBool('logged_in', true);
       await prefs.setString('user_email', googleUser.email);
       Get.find<SupabaseService>().initRealtime();
+      try {
+        Get.find<SettingsController>().refreshAccount();
+        Get.find<SettingsController>().loadStats();
+      } catch (_) {}
       Get.offAllNamed(AppRoutes.home);
     } on AuthException catch (e) {
       Get.snackbar('error'.tr, e.message,

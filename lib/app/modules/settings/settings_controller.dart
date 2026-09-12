@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,24 +39,47 @@ class SettingsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadAccount();
+    refreshAccount();
     loadStats();
     _restorePrefs();
+    // Keep profile in sync if the session changes later (login / refresh).
+    try {
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        refreshAccount();
+        loadStats();
+      });
+    } catch (_) {}
   }
 
-  void _loadAccount() {
-    final user = Supabase.instance.client.auth.currentUser;
-    isSignedIn.value = user != null;
-    if (user == null) return;
-    email.value = user.email ?? user.phone ?? '';
-    // Prefer metadata name, fall back to the email prefix.
-    final metaName = user.userMetadata?['full_name'] ??
-        user.userMetadata?['name'] ??
-        user.userMetadata?['display_name'];
-    displayName.value =
-        (metaName is String && metaName.isNotEmpty) ? metaName : email.value.split('@').first;
-    memberSince.value = DateTime.tryParse(user.createdAt) ?? DateTime.now();
+  @override
+  void onClose() {
+    _authSub?.cancel();
+    super.onClose();
   }
+
+  /// Re-read the Supabase session into UI state.
+  /// Called on init, after sign-in, and on every auth event.
+  void refreshAccount() {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      isSignedIn.value = user != null;
+      if (user == null) {
+        email.value = '';
+        displayName.value = '';
+        return;
+      }
+      email.value = user.email ?? user.phone ?? '';
+      final meta = user.userMetadata;
+      final metaName = meta?['full_name'] ?? meta?['name'] ?? meta?['display_name'];
+      displayName.value =
+          (metaName is String && metaName.isNotEmpty) ? metaName : email.value.split('@').first;
+      memberSince.value = DateTime.tryParse(user.createdAt) ?? DateTime.now();
+    } catch (_) {
+      // Keep previous values if auth isn't ready yet.
+    }
+  }
+
+  StreamSubscription<AuthState>? _authSub;
 
   Future<void> loadStats() async {
     try {
@@ -126,6 +151,9 @@ class SettingsController extends GetxController {
   Future<void> signOut() async {
     try {
       await Supabase.instance.client.auth.signOut();
+      email.value = '';
+      displayName.value = '';
+      isSignedIn.value = false;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged_in', false);
       await prefs.remove('user_email');
