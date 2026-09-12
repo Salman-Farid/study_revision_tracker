@@ -1,0 +1,36 @@
+{
+  "agentName": "studylife-agent",
+  "description": "Strands StudyLifeAgent for Smart Revision Tracker (Putu)",
+  "runtime": {
+    "entryPoint": "agentcore_entry.py",
+    "containerPort": 8080,
+    "healthCheckPath": "/ping",
+    "invocationPath": "/invocations",
+    "platform": "linux/arm64"
+  },
+  "artifact": {
+    "ecrRepositoryName": "studylife-strands-agent",
+    "imageTag": "latest",
+    "containerUri": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/studylife-strands-agent:latest"
+  },
+  "network": {
+    "networkMode": "PUBLIC"
+  },
+  "iam": {
+    "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/AgentRuntimeRole",
+    "notes": "Role needs bedrock:InvokeModel, logs, and ECR pull if private"
+  },
+  "environment": {
+    "SUPABASE_URL": "${SUPABASE_URL}",
+    "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
+    "SUPABASE_JWT_SECRET": "${SUPABASE_JWT_SECRET}",
+    "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
+    "APP_ENV": "agentcore"
+  },
+  "strands": {
+    "agentModule": "app.core.agent",
+    "agentFactory": "get_study_life_agent",
+    "sdkPackage": "strands-agents",
+    "runtimeExtra": "bedrock-agentcore"
+  }
+}
