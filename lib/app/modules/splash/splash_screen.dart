@@ -59,7 +59,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     });
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
+      // Wait briefly for Supabase to restore a persisted session
+      // (localStorage on web can resolve a tick after initialize()).
+      var user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        try {
+          await Supabase.instance.client.auth.onAuthStateChange
+              .first
+              .timeout(const Duration(seconds: 2));
+          user = Supabase.instance.client.auth.currentUser;
+        } catch (_) {}
+      }
       if (user != null) {
         await Future.delayed(const Duration(milliseconds: 350));
       } else {

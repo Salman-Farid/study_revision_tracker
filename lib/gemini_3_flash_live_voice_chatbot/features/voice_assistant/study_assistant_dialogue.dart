@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../app/core/constants/app_constants.dart';
+import '../../../app/core/constants/responsive.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
@@ -38,119 +39,263 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenW = MediaQuery.of(context).size.width;
     final screenH = MediaQuery.of(context).size.height;
-    final dialogueW = screenW - 24;
-    final dialogueHNormal = screenH * 0.35;
-    final dialogueHExpanded = screenH * 0.70;
+    // Desktop/tablet: floating compact card + corner resize.
+    // Phone: near-full-width sheet + expand chevron.
+    final allowResize = Responsive.useNavRail;
 
-    c.initExpandAnim();
+    c.ensureDialogueSize(
+      allowResize: allowResize,
+      screenW: screenW,
+      screenH: screenH,
+    );
+    if (!allowResize) {
+      c.initExpandAnim();
+    }
+
+    final baseW = c.dialogueWidth.value > 0
+        ? c.dialogueWidth.value
+        : (screenW - 24).clamp(280.0, 420.0);
+    final baseH = c.dialogueHeight.value > 0
+        ? c.dialogueHeight.value
+        : screenH * 0.35;
 
     if (!c.dialogueOffsetInitialized) {
-      c.dialogueOffset.value = Offset(12, (screenH - dialogueHNormal) / 2);
+      // Center-ish on desktop, mid-screen on phone.
+      final dy = allowResize
+          ? ((screenH - baseH) / 2).clamp(24.0, screenH - baseH - 24)
+          : (screenH - baseH) / 2;
+      final dx = allowResize
+          ? ((screenW - baseW) / 2).clamp(12.0, screenW - baseW - 12)
+          : 12.0;
+      c.dialogueOffset.value = Offset(dx, dy);
       c.dialogueOffsetInitialized = true;
     }
 
+    if (allowResize) {
+      return Stack(
+        children: [
+          Obx(() {
+            final w = c.dialogueWidth.value;
+            final h = c.dialogueHeight.value;
+            return Positioned(
+              left: c.dialogueOffset.value.dx,
+              top: c.dialogueOffset.value.dy,
+              width: w,
+              height: h,
+              child: _panelShell(
+                c: c,
+                isDark: isDark,
+                screenW: screenW,
+                screenH: screenH,
+                dialogueW: w,
+                currentH: h,
+                allowResize: true,
+              ),
+            );
+          }),
+        ],
+      );
+    }
+
+    // Phone: expand animation between 35% ↔ 70% height.
     return AnimatedBuilder(
       animation: c.expandAnim!,
       builder: (context, _) {
         return Stack(
           children: [
             Obx(() {
-              final currentH = dialogueHNormal +
-                  (dialogueHExpanded - dialogueHNormal) * c.expandAnim!.value;
+              final hNormal = baseH;
+              final hExpanded = screenH * 0.70;
+              final currentH =
+                  hNormal + (hExpanded - hNormal) * c.expandAnim!.value;
               return Positioned(
                 left: c.dialogueOffset.value.dx,
                 top: c.dialogueOffset.value.dy,
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    c.updateDialogueOffset(
-                        details.delta, screenW, screenH, dialogueW, currentH);
-                  },
-                  child: Material(
-                    color: Colors.transparent,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 450),
-                      curve: Curves.easeInOutCubic,
-                      width: dialogueW,
-                      height: currentH,
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.bgDark : AppColors.bgLight,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        _buildHeader(c, isDark, context),
-                        Expanded(child: _buildMessages(c, isDark)),
-                        Obx(() {
-                          final st = c.connectionState.value;
-                          if (st == ws.ConnectionState.error) {
-                            final err = c.errorMessage.value;
-                            return _ErrorBar(
-                              message:
-                                  err.isNotEmpty ? err : 'Connection lost',
-                              onRetry: () => c.startSession(),
-                              isDark: isDark,
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        }),
-                        GestureDetector(
-                          onTap: () => c.toggleExpanded(),
-                          child: Container(
-                            width: double.infinity,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 4),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 3.5,
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? Colors.white24
-                                        : Colors.black26,
-                                    borderRadius:
-                                        BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Obx(() => AnimatedRotation(
-                                      turns: c.isExpanded.value ? 0.5 : 0,
-                                      duration: const Duration(
-                                          milliseconds: 450),
-                                      curve: Curves.easeInOutCubic,
-                                      child: Icon(
-                                        Icons.keyboard_arrow_up,
-                                        size: 16,
-                                        color: isDark
-                                            ? Colors.white38
-                                            : Colors.black38,
-                                      ),
-                                    )),
-                              ],
-                            ),
-                          ),
-                        ),
-                        _buildInputRow(c, isDark),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
-                  ),
+                child: _panelShell(
+                  c: c,
+                  isDark: isDark,
+                  screenW: screenW,
+                  screenH: screenH,
+                  dialogueW: baseW,
+                  currentH: currentH,
+                  allowResize: false,
                 ),
-              ),
               );
             }),
           ],
         );
       },
+    );
+  }
+
+  Widget _panelShell({
+    required VoiceAssistantController c,
+    required bool isDark,
+    required double screenW,
+    required double screenH,
+    required double dialogueW,
+    required double currentH,
+    required bool allowResize,
+  }) {
+    return GestureDetector(
+      // Move by dragging the panel; corner grip steals the gesture to resize.
+      onPanUpdate: (details) {
+        if (c.isResizingDialogue.value) return;
+        c.updateDialogueOffset(
+            details.delta, screenW, screenH, dialogueW, currentH);
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: dialogueW,
+          height: currentH,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.bgDark : AppColors.bgLight,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  _buildHeader(c, isDark, context),
+                  Expanded(child: _buildMessages(c, isDark)),
+                  Obx(() {
+                    final st = c.connectionState.value;
+                    if (st == ws.ConnectionState.error) {
+                      final err = c.errorMessage.value;
+                      return _ErrorBar(
+                        message: err.isNotEmpty ? err : 'Connection lost',
+                        onRetry: () => c.startSession(),
+                        isDark: isDark,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                  if (!allowResize)
+                    GestureDetector(
+                      onTap: () => c.toggleExpanded(),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 3.5,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white24
+                                    : Colors.black26,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Obx(() => AnimatedRotation(
+                                  turns: c.isExpanded.value ? 0.5 : 0,
+                                  duration: const Duration(milliseconds: 450),
+                                  curve: Curves.easeInOutCubic,
+                                  child: Icon(
+                                    Icons.keyboard_arrow_up,
+                                    size: 16,
+                                    color: isDark
+                                        ? Colors.white38
+                                        : Colors.black38,
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  _buildInputRow(c, isDark),
+                  const SizedBox(height: 10),
+                ],
+              ),
+              // Four corner resize grips (desktop/tablet only).
+              if (allowResize) ...[
+                _cornerGrip(
+                  c: c,
+                  isDark: isDark,
+                  screenW: screenW,
+                  screenH: screenH,
+                  corner: 'topLeft',
+                  alignment: Alignment.topLeft,
+                  cursor: SystemMouseCursors.resizeUpLeft,
+                ),
+                _cornerGrip(
+                  c: c,
+                  isDark: isDark,
+                  screenW: screenW,
+                  screenH: screenH,
+                  corner: 'topRight',
+                  alignment: Alignment.topRight,
+                  cursor: SystemMouseCursors.resizeUpRight,
+                ),
+                _cornerGrip(
+                  c: c,
+                  isDark: isDark,
+                  screenW: screenW,
+                  screenH: screenH,
+                  corner: 'bottomLeft',
+                  alignment: Alignment.bottomLeft,
+                  cursor: SystemMouseCursors.resizeDownLeft,
+                ),
+                _cornerGrip(
+                  c: c,
+                  isDark: isDark,
+                  screenW: screenW,
+                  screenH: screenH,
+                  corner: 'bottomRight',
+                  alignment: Alignment.bottomRight,
+                  cursor: SystemMouseCursors.resizeDownRight,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _cornerGrip({
+    required VoiceAssistantController c,
+    required bool isDark,
+    required double screenW,
+    required double screenH,
+    required String corner,
+    required Alignment alignment,
+    required MouseCursor cursor,
+  }) {
+    return Align(
+      alignment: alignment,
+      child: MouseRegion(
+        cursor: cursor,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanDown: (_) => c.startDialogueResize(),
+          onPanEnd: (_) => c.endDialogueResize(),
+          onPanCancel: () => c.endDialogueResize(),
+          onPanUpdate: (details) => c.resizeDialogueFromCorner(
+            corner: corner,
+            delta: details.delta,
+            screenW: screenW,
+            screenH: screenH,
+          ),
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CustomPaint(painter: _CornerGripPainter(isDark: isDark, corner: corner)),
+          ),
+        ),
+      ),
     );
   }
 
@@ -581,6 +726,46 @@ class _ThinkingBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CornerGripPainter extends CustomPainter {
+  _CornerGripPainter({required this.isDark, required this.corner});
+  final bool isDark;
+  final String corner;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = (isDark ? Colors.white : Colors.black).withOpacity(0.35)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    const inset = 5.0;
+    const len = 8.0;
+    switch (corner) {
+      case 'topLeft':
+        canvas.drawLine(const Offset(inset, inset + len), Offset(inset, inset), paint);
+        canvas.drawLine(const Offset(inset, inset), Offset(inset + len, inset), paint);
+        break;
+      case 'topRight':
+        canvas.drawLine(Offset(size.width - inset - len, inset), Offset(size.width - inset, inset), paint);
+        canvas.drawLine(Offset(size.width - inset, inset), Offset(size.width - inset, inset + len), paint);
+        break;
+      case 'bottomLeft':
+        canvas.drawLine(Offset(inset, size.height - inset - len), Offset(inset, size.height - inset), paint);
+        canvas.drawLine(Offset(inset, size.height - inset), Offset(inset + len, size.height - inset), paint);
+        break;
+      case 'bottomRight':
+      default:
+        canvas.drawLine(Offset(size.width - inset - len, size.height - inset), Offset(size.width - inset, size.height - inset), paint);
+        canvas.drawLine(Offset(size.width - inset, size.height - inset - len), Offset(size.width - inset, size.height - inset), paint);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CornerGripPainter oldDelegate) =>
+      oldDelegate.isDark != isDark || oldDelegate.corner != corner;
 }
 
 class _ErrorBar extends StatelessWidget {

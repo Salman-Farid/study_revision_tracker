@@ -53,6 +53,12 @@ class NotificationService extends GetxService {
 
   Future<void> _init() async {
     if (_initialized) return;
+    if (kIsWeb) {
+      // flutter_local_notifications has no web implementation — stay a no-op
+      // so Get.find<NotificationService>() never throws in the browser.
+      _initialized = true;
+      return;
+    }
     _initialized = true;
 
     await _configureLocalTimeZone();
@@ -489,6 +495,7 @@ class NotificationService extends GetxService {
   /// [force] skips the long debounce when the user just changed data
   /// (complete revision, create class/daily routine, first-read).
   Future<void> rescheduleAll({bool force = false}) async {
+    if (kIsWeb) return;
     if (!_notificationsEnabled) return;
     if (_rescheduleRunning) return;
     final now = DateTime.now();
@@ -687,6 +694,7 @@ class NotificationService extends GetxService {
   }
 
   Future<void> cancelAll() async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
   }
 
@@ -757,6 +765,7 @@ class NotificationService extends GetxService {
   // ── Android exact-alarm permission ──
 
   Future<bool> requestExactAlarmPermission() async {
+    if (kIsWeb) return false;
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();

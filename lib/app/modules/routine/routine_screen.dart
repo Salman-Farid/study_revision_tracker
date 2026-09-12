@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../gemini_3_flash_live_voice_chatbot/features/voice_assistant/study_assistant_dialogue.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../data/models/class_routine_model.dart';
@@ -15,6 +16,8 @@ class RoutineScreen extends GetView<RoutineController> {
   @override
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
+    // Desktop/tablet: show Daily + Class side-by-side — no toggle.
+    final dual = Responsive.useSplitLayout;
 
     return Scaffold(
       backgroundColor: AppColors.bg(d),
@@ -32,29 +35,99 @@ class RoutineScreen extends GetView<RoutineController> {
       ),
       body: Stack(
         children: [
-          Column(
-            children: [
-              _ModeToggle(controller: controller),
-              Expanded(
-                child: Obx(() {
-                  if (controller.isLoading.value) {
+          if (dual)
+            Obx(() {
+              if (controller.isLoading.value) {
+                return Row(
+                  children: [
+                    Expanded(child: _DailyShimmer(d: d)),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: _ClassShimmer(d: d)),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _PaneHeader(
+                          icon: Icons.today_rounded,
+                          label: 'dailyRoutine'.tr,
+                          d: d,
+                        ),
+                        Expanded(child: _DailyBody(controller: controller)),
+                      ],
+                    ),
+                  ),
+                  VerticalDivider(width: 1, thickness: 1, color: AppColors.border(d)),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _PaneHeader(
+                          icon: Icons.event_note_rounded,
+                          label: 'classRoutine'.tr,
+                          d: d,
+                        ),
+                        Expanded(child: _ClassBody(controller: controller)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            })
+          else
+            Column(
+              children: [
+                _ModeToggle(controller: controller),
+                Expanded(
+                  child: Obx(() {
+                    if (controller.isLoading.value) {
+                      return controller.mode.value == RoutineMode.daily
+                          ? _DailyShimmer(d: d)
+                          : _ClassShimmer(d: d);
+                    }
                     return controller.mode.value == RoutineMode.daily
-                        ? _DailyShimmer(d: d)
-                        : _ClassShimmer(d: d);
-                  }
-                  return controller.mode.value == RoutineMode.daily
-                      ? _DailyBody(controller: controller)
-                      : _ClassBody(controller: controller);
-                }),
-              ),
-            ],
-          ),
+                        ? _DailyBody(controller: controller)
+                        : _ClassBody(controller: controller);
+                  }),
+                ),
+              ],
+            ),
           Obx(() {
             if (!controller.voice.showDialogue.value) {
               return const SizedBox.shrink();
             }
             return const StudyAssistantDialogue();
           }),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaneHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool d;
+  const _PaneHeader({required this.icon, required this.label, required this.d});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(S.base, S.sm, S.base, S.xs),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppConstants.primaryColor),
+          SizedBox(width: S.sm),
+          Text(
+            label,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary(d),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -110,7 +111,10 @@ class AuthController extends GetxController {
           colorText: Colors.white,
           duration: const Duration(seconds: 5));
     } catch (e) {
-      Get.snackbar('error'.tr, e.toString(),
+      final msg = kIsWeb
+          ? 'Google Sign-In may need extra browser setup. Use email & password instead.'
+          : e.toString();
+      Get.snackbar('error'.tr, msg,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.error,
           colorText: Colors.white);

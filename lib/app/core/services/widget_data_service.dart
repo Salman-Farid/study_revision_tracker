@@ -83,7 +83,9 @@ class WidgetDataProvider {
   // ── Initialize ──
 
   /// Call once during app startup to register background callbacks.
+  /// No-op on web — there are no home-screen widgets in the browser.
   static Future<void> init() async {
+    if (kIsWeb) return;
     try {
       await HomeWidget.registerInteractivityCallback(backgroundCallback);
     } catch (e) {
@@ -93,6 +95,7 @@ class WidgetDataProvider {
 
   /// Get the initial deep link URI from a widget tap (if any).
   static Future<Uri?> getInitialLink() async {
+    if (kIsWeb) return null;
     try {
       return await HomeWidget.initiallyLaunchedFromHomeWidget();
     } catch (_) {
@@ -107,7 +110,9 @@ class WidgetDataProvider {
   // ── Public API ──
 
   /// Update all three widgets. Call on data changes and periodically.
+  /// No-op on web.
   static Future<void> updateAllWidgets({bool forceRefresh = false}) async {
+    if (kIsWeb) return;
     try {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
@@ -711,6 +716,7 @@ class WidgetDataProvider {
 
   /// Schedule periodic widget updates via AlarmManager.
   static Future<void> schedulePeriodicUpdate() async {
+    if (kIsWeb) return;
     try {
       await HomeWidget.registerInteractivityCallback(backgroundCallback);
     } catch (_) {}
@@ -718,6 +724,7 @@ class WidgetDataProvider {
 
   /// Save the App Group ID for iOS widget data sharing.
   static Future<void> setAppGroupId(String groupId) async {
+    if (kIsWeb) return;
     try {
       await HomeWidget.setAppGroupId(groupId);
     } catch (e) {

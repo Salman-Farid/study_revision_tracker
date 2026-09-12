@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import '../../core/constants/responsive.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../data/repositories/revision_repository.dart';
 import '../../data/services/supabase_service.dart';
@@ -30,7 +31,8 @@ class DashboardController extends GetxController {
     // First paint first — then load stats.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(load());
-      if (Get.context != null) {
+      // Home-widget promo is phone-only (no home-screen widgets on web/desktop).
+      if (Get.context != null && Responsive.useBottomNav) {
         WidgetPromoDialog.showIfNeeded(Get.context!);
       }
     });

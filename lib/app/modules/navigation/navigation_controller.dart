@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:home_widget/home_widget.dart';
+
+import '../../core/constants/responsive.dart';
 
 /// Controls the bottom-navigation tab index so dashboard cards
 /// and deep links can route to a specific tab.
@@ -25,7 +28,16 @@ class NavigationController extends GetxController {
   void goToSubjects() => goTo(subjects);
   void goToToday() => goTo(today);
   void goToRoutine() => goTo(routine);
-  void goToCalendar() => goTo(calendar);
+
+  /// Calendar is a side pane of Today on desktop — never a primary tab there.
+  void goToCalendar() {
+    if (Responsive.useSplitLayout) {
+      goTo(today);
+      return;
+    }
+    goTo(calendar);
+  }
+
   void goToSettings() => goTo(settings);
 
   /// Map widget/deep-link hosts to a tab.
@@ -54,7 +66,19 @@ class NavigationController extends GetxController {
 
   /// Read the launch URI from a home-widget tap and open the right tab.
   /// Never throws — worst case stays on the current tab.
+  /// On web there are no home widgets; parse the browser URL instead.
   Future<void> applyInitialWidgetLink() async {
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host; // e.g. /today after path URL strategy
+        final path = Uri.base.path;
+        if (path.contains('today') || host == 'today') goToToday();
+        if (path.contains('routine') || host == 'routine') goToRoutine();
+        if (path.contains('calendar') || host == 'calendar') goToCalendar();
+        if (path.contains('subjects') || host == 'subjects') goToSubjects();
+      } catch (_) {}
+      return;
+    }
     try {
       final uri = await HomeWidget.initiallyLaunchedFromHomeWidget()
           .timeout(const Duration(seconds: 2));

@@ -37,6 +37,10 @@ dependencies:
   home_widget: ^0.9.4
   flutter_timezone: ^3.0.1
   workmanager: ^0.6.0
+  http: ^1.2.0
+  web: ^1.1.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +52,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/auth_study.png
     - assets/icons/
 
   fonts:

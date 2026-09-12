@@ -1,20 +1,22 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_revision_tracker/gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:workmanager/workmanager.dart';
 import 'app/core/constants/app_constants.dart';
+import 'app/core/constants/responsive.dart';
 import 'app/core/localization/language_controller.dart';
 import 'app/core/localization/app_translations.dart';
 import 'app/core/services/connectivity_service.dart';
 import 'app/core/services/notification_service.dart';
 import 'app/core/services/widget_data_service.dart';
+import 'app/core/web/url_strategy_stub.dart'
+    if (dart.library.html) 'app/core/web/url_strategy_web.dart';
 import 'app/data/repositories/revision_repository.dart';
 import 'app/data/repositories/subject_repository.dart';
 import 'app/data/repositories/topic_repository.dart';
@@ -26,78 +28,33 @@ import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/theme/app_theme.dart';
 
+// Native-only imports — never loaded on web (avoids MissingPluginException).
+import 'native_boot_stub.dart'
+    if (dart.library.io) 'native_boot_io.dart';
+
 Timer? _periodicWidgetTimer;
-
-/// WorkManager entry point — runs in a background isolate even when
-/// the Flutter UI is closed, so home widgets stay fresh without
-/// requiring the user to open the app.
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    try {
-      WidgetsFlutterBinding.ensureInitialized();
-      await SharedPreferences.getInstance();
-
-      try {
-        await Supabase.initialize(
-          url: AppConstants.supabaseUrl,
-          anonKey: AppConstants.supabaseAnonKey,
-        );
-      } catch (_) {
-        // Already initialized in this isolate.
-      }
-
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return true;
-
-      // Refresh widget data from Supabase.
-      await WidgetDataProvider.updateAllWidgets(forceRefresh: true);
-
-      // Also refresh local notifications so timings stay in sync.
-      try {
-        final notifications = NotificationService();
-        await notifications.init();
-        await notifications.rescheduleAll();
-      } catch (e) {
-        debugPrint('[WorkManager] notification refresh failed: $e');
-      }
-      return true;
-    } catch (e) {
-      debugPrint('[WorkManager] task failed: $e');
-      return false;
-    }
-  });
-}
-
-Future<void> _registerBackgroundWidgetRefresh() async {
-  try {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
-    await Workmanager().registerPeriodicTask(
-      'study-widget-refresh',
-      'study-widget-refresh',
-      frequency: const Duration(minutes: 15),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
-      constraints: Constraints(networkType: NetworkType.connected),
-      backoffPolicy: BackoffPolicy.linear,
-    );
-    debugPrint('[main] background widget refresh registered');
-  } catch (e) {
-    debugPrint('[main] WorkManager register failed: $e');
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureUrlStrategy();
   await SharedPreferences.getInstance();
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Portrait lock is phone-only — web/desktop must rotate/resize freely.
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
 
+  // Supabase persists the session in secure storage (mobile) or
+  // localStorage (web). initialize() restores it before we read currentUser.
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
 
   Get.put(SupabaseService(), permanent: true);
@@ -111,13 +68,14 @@ void main() async {
   Get.lazyPut<VoiceAssistantController>(() => VoiceAssistantController(), fenix: true);
   Get.put(LanguageController(), permanent: true);
   Get.put(SettingsController(), permanent: true);
+
+  // Local notifications are mobile-only; on web this is a no-op service.
   try {
     await Get.putAsync<NotificationService>(
       () => NotificationService().init(),
     ).timeout(const Duration(seconds: 8));
   } catch (e) {
     debugPrint('[main] NotificationService init failed/slow: $e');
-    // App must still launch; register lazily on first use.
     Get.put(NotificationService(), permanent: true);
   }
 
@@ -125,18 +83,18 @@ void main() async {
     Get.find<SupabaseService>().initRealtime();
   }
 
-  await WidgetDataProvider.init();
-  try {
-    await HomeWidget.registerInteractivityCallback(backgroundCallback);
-  } catch (e) {
-    debugPrint('[main] registerInteractivityCallback failed: $e');
+  if (!kIsWeb) {
+    await WidgetDataProvider.init();
+    try {
+      await registerHomeWidgetCallback(backgroundCallbackRef);
+    } catch (e) {
+      debugPrint('[main] registerInteractivityCallback failed: $e');
+    }
+    try {
+      await WidgetDataProvider.setAppGroupId('group.HOMEWIDGET');
+    } catch (_) {}
   }
-  try {
-    await WidgetDataProvider.setAppGroupId('group.HOMEWIDGET');
-  } catch (_) {}
 
-  // Heavy post-login work (alarms, widgets, WorkManager) runs after first frame
-  // so splash/home aren't blocked — see _RevisionTrackerAppState.initState.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -146,29 +104,29 @@ void main() async {
 }
 
 /// Called once after the first frame: alarms, widgets, WorkManager.
+/// No-op on web.
 Future<void> _postFrameBoot() async {
+  if (kIsWeb) return;
   if (Get.find<SupabaseService>().currentUser == null) return;
   try {
     final granted =
         await Get.find<NotificationService>().requestExactAlarmPermission();
     debugPrint('[main] exactAlarmPermission granted=$granted');
   } catch (_) {}
-  // Kick native AlarmManager tick so all 3 widgets refresh even if Flutter dies.
   try {
-    const channel = MethodChannel('study_revision_tracker/widget_tick');
-    await channel.invokeMethod('schedule');
+    await scheduleNativeWidgetTick();
   } catch (e) {
     debugPrint('[main] widget tick channel failed: $e');
   }
   unawaited(Get.find<NotificationService>().rescheduleAll());
   unawaited(WidgetDataProvider.updateAllWidgets());
   _startPeriodicWidgetRefresh();
-  unawaited(_registerBackgroundWidgetRefresh());
+  unawaited(registerBackgroundWidgetRefresh());
 }
 
 void _startPeriodicWidgetRefresh() {
+  if (kIsWeb) return;
   _periodicWidgetTimer?.cancel();
-  // Refresh widgets more often while app is alive (5 min).
   _periodicWidgetTimer = Timer.periodic(const Duration(minutes: 5), (_) {
     if (Get.find<SupabaseService>().currentUser != null) {
       unawaited(WidgetDataProvider.updateAllWidgets());
@@ -203,6 +161,7 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (kIsWeb) return;
       if (Get.find<SupabaseService>().currentUser != null) {
         unawaited(WidgetDataProvider.updateAllWidgets());
         unawaited(Get.find<NotificationService>().refreshNotificationPreference());
@@ -237,6 +196,11 @@ class _RevisionTrackerAppState extends State<RevisionTrackerApp>
       ),
       defaultTransition: Transition.fadeIn,
       transitionDuration: AppConstants.pageTransitionDuration,
+      builder: (context, child) {
+        // Keep Responsive in sync on every rebuild/resize (web window drag).
+        Responsive.init(context);
+        return child ?? const SizedBox.shrink();
+      },
     );
   }
 }

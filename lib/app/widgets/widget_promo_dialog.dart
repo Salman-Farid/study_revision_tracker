@@ -1,8 +1,10 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/responsive.dart';
 import '../core/constants/size_constants.dart';
 import '../theme/app_theme.dart';
 
@@ -21,6 +23,8 @@ class WidgetPromoDialog extends StatefulWidget {
   }
 
   static void showIfNeeded(BuildContext context) {
+    // Home-screen widgets are mobile-only — never show this on web/desktop.
+    if (kIsWeb || Responsive.useNavRail) return;
     shouldShow().then((show) {
       if (show && context.mounted) {
         showDialog(

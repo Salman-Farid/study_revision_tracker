@@ -53,7 +53,7 @@ class SubjectsScreen extends GetView<SubjectsController> {
         return Container(
           key: Key(sub.id),
           child: GestureDetector(
-            onTap: () => Get.toNamed('/subject/${sub.id}', arguments: sub),
+            onTap: () => controller.openSubject(sub),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(S.radiusLg),
               child: Stack(
@@ -181,17 +181,24 @@ class SubjectsScreen extends GetView<SubjectsController> {
         controller.subjects.assignAll(reordered);
       },
       builder: (children) {
-        return GridView(
-          controller: scrollController,
-          padding: EdgeInsets.all(S.base),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: S.gridCrossAxisCount,
-            crossAxisSpacing: S.gridSpacing,
-            mainAxisSpacing: S.gridSpacing,
-            childAspectRatio: S.gridChildAspectRatio,
-          ),
-          children: children,
-        );
+        return LayoutBuilder(builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          // Density follows the pane, not the window — avoids sparse grids
+          // inside web/desktop side panels.
+          final cols = w >= 720 ? 3 : 2;
+          final aspect = w >= 720 ? 1.15 : (w >= 400 ? 1.0 : 0.9);
+          return GridView(
+            controller: scrollController,
+            padding: EdgeInsets.all(S.base),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              crossAxisSpacing: S.gridSpacing,
+              mainAxisSpacing: S.gridSpacing,
+              childAspectRatio: aspect,
+            ),
+            children: children,
+          );
+        });
       },
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
@@ -150,28 +151,44 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   }
 
   Widget _list(bool d, List topics) {
-    final isAllFilter = controller.selectedFilter.value == 'all';
-    return ReorderableListView.builder(
-      padding: EdgeInsets.all(S.base),
-      itemCount: topics.length,
-      onReorder: controller.reorderTopics,
-      proxyDecorator: (child, index, animation) {
-        return AnimatedBuilder(
-          animation: animation,
-          builder: (_, __) => Material(color: Colors.transparent, elevation: 0, child: child),
-        );
-      },
-      itemBuilder: (_, i) {
-        final t = topics[i];
-        final isFirstRead = !t.firstReadCompleted;
-        final isCompleted = t.totalRevisions >= 6;
+    // Cap width on desktop/tablet so cards stay compact and actions
+    // (Complete / bin / reorder) stay grouped instead of spanning a huge pane.
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: Responsive.useNavRail ? 680 : double.infinity,
+        ),
+        child: ReorderableListView.builder(
+          padding: EdgeInsets.fromLTRB(S.base, S.sm, S.base, 96),
+          itemCount: topics.length,
+          onReorder: controller.reorderTopics,
+          // Explicit handle only — no default trailing grips overlapping the bin.
+          buildDefaultDragHandles: false,
+          proxyDecorator: (child, index, animation) {
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (_, __) => Material(
+                color: Colors.transparent,
+                elevation: 4,
+                borderRadius: BorderRadius.circular(S.radiusLg),
+                child: child,
+              ),
+            );
+          },
+          itemBuilder: (_, i) {
+            final t = topics[i];
+            final isFirstRead = !t.firstReadCompleted;
+            final isCompleted = t.totalRevisions >= 6;
+            final isAllFilter = controller.selectedFilter.value == 'all';
 
-        if (isFirstRead) {
-          return _firstReadCard(d, t, isAllFilter, i);
-        } else {
-          return _expandableRevisionCard(d, t, isCompleted, isAllFilter, i);
-        }
-      },
+            if (isFirstRead) {
+              return _firstReadCard(d, t, isAllFilter, i);
+            } else {
+              return _expandableRevisionCard(d, t, isCompleted, isAllFilter, i);
+            }
+          },
+        ),
+      ),
     );
   }
 
@@ -180,9 +197,9 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   // ══════════════════════════════════════════════════════════════
   Widget _firstReadCard(bool d, dynamic t, bool isAllFilter, int index) {
     return Container(
-      key: Key(t.id),
+      key: ValueKey('fr_${t.id}'),
       margin: EdgeInsets.only(bottom: S.md),
-      padding: EdgeInsets.all(S.base),
+      padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         color: AppColors.surface(d),
         borderRadius: BorderRadius.circular(S.radiusLg),
@@ -191,64 +208,93 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       ),
       child: Row(
         children: [
-          if (isAllFilter) ...[
-            Icon(Icons.drag_handle_rounded, color: AppColors.textMuted(d), size: 20),
-            SizedBox(width: S.md),
-          ],
-          // Icon
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primary, width: 1.5),
+          // Press-and-drag reorder grip (explicit — not a whole-row default handle).
+          ReorderableDragStartListener(
+            index: index,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(
+                Icons.drag_indicator_rounded,
+                color: AppColors.textMuted(d),
+                size: 22,
+              ),
             ),
-            child: Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 22),
+          ),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 20),
           ),
           SizedBox(width: S.md),
-          // Name + badge
+          // Title + badge
           Expanded(
+            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   t.name,
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.textPrimary(d),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                SizedBox(height: S.xs),
+                const SizedBox(height: 4),
                 _badge(d, 'firstRead'.tr, AppColors.primary),
               ],
             ),
           ),
-          // Complete button
-          GestureDetector(
-            onTap: () => _confirmFirstRead(d, t),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(S.radiusFull),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text(
-                    'Complete',
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+          SizedBox(width: S.sm),
+          // Complete sits mid-right, not glued to the bin.
+          Flexible(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _completeChip(d, t),
             ),
           ),
-          SizedBox(width: S.sm),
+          SizedBox(width: S.md),
           _deleteButton(d, t),
         ],
+      ),
+    );
+  }
+
+  Widget _completeChip(bool d, dynamic t) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(S.radiusFull),
+        onTap: () => _confirmFirstRead(d, t),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(S.radiusFull),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
+              SizedBox(width: 6),
+              Text(
+                'Complete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -305,13 +351,20 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                 onTap: toggleExpand,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
-                  padding: EdgeInsets.all(S.base),
+                  padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
                   child: Row(
                     children: [
-                      if (isAllFilter) ...[
-                        Icon(Icons.drag_handle_rounded, color: AppColors.textMuted(d), size: 20),
-                        SizedBox(width: S.md),
-                      ],
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            Icons.drag_indicator_rounded,
+                            color: AppColors.textMuted(d),
+                            size: 22,
+                          ),
+                        ),
+                      ),
                       _collapsedIndicator(d, t, isCompleted),
                       SizedBox(width: S.md),
                       Expanded(
@@ -320,8 +373,11 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                           children: [
                             Text(
                               t.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.titleMedium.copyWith(
                                 color: AppColors.textPrimary(d),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             SizedBox(height: S.xs),
@@ -329,15 +385,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                           ],
                         ),
                       ),
-                      AnimatedRotation(
-                        turns: isExpanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                        child: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: AppColors.textMuted(d),
-                          size: 22,
-                        ),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textMuted(d),
+                        size: 22,
                       ),
                     ],
                   ),
@@ -563,9 +614,12 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           );
         }),
         SizedBox(height: S.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [_deleteButton(d, t)],
+        Padding(
+          padding: EdgeInsets.only(right: S.xs),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _deleteButton(d, t),
+          ),
         ),
       ],
     );
@@ -606,26 +660,26 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   }
 
   Widget _deleteButton(bool d, dynamic t) {
-    return GestureDetector(
-      onTap: () => Get.defaultDialog(
-        title: 'deleteQ'.tr,
-        middleText: 'Delete "${t.name}"?',
-        textConfirm: 'delete'.tr,
-        textCancel: 'cancel'.tr,
-        confirmTextColor: Colors.white,
-        buttonColor: AppColors.error,
-        onConfirm: () {
-          controller.deleteTopic(t.id);
-          Get.back();
-        },
-      ),
-      child: Container(
-        padding: EdgeInsets.all(S.sm),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(S.radiusSm),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(S.radiusSm),
+        onTap: () => Get.defaultDialog(
+          title: 'deleteQ'.tr,
+          middleText: 'Delete "${t.name}"?',
+          textConfirm: 'delete'.tr,
+          textCancel: 'cancel'.tr,
+          confirmTextColor: Colors.white,
+          buttonColor: AppColors.error,
+          onConfirm: () {
+            controller.deleteTopic(t.id);
+            Get.back();
+          },
         ),
-        child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
+        ),
       ),
     );
   }

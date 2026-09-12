@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/constants/responsive.dart';
 import '../../core/constants/size_constants.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
@@ -165,7 +166,10 @@ class DashboardScreen extends GetView<DashboardController> {
       child: GridView.builder(
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+          // Split panes stay 2-wide; full-width tablet/web mid uses 4.
+          crossAxisCount: Responsive.useSplitLayout
+              ? 2
+              : (Responsive.width >= Responsive.mobileBreak ? 4 : 2),
           crossAxisSpacing: S.gridSpacing,
           mainAxisSpacing: S.gridSpacing,
           // Fixed height avoids pixel overflow on smaller screens.

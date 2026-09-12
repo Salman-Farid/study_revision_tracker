@@ -59,6 +59,99 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   final dialogueOffset = Offset(12, 200).obs;
   bool dialogueOffsetInitialized = false;
 
+  /// User-resizable panel size. 0 = not initialized (use defaults).
+  final dialogueWidth = 0.0.obs;
+  final dialogueHeight = 0.0.obs;
+  /// Desktop/tablet: corner press-and-drag resize.
+  final isResizingDialogue = false.obs;
+
+  /// Compact card defaults — never stretch to full window width on desktop.
+  static const double desktopDialogueW = 400;
+  static const double minDialogueW = 300;
+  static const double maxDialogueW = 640;
+  static const double minDialogueH = 240;
+  static const double maxDialogueHRatio = 0.85;
+
+  void ensureDialogueSize({
+    required bool allowResize,
+    required double screenW,
+    required double screenH,
+  }) {
+    if (dialogueWidth.value > 0) return;
+    if (allowResize) {
+      dialogueWidth.value = desktopDialogueW;
+      dialogueHeight.value = (screenH * 0.48).clamp(minDialogueH, screenH * 0.7);
+    } else {
+      dialogueWidth.value = (screenW - 24).clamp(280.0, 420.0);
+      dialogueHeight.value = screenH * 0.35;
+    }
+  }
+
+  void startDialogueResize() => isResizingDialogue.value = true;
+  void endDialogueResize() => isResizingDialogue.value = false;
+
+  /// Resize from any corner. Left/top edges also move the panel origin.
+  void resizeDialogueFromCorner({
+    required String corner, // topLeft | topRight | bottomLeft | bottomRight
+    required Offset delta,
+    required double screenW,
+    required double screenH,
+  }) {
+    final maxW = screenW.clamp(minDialogueW, maxDialogueW);
+    final maxH = screenH * maxDialogueHRatio;
+    var w = dialogueWidth.value;
+    var h = dialogueHeight.value;
+    var x = dialogueOffset.value.dx;
+    var y = dialogueOffset.value.dy;
+
+    switch (corner) {
+      case 'topLeft':
+        w -= delta.dx;
+        h -= delta.dy;
+        x += delta.dx;
+        y += delta.dy;
+        break;
+      case 'topRight':
+        w += delta.dx;
+        h -= delta.dy;
+        y += delta.dy;
+        break;
+      case 'bottomLeft':
+        w -= delta.dx;
+        h += delta.dy;
+        x += delta.dx;
+        break;
+      case 'bottomRight':
+      default:
+        w += delta.dx;
+        h += delta.dy;
+        break;
+    }
+
+    final newW = w.clamp(minDialogueW, maxW);
+    final newH = h.clamp(minDialogueH, maxH);
+    // If size was clamped, fix origin so the opposite edge stays put.
+    if (corner == 'topLeft' || corner == 'bottomLeft') {
+      x = dialogueOffset.value.dx + (dialogueWidth.value - newW);
+    }
+    if (corner == 'topLeft' || corner == 'topRight') {
+      y = dialogueOffset.value.dy + (dialogueHeight.value - newH);
+    }
+
+    dialogueWidth.value = newW;
+    dialogueHeight.value = newH;
+    dialogueOffset.value = Offset(
+      x.clamp(0.0, (screenW - newW).clamp(0.0, screenW)),
+      y.clamp(0.0, (screenH - newH).clamp(0.0, screenH)),
+    );
+  }
+
+  void resetDialogueSize() {
+    dialogueWidth.value = 0;
+    dialogueHeight.value = 0;
+    isResizingDialogue.value = false;
+  }
+
   Animation<double>? get sheetFade => _sheetAnimCtrl != null
       ? CurvedAnimation(parent: _sheetAnimCtrl!, curve: Curves.easeOut)
       : null;
@@ -2579,6 +2672,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     _summaryCache = null;
     isExpanded.value = false;
     dialogueOffsetInitialized = false;
+    resetDialogueSize();
   }
 
   void _unmuteAfterFunctionCall() {

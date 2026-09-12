@@ -35,14 +35,26 @@ class S {
   static double get buttonHeight => Responsive.scale(52);
   static double get cardMinHeight => Responsive.scale(120);
   static double get avatarSize => Responsive.scale(44);
-  static int get gridCrossAxisCount => Responsive.isTablet ? 3 : 2;
-  static double get gridChildAspectRatio => Responsive.isTablet ? 1.2 : 0.9;
+
+  /// 2 cols in phone / split panes; 3 only on mid tablet full-width.
+  static int get gridCrossAxisCount {
+    if (Responsive.useSplitLayout) return 2;
+    if (Responsive.width >= Responsive.mobileBreak) return 3;
+    return 2;
+  }
+
+  static double get gridChildAspectRatio =>
+      (Responsive.width >= Responsive.mobileBreak && !Responsive.useSplitLayout)
+          ? 1.2
+          : 0.9;
   static double get gridSpacing => Responsive.scale(12);
 
   // ── Metric/stat cards (history + dashboard) ──
   /// Wider-taller ratio so text never overflows on small screens.
   static double get statCardAspectRatio =>
-      Responsive.isTablet ? 1.45 : (Get.height < 700 ? 0.95 : 1.05);
+      (Responsive.isTablet && !Responsive.useSplitLayout)
+          ? 1.45
+          : (Get.height < 700 ? 0.95 : 1.05);
   /// Fixed minimum height fallback for metric cards.
   static double get statCardMinHeight => Responsive.scale(148);
   static double get streakCardHeight => Responsive.scale(120);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/responsive.dart';
 import '../../data/models/subject_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/repositories/subject_repository.dart';
@@ -26,6 +27,8 @@ class SubjectsController extends GetxController {
   final chatMessages = <Map<String, dynamic>>[].obs;
   final showChat = false.obs;
   final isDragging = false.obs;
+  /// Desktop/tablet side-by-side: subject shown in the detail pane.
+  final selectedSubjectId = RxnString();
   StreamSubscription<List<SubjectModel>>? _realtimeSub;
   StreamSubscription<List<TopicModel>>? _topicsSub;
 
@@ -36,6 +39,24 @@ class SubjectsController extends GetxController {
 
   // Global key for Study Assistant button to get its position
   final studyAssistantButtonKey = GlobalKey();
+
+  SubjectModel? get selectedSubject {
+    final id = selectedSubjectId.value;
+    if (id == null) return null;
+    for (final s in subjects) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  /// Phone → full-screen route. Split layout → select for the side pane.
+  void openSubject(SubjectModel subject) {
+    if (Responsive.useSplitLayout) {
+      selectedSubjectId.value = subject.id;
+      return;
+    }
+    Get.toNamed('/subject/${subject.id}', arguments: subject);
+  }
 
   @override void onInit() { super.onInit(); load(); _subscribeRealtime(); }
 

@@ -16,6 +16,10 @@ import '../../core/constants/size_constants.dart';
 import '../../../gemini_3_flash_live_voice_chatbot/gemini_chatbot.dart';
 
 class SubjectDetailController extends GetxController {
+  SubjectDetailController({SubjectModel? initialSubject})
+      : _initialSubject = initialSubject;
+
+  final SubjectModel? _initialSubject;
   final _subjectRepo = Get.find<SubjectRepository>();
   final _topicRepo = Get.find<TopicRepository>();
   final _revRepo = Get.find<RevisionRepository>();
@@ -52,9 +56,24 @@ class SubjectDetailController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    subject = Get.arguments as SubjectModel;
+    // Embedded desktop pane passes the subject directly; full route uses args.
+    final arg = Get.arguments;
+    subject = _initialSubject ??
+        ((arg is SubjectModel) ? arg : null) ??
+        (throw StateError('SubjectDetailController requires a subject'));
     load();
     _subscribeRealtime();
+  }
+
+  /// Desktop side-pane: swap the open subject without recreating the controller.
+  void switchSubject(SubjectModel next) {
+    if (subject.id == next.id) return;
+    subject = next;
+    topics.clear();
+    schedulesByTopic.clear();
+    selectedFilter.value = 'firstRead';
+    isLoading.value = true;
+    unawaited(load());
   }
 
   void _subscribeRealtime() {
