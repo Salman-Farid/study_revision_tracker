@@ -1,16 +1,7 @@
 part of '../widget_data_service.dart';
 
-/// Time formatting and periodic widget refresh helpers.
-String _formatTime12(int hour, int minute) {
-  final period = hour >= 12 ? 'PM' : 'AM';
-  var h = hour;
-  if (h == 0) {
-    h = 12;
-  } else if (h > 12) {
-    h -= 12;
-  }
-  return '$h:${minute.toString().padLeft(2, '0')} $period';
-}
+/// Time formatting — delegates to domain `formatHm12`.
+String _formatTime12(int hour, int minute) => formatHm12(hour, minute);
 
 /// Schedule periodic widget updates via AlarmManager.
 Future<void> _schedulePeriodicUpdate() async {

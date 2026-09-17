@@ -11,6 +11,7 @@ import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../domain/routine/class_day_matcher.dart';
+import '../../domain/routine/routine_time_utils.dart';
 
 part 'widget_data/keys.dart';
 part 'widget_data/daily_routine_fetch.dart';

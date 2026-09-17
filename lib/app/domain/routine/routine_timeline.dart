@@ -1,5 +1,7 @@
 /// Pure timeline helpers for daily-routine blocks.
 /// No Flutter / Supabase / GetX — fully unit-testable.
+import 'routine_time_utils.dart';
+
 class RoutineTimelineItem {
   final String subject;
   final String topic;
@@ -47,16 +49,7 @@ class RoutineTimelineItem {
 
 class RoutineTimeline {
   /// Convert "HH:mm" 24h to "h:mm AM/PM".
-  static String to12Hour(int hour, int minute) {
-    final period = hour >= 12 ? 'PM' : 'AM';
-    var h = hour;
-    if (h == 0) {
-      h = 12;
-    } else if (h > 12) {
-      h -= 12;
-    }
-    return '$h:${minute.toString().padLeft(2, '0')} $period';
-  }
+  static String to12Hour(int hour, int minute) => formatHm12(hour, minute);
 
   /// Parse "HH:mm" (tolerant of missing parts).
   static (int, int) parseTime(String time) {

@@ -13,6 +13,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/models/revision_schedule_model.dart';
+import '../../domain/routine/routine_time_utils.dart';
 
 part 'notifications/format_clock.dart';
 part 'notifications/ids.dart';

@@ -1,7 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:study_revision_tracker/app/domain/routine/routine_time_utils.dart';
 import 'package:study_revision_tracker/app/domain/routine/routine_timeline.dart';
 
 void main() {
+  group('formatHm12', () {
+    test('formats midnight, noon, afternoon', () {
+      expect(formatHm12(0, 5), '12:05 AM');
+      expect(formatHm12(12, 0), '12:00 PM');
+      expect(formatHm12(14, 30), '2:30 PM');
+    });
+  });
+
   group('RoutineTimeline.to12Hour', () {
     test('formats midnight as 12 AM', () {
       expect(RoutineTimeline.to12Hour(0, 5), '12:05 AM');

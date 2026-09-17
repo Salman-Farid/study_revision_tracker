@@ -27,3 +27,24 @@ String formatEndTimeText(DateTime start, int durMin) {
 /// True when [a] and [b] fall on the same calendar day.
 bool isSameCalendarDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Canonical "h:mm AM/PM" formatter from 24h parts.
+/// Prefer this over private copies in services/widgets.
+String formatHm12(int hour, int minute) {
+  final period = hour >= 12 ? 'PM' : 'AM';
+  var h = hour;
+  if (h == 0) {
+    h = 12;
+  } else if (h > 12) {
+    h -= 12;
+  }
+  return '$h:${minute.toString().padLeft(2, '0')} $period';
+}
+
+/// Parse tolerant "HH:mm" → (hour, minute). Empty/invalid → (0, 0).
+(int, int) parseClockParts(String time) {
+  final parts = time.split(':');
+  final h = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
+  final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
+  return (h, m);
+}

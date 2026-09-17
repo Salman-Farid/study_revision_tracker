@@ -7,6 +7,8 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../shared/widgets/thinking_dots.dart';
 import 'voice_assistant_controller.dart';
+import 'widgets/shared/chat_bubbles.dart';
+import 'widgets/shared/error_bar.dart';
 part 'widgets/full_screen/chat_bubbles.dart';
 part 'widgets/full_screen/error_bar.dart';
 part 'widgets/full_screen/screen_layout.dart';

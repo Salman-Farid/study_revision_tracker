@@ -11,14 +11,5 @@ List<int>? parseClock(String raw) {
   return [h, m];
 }
 
-/// Convert 24h clock to "h:mm AM/PM".
-String formatTime12(int hour, int minute) {
-  final period = hour >= 12 ? 'PM' : 'AM';
-  var h = hour;
-  if (h == 0) {
-    h = 12;
-  } else if (h > 12) {
-    h -= 12;
-  }
-  return '$h:${minute.toString().padLeft(2, '0')} $period';
-}
+/// Convert 24h clock to "h:mm AM/PM" — delegates to domain helper.
+String formatTime12(int hour, int minute) => formatHm12(hour, minute);
