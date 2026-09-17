@@ -26,6 +26,7 @@ part 'controller/dialogue_panel_sizing.dart';
 //   controller/mic_state.dart             mute / unmute / echo guard
 //   controller/function_call_batching.dart batch Gemini tool replies
 //   controller/tools_definition.dart      tool schemas for Gemini
+//   controller/tool_dispatch.dart         name → handler switch (add tools here)
 //   controller/tools_subject_*.dart       subject/topic voice tools
 //   controller/tools_topic_revision.dart  mark read / revision done
 //   controller/tools_class_daily_routine.dart class + daily routine tools
@@ -36,6 +37,7 @@ part 'controller/function_call_batching.dart';
 part 'controller/mic_state.dart';
 part 'controller/tools_class_daily_routine.dart';
 part 'controller/session_lifecycle.dart';
+part 'controller/tool_dispatch.dart';
 part 'controller/tools_subject_create_delete.dart';
 part 'controller/tools_subject_read.dart';
 part 'controller/tools_definition.dart';
@@ -184,8 +186,6 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   String _lastAssistantText = '';
   DateTime? _lastUnmuteAt;
   Timer? _unmuteDebounceTimer;
-  static const Duration _unmuteDebounce = Duration(milliseconds: 500);
-  static const Duration _echoGuardWindow = Duration(seconds: 2);
 
   final LinkedHashSet<String> _processedCallIds = LinkedHashSet();
   final LinkedHashSet<String> _recentCalls = LinkedHashSet();

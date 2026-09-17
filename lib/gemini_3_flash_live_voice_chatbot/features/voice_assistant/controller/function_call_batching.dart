@@ -154,45 +154,8 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
     _updateBatchProgress();
 
     try {
-      switch (name) {
-        case 'getAllData':
-          await _getAllData(callId);
-        case 'getSubjectDetail':
-          await _getSubjectDetail(callId, args);
-        case 'addSubjectsBulk':
-          await _addSubjectsBulk(callId, args);
-        case 'addSubject':
-          await _addSubject(callId, args);
-        case 'addTopic':
-          await _addTopic(callId, args);
-        case 'addMultipleTopics':
-          await _addMultipleTopics(callId, args);
-        case 'deleteAllSubjects':
-          await _deleteAllSubjects(callId, args);
-        case 'deleteSubjectByName':
-          await _deleteSubjectByName(callId, args);
-        case 'deleteTopicByName':
-          await _deleteTopicByName(callId, args);
-        case 'getTopicStatus':
-          await _getTopicStatus(callId, args);
-        case 'markFirstReadCompleted':
-          await _markFirstReadCompleted(callId, args);
-        case 'markRevisionCompleted':
-          await _markRevisionCompleted(callId, args);
-        case 'getAllTopicsRevisionDates':
-          await _getAllTopicsRevisionDates(callId, args);
-        case 'registerClassRoutine':
-          await _registerClassRoutine(callId, args);
-        case 'registerDailyRoutine':
-          await _registerDailyRoutine(callId, args);
-        case 'deleteClassRoutine':
-          await _deleteClassRoutine(callId, args);
-        case 'deleteDailyRoutine':
-          await _deleteDailyRoutine(callId, args);
-        default:
-          debugPrint('[Gemini] ⚠️ Unknown function: $name');
-          _respondToFunction(callId, name, {'success': false, 'error': 'Unknown function "$name"'}, params: args);
-      }
+      // Register new tools in tool_dispatch.dart (see header there).
+      await _dispatchVoiceTool(callId, name, args);
     } catch (e) {
       debugPrint('[Gemini] Function call error: $e');
       Get.snackbar('Tool Failed', '$name: $e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));

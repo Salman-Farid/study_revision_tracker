@@ -1,6 +1,12 @@
 part of '../voice_assistant_controller.dart';
 
-/// Mic mute/unmute, echo-guard, and drift reconcile timer.
+/// Mic mute/unmute, echo-guard, drift reconcile, and unmute timing.
+///
+/// MIC TIMING KNOBS — change these constants only:
+const Duration _kUnmuteDebounce = Duration(milliseconds: 500);
+const Duration _kEchoGuardWindow = Duration(seconds: 2);
+const Duration _kMicReconcilePeriod = Duration(seconds: 2);
+
 extension VoiceAssistantMicState on VoiceAssistantController {
   void _setMicMuted(bool muted, {String reason = ''}) {
     try {
@@ -19,7 +25,7 @@ extension VoiceAssistantMicState on VoiceAssistantController {
 
   bool _looksLikeSelfEcho(String candidate) {
     if (_lastAssistantText.isEmpty || _lastUnmuteAt == null) return false;
-    if (DateTime.now().difference(_lastUnmuteAt!) > VoiceAssistantController._echoGuardWindow) return false;
+    if (DateTime.now().difference(_lastUnmuteAt!) > _kEchoGuardWindow) return false;
 
     String normalize(String s) => s
         .toLowerCase()
@@ -48,7 +54,7 @@ extension VoiceAssistantMicState on VoiceAssistantController {
 
   void _startMicReconcileTimer() {
     _micReconcileTimer?.cancel();
-    _micReconcileTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _micReconcileTimer = Timer.periodic(_kMicReconcilePeriod, (_) {
       if (isLoading.value) return;
       if (_pendingCallIds.isEmpty && !_batchInProgress) {
         final actual = _service.isMuted;
@@ -96,5 +102,18 @@ extension VoiceAssistantMicState on VoiceAssistantController {
       _exitLoading('after function call');
       _setMicMuted(false, reason: 'after function call');
     }
+  }
+
+  /// Open the mic shortly after Gemini finishes speaking, unless a tool
+  /// batch is still running. Timing = [_kUnmuteDebounce].
+  void scheduleUnmuteAfterTurn(int generation) {
+    _unmuteDebounceTimer?.cancel();
+    _unmuteDebounceTimer = Timer(_kUnmuteDebounce, () {
+      if (generation != _generation) return;
+      if (_pendingCallIds.isEmpty && !_batchInProgress) {
+        _exitLoading('turnComplete');
+        _setMicMuted(false, reason: 'turnComplete (debounced)');
+      }
+    });
   }
 }

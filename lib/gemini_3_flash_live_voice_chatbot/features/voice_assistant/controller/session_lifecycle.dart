@@ -104,14 +104,8 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
         _finishBatchUi();
       }
 
-      _unmuteDebounceTimer?.cancel();
-      _unmuteDebounceTimer = Timer(VoiceAssistantController._unmuteDebounce, () {
-        if (gen != _generation) return;
-        if (_pendingCallIds.isEmpty && !_batchInProgress) {
-          _exitLoading('turnComplete');
-          _setMicMuted(false, reason: 'turnComplete (debounced)');
-        }
-      });
+      // Mic reopen timing lives in mic_state.dart (scheduleUnmuteAfterTurn).
+      scheduleUnmuteAfterTurn(gen);
     }, onError: (e) {
       debugPrint('[Gemini] ⚠️ turnCompleteStream error: $e');
     });
