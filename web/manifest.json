@@ -1,11 +1,11 @@
 {
-    "name": "study_revision_tracker",
-    "short_name": "study_revision_tracker",
+    "name": "AI Powered Study Companion",
+    "short_name": "Study Companion",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F9FC",
+    "theme_color": "#87CEEB",
+    "description": "AI Powered Study Companion — spaced revisions, routines, and voice assistant.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
