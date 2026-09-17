@@ -1,0 +1,36 @@
+part of '../widget_data_service.dart';
+
+/// SharedPreferences key names shared by all widget payloads.
+const String _kDailyCurrentSubject = 'widget_daily_current_subject';
+const String _kDailyCurrentTopic = 'widget_daily_current_topic';
+const String _kDailyCurrentType = 'widget_daily_current_type';
+const String _kDailyCurrentTime = 'widget_daily_current_time';
+const String _kDailyRemaining = 'widget_daily_remaining';
+const String _kDailyCurrentEndTimestamp = 'widget_daily_current_end_timestamp';
+const String _kDailyNextSubject = 'widget_daily_next_subject';
+const String _kDailyNextTime = 'widget_daily_next_time';
+const String _kDailyHasData = 'widget_daily_has_data';
+const String _kDailyStatusMessage = 'widget_daily_status_message';
+const String _kDailyUpcomingItems = 'widget_daily_upcoming_items';
+const String _kDailyAllItems = 'widget_daily_all_items';
+const String _kRevisionOverdueItems = 'widget_revision_overdue_items';
+const String _kRevisionTodayItems = 'widget_revision_today_items';
+const String _kRevisionUpcomingItems = 'widget_revision_upcoming_items';
+const String _kRevisionOverdueCount = 'widget_revision_overdue_count';
+const String _kRevisionTodayCount = 'widget_revision_today_count';
+const String _kRevisionUpcomingCount = 'widget_revision_upcoming_count';
+const String _kRevisionItems = 'widget_revision_items';
+const String _kRevisionHasData = 'widget_revision_has_data';
+const String _kRevisionStatusMessage = 'widget_revision_status_message';
+const String _kClassCurrentSubject = 'widget_class_current_subject';
+const String _kClassCurrentTime = 'widget_class_current_time';
+const String _kClassCurrentLocation = 'widget_class_current_location';
+const String _kClassCurrentEndTime = 'widget_class_current_end_time';
+const String _kClassNextSubject = 'widget_class_next_subject';
+const String _kClassNextTime = 'widget_class_next_time';
+const String _kClassNextLocation = 'widget_class_next_location';
+const String _kClassItems = 'widget_class_items';
+const String _kClassTodayItems = 'widget_class_today_items';
+const String _kClassHasToday = 'widget_class_has_today';
+const String _kClassStatusMessage = 'widget_class_status_message';
+const String _kLastUpdated = 'widget_last_updated';
