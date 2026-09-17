@@ -6,6 +6,7 @@ import '../config/gemini_config.dart';
 import '../core/audio/audio_player.dart';
 import '../core/audio/audio_recorder.dart' as mic;
 import '../core/websocket/gemini_socket.dart';
+import 'package:flutter/foundation.dart';
 
 /// Central service for the Gemini Live voice session.
 ///
@@ -92,7 +93,7 @@ class GeminiLiveService {
       if (!_autoMutedByGemini && !isMuted) {
         _autoMutedByGemini = true;
         isMuted = true;
-        print('[Service] Auto-muted mic — Gemini is speaking');
+        debugPrint('[Service] Auto-muted mic — Gemini is speaking');
       }
     });
 
@@ -102,7 +103,7 @@ class GeminiLiveService {
       if (_autoMutedByGemini) {
         _autoMutedByGemini = false;
         isMuted = false;
-        print('[Service] Auto-unmuted mic — Gemini finished speaking');
+        debugPrint('[Service] Auto-unmuted mic — Gemini finished speaking');
       }
     });
 

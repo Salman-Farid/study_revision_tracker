@@ -207,8 +207,8 @@ class SubjectDetailController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.success.withValues(alpha: 0.1));
     } catch (e, st) {
-      print('[SubjectDetail] markRevisionComplete FAILED: $e');
-      print('[SubjectDetail] Stacktrace: $st');
+      debugPrint('[SubjectDetail] markRevisionComplete FAILED: $e');
+      debugPrint('[SubjectDetail] Stacktrace: $st');
       Get.snackbar('Error', 'Failed to mark revision');
     }
   }
@@ -322,8 +322,8 @@ class SubjectDetailController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColors.success.withOpacity(0.1));
     } catch (e, st) {
-      print('[SubjectDetail] markFirstRead FAILED: $e');
-      print('[SubjectDetail] Stacktrace: $st');
+      debugPrint('[SubjectDetail] markFirstRead FAILED: $e');
+      debugPrint('[SubjectDetail] Stacktrace: $st');
       Get.snackbar('error'.tr, e.toString());
     }
   }

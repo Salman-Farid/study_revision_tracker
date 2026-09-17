@@ -567,14 +567,14 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     try {
       _service.isMuted = muted;
     } catch (e) {
-      print('[Gemini] ⚠️ Failed to set service mic state: $e');
+      debugPrint('[Gemini] ⚠️ Failed to set service mic state: $e');
     }
     if (_micMuted.value != muted) {
       _micMuted.value = muted;
       if (!muted) _lastUnmuteAt = DateTime.now();
     }
     if (reason.isNotEmpty) {
-      print('[Gemini] 🎙️ Mic ${muted ? "muted" : "unmuted"} ($reason)');
+      debugPrint('[Gemini] 🎙️ Mic ${muted ? "muted" : "unmuted"} ($reason)');
     }
   }
 
@@ -614,7 +614,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       if (_pendingCallIds.isEmpty && !_batchInProgress) {
         final actual = _service.isMuted;
         if (_micMuted.value != actual) {
-          print('[Gemini] 🔄 Mic state drift detected — reconciling ($actual)');
+          debugPrint('[Gemini] 🔄 Mic state drift detected — reconciling ($actual)');
           _micMuted.value = actual;
         }
       }
@@ -624,7 +624,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   void _enterLoading(String reason) {
     if (!isLoading.value) {
       isLoading.value = true;
-      print('[Gemini] ⏳ Loading started ($reason)');
+      debugPrint('[Gemini] ⏳ Loading started ($reason)');
     }
     if (!_service.isMuted) {
       _mutedByFunctionCall = true;
@@ -635,7 +635,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   void _exitLoading(String reason) {
     if (isLoading.value) {
       isLoading.value = false;
-      print('[Gemini] ✅ Loading ended ($reason)');
+      debugPrint('[Gemini] ✅ Loading ended ($reason)');
     }
   }
 
@@ -663,7 +663,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         if (!_userInitiatedStop) _maybeReconnect();
       }
     }, onError: (e) {
-      print('[Gemini] ⚠️ connectionStateStream error: $e');
+      debugPrint('[Gemini] ⚠️ connectionStateStream error: $e');
       errorMessage.value = e.toString();
     });
 
@@ -678,17 +678,17 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         final trimmed = text.trim();
         if (trimmed.isEmpty) return;
         if (_looksLikeSelfEcho(trimmed)) {
-          print('[Gemini] 🔇 Discarding likely self-echo: "$trimmed"');
+          debugPrint('[Gemini] 🔇 Discarding likely self-echo: "$trimmed"');
           return;
         }
         messages.add(ChatMessage(role: ChatRole.user, text: trimmed));
         _batchRetryCount = 0;
         _recentCalls.clear();
         _showThinking();
-        print('[Gemini] 🆕 New user message — retry count reset, dedup cache cleared');
+        debugPrint('[Gemini] 🆕 New user message — retry count reset, dedup cache cleared');
       } else {
         if (_batchJustCompleted) {
-          print('[Gemini] 📦 Batch completed — processing Gemini response');
+          debugPrint('[Gemini] 📦 Batch completed — processing Gemini response');
           if (_batchProgressMessage != null) {
             _batchProgressMessage!.text = '✅ All done — $_batchCompletedCount operations completed';
             _batchProgressMessage = null;
@@ -706,11 +706,11 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         _triggerUiUpdate();
       }
     }, onError: (e) {
-      print('[Gemini] ⚠️ transcriptStream error: $e');
+      debugPrint('[Gemini] ⚠️ transcriptStream error: $e');
     });
 
     _audioSub = _service.responseAudioStream.listen((_) {}, onError: (e) {
-      print('[Gemini] ⚠️ responseAudioStream error: $e');
+      debugPrint('[Gemini] ⚠️ responseAudioStream error: $e');
     });
 
     _functionCallSub = _service.functionCallStream.listen((call) {
@@ -719,10 +719,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       try {
         _handleFunctionCall(call['id'] as String, call['name'] as String, call['args'] as Map<String, dynamic>);
       } catch (e) {
-        print('[Gemini] ⚠️ Malformed function call payload: $e');
+        debugPrint('[Gemini] ⚠️ Malformed function call payload: $e');
       }
     }, onError: (e) {
-      print('[Gemini] ⚠️ functionCallStream error: $e');
+      debugPrint('[Gemini] ⚠️ functionCallStream error: $e');
     });
 
     _turnCompleteSub = _service.turnCompleteStream.listen((_) {
@@ -733,7 +733,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       _mutedByFunctionCall = false;
       _streamingMessage = null;
       _clearThinking();
-      print('[Gemini] 🔚 Turn complete');
+      debugPrint('[Gemini] 🔚 Turn complete');
 
       // Cancel batch safety timer — Gemini responded
       _batchFlushTimer?.cancel();
@@ -750,7 +750,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         }
       });
     }, onError: (e) {
-      print('[Gemini] ⚠️ turnCompleteStream error: $e');
+      debugPrint('[Gemini] ⚠️ turnCompleteStream error: $e');
     });
   }
 
@@ -773,7 +773,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
 
   void _cleanupOrphanedBatchState({required String reason}) {
     if (_batchInProgress || _pendingCallIds.isNotEmpty || isProcessing.value || isLoading.value) {
-      print('[Gemini] 🔌 Cleaning up orphaned batch state ($reason)');
+      debugPrint('[Gemini] 🔌 Cleaning up orphaned batch state ($reason)');
       _pendingCallsSafetyTimer?.cancel();
       _batchFlushTimer?.cancel();
       _pendingCallIds.clear();
@@ -798,7 +798,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   void _maybeReconnect() {
     if (_userInitiatedStop) return;
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      print('[Gemini] ❌ Max reconnect attempts reached — giving up');
+      debugPrint('[Gemini] ❌ Max reconnect attempts reached — giving up');
       messages.add(ChatMessage(
         role: ChatRole.system,
         text: 'Connection lost. Tap the mic to reconnect.',
@@ -808,7 +808,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     }
     _reconnectAttempts++;
     final delay = Duration(seconds: _reconnectAttempts * 2);
-    print('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/$_maxReconnectAttempts in ${delay.inSeconds}s');
+    debugPrint('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/$_maxReconnectAttempts in ${delay.inSeconds}s');
     _reconnectTimer?.cancel();
     final gen = _generation;
     _reconnectTimer = Timer(delay, () {
@@ -1076,11 +1076,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
 
   void toggleListening() {
     if (isLoading.value || _pendingCallIds.isNotEmpty || _batchInProgress) {
-      print('[Gemini] 🚫 Mic toggle blocked — loading/batch in progress');
+      debugPrint('[Gemini] 🚫 Mic toggle blocked — loading/batch in progress');
       return;
     }
     if (connectionState.value != ws.ConnectionState.connected) {
-      print('[Gemini] 🚫 Mic toggle blocked — not connected');
+      debugPrint('[Gemini] 🚫 Mic toggle blocked — not connected');
       return;
     }
     _setMicMuted(!_service.isMuted, reason: 'user toggle');
@@ -1092,7 +1092,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
 
   void sendText(String text) {
     if (connectionState.value != ws.ConnectionState.connected) {
-      print('[Gemini] 🚫 Cannot send text — not connected');
+      debugPrint('[Gemini] 🚫 Cannot send text — not connected');
       messages.add(ChatMessage(
         role: ChatRole.system,
         text: 'Not connected yet — please wait a moment and try again.',
@@ -1104,7 +1104,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       _showThinking();
       _service.sendText(text);
     } catch (e) {
-      print('[Gemini] ⚠️ sendText failed: $e');
+      debugPrint('[Gemini] ⚠️ sendText failed: $e');
       _clearThinking();
       _exitLoading('sendText-failed');
       messages.add(ChatMessage(role: ChatRole.system, text: 'Failed to send message: $e'));
@@ -1116,7 +1116,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     final lower = name.toLowerCase().trim();
 
     if (_subjectCreationCompleters.containsKey(lower)) {
-      print('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
+      debugPrint('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
       return await _subjectCreationCompleters[lower]!.future;
     }
 
@@ -1151,7 +1151,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     final lower = name.toLowerCase();
 
     if (_subjectCreationCompleters.containsKey(lower)) {
-      print('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
+      debugPrint('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
       final existing = await _subjectCreationCompleters[lower]!.future;
       if (existing != null) return existing;
     }
@@ -1172,7 +1172,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       _subjectRepo.refresh();
       _summaryCache = null;
       completer.complete(subject);
-      print('[Gemini] 🆕 Auto-created missing subject "$name" (model skipped addSubject)');
+      debugPrint('[Gemini] 🆕 Auto-created missing subject "$name" (model skipped addSubject)');
 
       ImageSearchService.searchSubjectImage(name).then((imageUrl) async {
         if (imageUrl != null) {
@@ -1180,11 +1180,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
             await _subjectRepo.update(subject.id, {'image_url': imageUrl});
             _subjectRepo.refresh();
           } catch (e) {
-            print('[Gemini] ⚠️ Failed to attach image for "$name": $e');
+            debugPrint('[Gemini] ⚠️ Failed to attach image for "$name": $e');
           }
         }
       }).catchError((e) {
-        print('[Gemini] ⚠️ Image search failed for "$name": $e');
+        debugPrint('[Gemini] ⚠️ Image search failed for "$name": $e');
       });
 
       return subject;
@@ -1202,7 +1202,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     _enterLoading('function-call:$name');
 
     if (_pendingCallIds.length >= _maxPendingCalls) {
-      print('[Gemini] 🚫 Batch too large (${_pendingCallIds.length} pending) — refusing call $name');
+      debugPrint('[Gemini] 🚫 Batch too large (${_pendingCallIds.length} pending) — refusing call $name');
       _respondToFunction(callId, name, {
         'success': false,
         'error': 'Batch size limit reached ($_maxPendingCalls). Split this into smaller requests.',
@@ -1211,14 +1211,14 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     }
 
     if (_processedCallIds.contains(callId)) {
-      print('[Gemini] ⏭️ SKIP duplicate call ID: $name id=$callId');
+      debugPrint('[Gemini] ⏭️ SKIP duplicate call ID: $name id=$callId');
       return;
     }
 
     final sortedArgs = SplayTreeMap<String, dynamic>.from(args);
     final argsHash = '$name:${jsonEncode(sortedArgs)}';
     if (_recentCalls.contains(argsHash)) {
-      print('[Gemini] ⏭️ SKIP duplicate call (same args): $name hash=$argsHash');
+      debugPrint('[Gemini] ⏭️ SKIP duplicate call (same args): $name hash=$argsHash');
       return;
     }
     _processedCallIds.add(callId);
@@ -1239,7 +1239,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       }
     }
 
-    print('[Gemini] Handling function call: $name id=$callId (${_pendingCallIds.length} pending)');
+    debugPrint('[Gemini] Handling function call: $name id=$callId (${_pendingCallIds.length} pending)');
     isProcessing.value = true;
 
     if (!_mutedByFunctionCall) {
@@ -1296,11 +1296,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         case 'deleteDailyRoutine':
           await _deleteDailyRoutine(callId, args);
         default:
-          print('[Gemini] ⚠️ Unknown function: $name');
+          debugPrint('[Gemini] ⚠️ Unknown function: $name');
           _respondToFunction(callId, name, {'success': false, 'error': 'Unknown function "$name"'}, params: args);
       }
     } catch (e) {
-      print('[Gemini] Function call error: $e');
+      debugPrint('[Gemini] Function call error: $e');
       Get.snackbar('Tool Failed', '$name: $e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, name, {'success': false, 'error': e.toString()}, params: args);
     } finally {
@@ -1311,14 +1311,14 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       final respIdx = _pendingResponses.indexWhere((r) => r['id'] == callId);
       if (respIdx != -1 && _pendingResponses[respIdx]['result']['success'] == true) {
         _recentCalls.add(argsHash);
-        print('[Gemini] ✅ Cached SUCCESS for dedup: $name hash=$argsHash');
+        debugPrint('[Gemini] ✅ Cached SUCCESS for dedup: $name hash=$argsHash');
       } else {
-        print('[Gemini] ⚠️ NOT caching FAILED call — retry allowed: $name hash=$argsHash');
+        debugPrint('[Gemini] ⚠️ NOT caching FAILED call — retry allowed: $name hash=$argsHash');
       }
 
       _batchCompleted++;
       _updateBatchProgress();
-      print('[Gemini] Done: $name (${_pendingCallIds.length} pending, $_batchCompleted/$_batchTotal done)');
+      debugPrint('[Gemini] Done: $name (${_pendingCallIds.length} pending, $_batchCompleted/$_batchTotal done)');
 
       if (_pendingCallIds.isEmpty) {
         _flushBatch(gen);
@@ -1326,7 +1326,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         _pendingCallsSafetyTimer?.cancel();
         _pendingCallsSafetyTimer = Timer(const Duration(seconds: 30), () {
           if (gen != _generation) return;
-          print('[Gemini] ⏰ Safety timeout: ${_pendingCallIds.length} calls stuck — forcing flush');
+          debugPrint('[Gemini] ⏰ Safety timeout: ${_pendingCallIds.length} calls stuck — forcing flush');
           _pendingCallIds.clear();
           _flushBatch(gen, forcedByTimeout: true);
         });
@@ -1341,7 +1341,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         .where((r) => (r['result'] as Map<String, dynamic>?)?['success'] == true)
         .length;
     final failCount = _pendingResponses.length - okCount;
-    print('[Gemini] 📦 Flushing batch — ${_pendingResponses.length} responses ($okCount ok, $failCount fail)'
+    debugPrint('[Gemini] 📦 Flushing batch — ${_pendingResponses.length} responses ($okCount ok, $failCount fail)'
         '${forcedByTimeout ? " [forced by timeout]" : ""}');
 
     final retryCountForService = _batchRetryCount;
@@ -1360,7 +1360,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     try {
       _service.sendBatchedFunctionResponses(wireResponses, retryCount: retryCountForService);
     } catch (e) {
-      print('[Gemini] ⚠️ Failed to send batched responses: $e');
+      debugPrint('[Gemini] ⚠️ Failed to send batched responses: $e');
     }
     _pendingResponses.clear();
 
@@ -1377,7 +1377,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     _batchFlushTimer = Timer(const Duration(seconds: 8), () {
       if (gen != _generation) return;
       if (_batchJustCompleted) {
-        print('[Gemini] ⚠️ Batch safety timeout — forcing unmute');
+        debugPrint('[Gemini] ⚠️ Batch safety timeout — forcing unmute');
         _finishBatchUi();
         _unmuteAfterFunctionCall();
       }
@@ -1415,7 +1415,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     try {
       // ── FIX: actually use the cache on read ──
       if (_summaryCache != null) {
-        print('[Gemini] ⚡ getAllData — returning cached summary');
+        debugPrint('[Gemini] ⚡ getAllData — returning cached summary');
         _respondToFunction(callId, 'getAllData', _summaryCache!, params: {});
         return;
       }
@@ -1576,7 +1576,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         existingByName[s.name.toLowerCase()] = s;
       }
     } catch (e) {
-      print('[Gemini] ⚠️ preload subjects failed: $e');
+      debugPrint('[Gemini] ⚠️ preload subjects failed: $e');
     }
 
     final results = <Map<String, dynamic>>[];
@@ -1612,7 +1612,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     ]
         : failed;
 
-    print('[Gemini] 📦 addSubjectsBulk done — ${succeeded.length}/${items.length} succeeded');
+    debugPrint('[Gemini] 📦 addSubjectsBulk done — ${succeeded.length}/${items.length} succeeded');
 
     _respondToFunction(callId, 'addSubjectsBulk', {
       'success': failed.isEmpty,
@@ -1639,7 +1639,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     final lower = name.toLowerCase();
 
     if (_subjectCreationCompleters.containsKey(lower)) {
-      print('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
+      debugPrint('[Gemini] 🔗 Awaiting in-flight subject creation for "$name"');
       final existing = await _subjectCreationCompleters[lower]!.future;
       if (existing == null) {
         return {'name': name, 'success': false, 'error': 'Concurrent creation of this subject failed'};
@@ -1671,11 +1671,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           try {
             await _subjectRepo.update(subject.id, {'image_url': imageUrl});
           } catch (e) {
-            print('[Gemini] ⚠️ Failed to attach image for "$name": $e');
+            debugPrint('[Gemini] ⚠️ Failed to attach image for "$name": $e');
           }
         }
       }).catchError((e) {
-        print('[Gemini] ⚠️ Image search failed for "$name": $e');
+        debugPrint('[Gemini] ⚠️ Image search failed for "$name": $e');
       }));
 
       final topicResult = await _addTopicsToSubject(subject, name, topicNames);
@@ -1713,7 +1713,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           existingLower.add(trimmed.toLowerCase());
           added++;
         } catch (e) {
-          print('[Gemini] ⚠️ Failed to add topic "$trimmed" under "$name": $e');
+          debugPrint('[Gemini] ⚠️ Failed to add topic "$trimmed" under "$name": $e');
           failedTopics.add(trimmed);
         }
       }
@@ -1754,11 +1754,11 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
             await _subjectRepo.update(subject.id, {'image_url': imageUrl});
             _subjectRepo.refresh();
           } catch (e) {
-            print('[Gemini] ⚠️ Failed to attach image for "$name": $e');
+            debugPrint('[Gemini] ⚠️ Failed to attach image for "$name": $e');
           }
         }
       }).catchError((e) {
-        print('[Gemini] ⚠️ Image search failed for "$name": $e');
+        debugPrint('[Gemini] ⚠️ Image search failed for "$name": $e');
       });
 
       _respondToFunction(callId, 'addSubject', {
@@ -1783,7 +1783,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
 
     if ((subjectName == null || subjectName.trim().isEmpty) && currentSubjectName != null) {
       subjectName = currentSubjectName;
-      print('[Gemini] Using context subject: $subjectName');
+      debugPrint('[Gemini] Using context subject: $subjectName');
     }
 
     if (subjectName == null || subjectName.trim().isEmpty) {
@@ -1851,7 +1851,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           existingLower.add(trimmed.toLowerCase());
           added++;
         } catch (e) {
-          print('[Gemini] ⚠️ Failed to add topic "$trimmed": $e');
+          debugPrint('[Gemini] ⚠️ Failed to add topic "$trimmed": $e');
           failedTopics.add(trimmed);
         }
       }
@@ -1887,7 +1887,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
           await _subjectRepo.delete(sub.id);
           count++;
         } catch (e) {
-          print('[Gemini] ⚠️ Failed to delete subject "${sub.name}": $e');
+          debugPrint('[Gemini] ⚠️ Failed to delete subject "${sub.name}": $e');
         }
       }
       _subjectRepo.refresh();
@@ -2170,7 +2170,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
             );
           }
         } catch (e) {
-          print('[Gemini] ⚠️ Failed to schedule revision notifications: $e');
+          debugPrint('[Gemini] ⚠️ Failed to schedule revision notifications: $e');
         }
       }
 
@@ -2183,8 +2183,8 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
         'message': 'First read for "${topic.name}" marked as completed. 6 revision dates are now scheduled starting from today (Day 1, 3, 7, 14, 30, 90).',
       }, params: args);
     } catch (e, st) {
-      print('[Gemini] markFirstReadCompleted FAILED: $e');
-      print('[Gemini] Stacktrace: $st');
+      debugPrint('[Gemini] markFirstReadCompleted FAILED: $e');
+      debugPrint('[Gemini] Stacktrace: $st');
       Get.snackbar('markFirstReadCompleted Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'markFirstReadCompleted', {'success': false, 'error': e.toString()}, params: args);
     }
@@ -2334,7 +2334,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       if (startTimeStr.toLowerCase().contains('pm') && hour < 12) hour += 12;
       if (startTimeStr.toLowerCase().contains('am') && hour == 12) hour = 0;
       final startTime = DateTime(now.year, now.month, now.day, hour, minute);
-      print('[Gemini] Class routine: subject=$subjectName, time=$startTime, dur=$durationMinutes, dates=$dates, location=$finalLocation');
+      debugPrint('[Gemini] Class routine: subject=$subjectName, time=$startTime, dur=$durationMinutes, dates=$dates, location=$finalLocation');
 
       final routine = await _routineRepo.createClassRoutine(
         subjectName: subjectName,
@@ -2374,8 +2374,8 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       // Force refresh so RoutineController picks it up immediately
       refreshClassRoutines();
     } catch (e, stack) {
-      print('[Gemini] ❌ registerClassRoutine FAILED: $e');
-      print('[Gemini] Stack: $stack');
+      debugPrint('[Gemini] ❌ registerClassRoutine FAILED: $e');
+      debugPrint('[Gemini] Stack: $stack');
       Get.snackbar('Error', 'Class routine save failed: $e',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red.shade700,
@@ -2488,9 +2488,9 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
       // Schedule a local notification for every future block right away.
       try {
         final n = await NotificationService.to.scheduleDailyRoutine(routine: routine);
-        print('[Gemini] scheduled $n daily-routine notifications for ${routine.id}');
+        debugPrint('[Gemini] scheduled $n daily-routine notifications for ${routine.id}');
       } catch (e) {
-        print('[Gemini] ⚠️ Failed to schedule daily routine notifications: $e');
+        debugPrint('[Gemini] ⚠️ Failed to schedule daily routine notifications: $e');
       }
 
       // Force refresh so RoutineController picks it up immediately
@@ -2623,7 +2623,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
 
   Future<void> stopSession({bool userInitiated = true}) async {
     if (_isStopping) {
-      print('[Gemini] ⚠️ stopSession called while already stopping — ignoring');
+      debugPrint('[Gemini] ⚠️ stopSession called while already stopping — ignoring');
       return;
     }
     _isStopping = true;
@@ -2643,7 +2643,7 @@ Greetings → greet back, ask how to help, do NOT call getAllData.
     try {
       await _service.stopSession();
     } catch (e) {
-      print('[Gemini] ⚠️ Error stopping service session: $e');
+      debugPrint('[Gemini] ⚠️ Error stopping service session: $e');
     }
     messages.clear();
     connectionState.value = ws.ConnectionState.disconnected;

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../config/gemini_config.dart';
+import 'package:flutter/foundation.dart';
 
 enum ConnectionState { disconnected, connecting, connected, error }
 
@@ -55,11 +56,11 @@ class GeminiSocket {
 
     try {
       final uri = Uri.parse(GeminiConfig.wsUrl);
-      print('[Gemini] Connecting to: ${uri.toString().replaceAll(RegExp(r'key=.*'), 'key=***')}');
-      print('[Gemini] Model: ${GeminiConfig.model}, Voice: $voice');
+      debugPrint('[Gemini] Connecting to: ${uri.toString().replaceAll(RegExp(r'key=.*'), 'key=***')}');
+      debugPrint('[Gemini] Model: ${GeminiConfig.model}, Voice: $voice');
       _channel = WebSocketChannel.connect(uri);
       await _channel!.ready.timeout(GeminiConfig.connectTimeout);
-      print('[Gemini] WebSocket connected, sending setup...');
+      debugPrint('[Gemini] WebSocket connected, sending setup...');
 
       _channel!.stream.listen(
         _onMessage,
@@ -90,18 +91,18 @@ class GeminiSocket {
         },
       };
       final setupJson = jsonEncode(setupMsg);
-      print('[Gemini] Sending setup JSON: ${setupJson.length} chars');
-      print('[Gemini] Setup model: models/${GeminiConfig.model}');
-      print('[Gemini] Setup tools count: ${(setupMsg['setup']?['tools'] as List?)?.length ?? 0}');
+      debugPrint('[Gemini] Sending setup JSON: ${setupJson.length} chars');
+      debugPrint('[Gemini] Setup model: models/${GeminiConfig.model}');
+      debugPrint('[Gemini] Setup tools count: ${(setupMsg['setup']?['tools'] as List?)?.length ?? 0}');
       _channel!.sink.add(setupJson);
 
       await _waitForSetup();
-      print('[Gemini] Setup complete!');
+      debugPrint('[Gemini] Setup complete!');
       _reconnectAttempt = 0;
       _setState(ConnectionState.connected);
     } catch (e) {
       final errorMsg = _pendingError ?? e.toString();
-      print('[Gemini] Connect error: $errorMsg');
+      debugPrint('[Gemini] Connect error: $errorMsg');
       _setState(ConnectionState.error);
       _pendingError = errorMsg;
       rethrow;
@@ -118,12 +119,12 @@ class GeminiSocket {
       } else {
         text = data.toString();
       }
-      print('[Gemini] Received message (${text.length} chars): ${text.length > 500 ? text.substring(0, 500) + '...' : text}');
+      debugPrint('[Gemini] Received message (${text.length} chars): ${text.length > 500 ? text.substring(0, 500) + '...' : text}');
       final msg = jsonDecode(text) as Map<String, dynamic>;
 
       if (msg.containsKey('setupComplete')) {
         _setupComplete = true;
-        print('[Gemini] Received setupComplete');
+        debugPrint('[Gemini] Received setupComplete');
         return;
       }
 
@@ -132,7 +133,7 @@ class GeminiSocket {
         final code = error['code'] ?? 'unknown';
         final message = error['message'] ?? 'No message';
         final status = error['status'] ?? 'unknown';
-        print('[Gemini] Server error: code=$code status=$status message=$message');
+        debugPrint('[Gemini] Server error: code=$code status=$status message=$message');
         _pendingError = 'Gemini error ($code): $message';
         _setState(ConnectionState.error);
         return;
@@ -146,7 +147,7 @@ class GeminiSocket {
           final callId = fcMap['id'] as String? ?? '';
           final name = fcMap['name'] as String? ?? '';
           final args = fcMap['args'] as Map<String, dynamic>? ?? {};
-          print('[Gemini] toolCall: $name id=$callId args=$args');
+          debugPrint('[Gemini] toolCall: $name id=$callId args=$args');
           _functionCallController.add({
             'id': callId,
             'name': name,
@@ -159,14 +160,14 @@ class GeminiSocket {
       if (msg.containsKey('toolCallCancellation')) {
         final cancel = msg['toolCallCancellation'] as Map<String, dynamic>;
         final ids = cancel['ids'] as List<dynamic>? ?? [];
-        print('[Gemini] toolCallCancellation: ids=$ids');
+        debugPrint('[Gemini] toolCallCancellation: ids=$ids');
         return;
       }
 
       if (msg.containsKey('goAway')) {
         final goAway = msg['goAway'] as Map<String, dynamic>;
         final timeLeft = goAway['timeLeft'] ?? 'unknown';
-        print('[Gemini] ⚠️ goAway received — timeLeft=$timeLeft. Server wants session to end.');
+        debugPrint('[Gemini] ⚠️ goAway received — timeLeft=$timeLeft. Server wants session to end.');
         // Gracefully close — send endTurn so Gemini can wrap up, then close sink
         try {
           endTurn();
@@ -174,7 +175,7 @@ class GeminiSocket {
         // Close after a short delay to let endTurn go through
         Future.delayed(const Duration(seconds: 2), () {
           if (_state == ConnectionState.connected) {
-            print('[Gemini] Closing connection after goAway');
+            debugPrint('[Gemini] Closing connection after goAway');
             _channel?.sink.close(1000, 'Session ended after goAway');
           }
         });
@@ -196,7 +197,7 @@ class GeminiSocket {
               if (part['functionCall'] != null) {
                 final functionCall = part['functionCall'] as Map<String, dynamic>;
                 final callId = functionCall['id'] as String? ?? '';
-                print('[Gemini] Function call: ${functionCall['name']} id=$callId');
+                debugPrint('[Gemini] Function call: ${functionCall['name']} id=$callId');
                 _functionCallController.add({
                   'id': callId,
                   'name': functionCall['name'] as String,
@@ -222,12 +223,12 @@ class GeminiSocket {
         }
 
         if (sc['turnComplete'] == true) {
-          print('[Gemini] turnComplete received');
+          debugPrint('[Gemini] turnComplete received');
           _turnCompleteController.add(null);
         }
       }
     } catch (e) {
-      print('[Gemini] _onMessage error: $e');
+      debugPrint('[Gemini] _onMessage error: $e');
     }
   }
 
@@ -370,7 +371,7 @@ class GeminiSocket {
         'turnComplete': true,
       },
     }));
-    print('[Gemini] Sent ${responses.length} batched function responses + turnComplete (${succeeded.length} ok, ${failed.length} fail)');
+    debugPrint('[Gemini] Sent ${responses.length} batched function responses + turnComplete (${succeeded.length} ok, ${failed.length} fail)');
   }
 
   void _setState(ConnectionState s) {
@@ -379,13 +380,13 @@ class GeminiSocket {
   }
 
   void _onError(Object e) {
-    print('[Gemini] WebSocket error: $e');
+    debugPrint('[Gemini] WebSocket error: $e');
     _pendingError = 'WebSocket error: $e';
     _setState(ConnectionState.error);
   }
 
   void _onDone() {
-    print('[Gemini] WebSocket closed. setupComplete=$_setupComplete state=$_state closeCode=${_channel?.closeCode} closeReason=${_channel?.closeReason}');
+    debugPrint('[Gemini] WebSocket closed. setupComplete=$_setupComplete state=$_state closeCode=${_channel?.closeCode} closeReason=${_channel?.closeReason}');
     if (!_setupComplete) {
       _pendingError ??= 'Connection closed before setup completed (code=${_channel?.closeCode}, reason=${_channel?.closeReason})';
     }
@@ -399,7 +400,7 @@ class GeminiSocket {
   void _scheduleReconnect() {
     _reconnectAttempt++;
     final delayMs = (1000 * (1 << (_reconnectAttempt - 1))).clamp(1000, 30000);
-    print('[Gemini] Scheduling reconnect #$_reconnectAttempt in ${delayMs}ms');
+    debugPrint('[Gemini] Scheduling reconnect #$_reconnectAttempt in ${delayMs}ms');
 
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(milliseconds: delayMs), () async {
@@ -408,9 +409,9 @@ class GeminiSocket {
         _setupComplete = false;
         _pendingError = null;
         await connect(reconnect: false);
-        print('[Gemini] Reconnect succeeded');
+        debugPrint('[Gemini] Reconnect succeeded');
       } catch (e) {
-        print('[Gemini] Reconnect failed: $e');
+        debugPrint('[Gemini] Reconnect failed: $e');
         if (_reconnectAttempt < 5 && !_manualDisconnect) {
           _scheduleReconnect();
         }

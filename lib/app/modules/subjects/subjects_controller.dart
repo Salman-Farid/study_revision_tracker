@@ -102,9 +102,9 @@ class SubjectsController extends GetxController {
           'revisionsPlanned': topics.length * 6,
         };
         namesMap[s.id] = topics.map((t) => t.name).toList();
-        print('[Subjects] Progress ${s.name}: ${topics.length} topics, $done revisions done');
+        debugPrint('[Subjects] Progress ${s.name}: ${topics.length} topics, $done revisions done');
       } catch (e) {
-        print('[Subjects] Progress error for ${s.name}: $e');
+        debugPrint('[Subjects] Progress error for ${s.name}: $e');
         map[s.id] = {'topics': s.totalTopics, 'revisionsDone': 0, 'revisionsPlanned': s.totalTopics * 6};
         namesMap[s.id] = [];
       }
