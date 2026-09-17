@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Voice tools that CREATE/DELETE subjects and topics.
 extension VoiceAssistantSubjectCrudTools on VoiceAssistantController {
   Future<void> _addSubjectsBulk(String callId, Map<String, dynamic> args) async {
     final rawList = args['subjects'];

@@ -1,3 +1,4 @@
+/// Audio waveform animation while listening.
 import 'dart:math';
 
 import 'package:flutter/material.dart';

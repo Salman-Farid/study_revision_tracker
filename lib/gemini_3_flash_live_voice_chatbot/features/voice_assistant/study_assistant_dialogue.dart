@@ -8,11 +8,11 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../shared/widgets/thinking_dots.dart';
 import 'voice_assistant_controller.dart';
-part 'widgets/dialogue_chat_bubbles.dart';
-part 'widgets/dialogue_corner_painter.dart';
-part 'widgets/dialogue_error_bar.dart';
-part 'widgets/dialogue_message_builders.dart';
-part 'widgets/dialogue_panel_layout.dart';
+part 'widgets/floating_dialogue/chat_bubbles.dart';
+part 'widgets/floating_dialogue/corner_painter.dart';
+part 'widgets/floating_dialogue/error_bar.dart';
+part 'widgets/floating_dialogue/message_builders.dart';
+part 'widgets/floating_dialogue/panel_layout.dart';
 
 class StudyAssistantDialogue extends StatefulWidget {
   const StudyAssistantDialogue({super.key});

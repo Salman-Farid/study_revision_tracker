@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// WebSocket session: listeners, reconnect, start/stop.
 extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
   void _setupListeners() {
     _connectionSub?.cancel();

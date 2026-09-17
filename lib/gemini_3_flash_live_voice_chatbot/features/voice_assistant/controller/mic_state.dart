@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Mic mute/unmute, echo-guard, and drift reconcile timer.
 extension VoiceAssistantMicState on VoiceAssistantController {
   void _setMicMuted(bool muted, {String reason = ''}) {
     try {

@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Voice tools that READ subjects/topics (getAllData, getSubjectDetail).
 extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
   // ── getAllData: returns cached result if available, otherwise queries DB.
   // Cache is invalidated (set to null) on every write (add/delete).

@@ -7,10 +7,10 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../shared/widgets/thinking_dots.dart';
 import 'voice_assistant_controller.dart';
-part 'widgets/voice_assistant_chat_bubbles.dart';
-part 'widgets/voice_assistant_error_bar.dart';
-part 'widgets/voice_assistant_screen_layout.dart';
-part 'widgets/voice_assistant_sheet_layout.dart';
+part 'widgets/full_screen/chat_bubbles.dart';
+part 'widgets/full_screen/error_bar.dart';
+part 'widgets/full_screen/screen_layout.dart';
+part 'widgets/full_screen/sheet_layout.dart';
 
 class VoiceAssistantScreen extends StatelessWidget {
   const VoiceAssistantScreen({super.key});

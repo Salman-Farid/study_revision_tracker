@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Batches Gemini function-call responses and flushes them.
 extension VoiceAssistantFunctionBatching on VoiceAssistantController {
   void _respondToFunction(String callId, String name, Map<String, dynamic> result, {Map<String, dynamic>? params}) {
     _pendingResponses.add({'id': callId, 'name': name, 'result': result, 'params': params ?? {}});

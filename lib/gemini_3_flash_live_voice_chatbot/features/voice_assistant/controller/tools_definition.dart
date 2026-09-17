@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Tool schema sent to Gemini Live (what the model may call).
 /// Tool declarations sent to Gemini Live (library-private).
 List<Map<String, dynamic>> buildVoiceAssistantTools() {
   return [

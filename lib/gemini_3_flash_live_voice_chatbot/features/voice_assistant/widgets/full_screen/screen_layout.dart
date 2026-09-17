@@ -1,5 +1,6 @@
-part of '../voice_assistant_screen.dart';
+part of '../../voice_assistant_screen.dart';
 
+/// Full-screen chat scaffold body layout.
 extension VoiceAssistantScreenLayout on VoiceAssistantScreen {
   Widget _buildHeader(VoiceAssistantController c, bool isDark) {
     return Container(

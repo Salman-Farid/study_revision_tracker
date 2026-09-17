@@ -1,3 +1,4 @@
+/// Mic FAB with mute state.
 import 'package:flutter/material.dart';
 
 class MicButton extends StatelessWidget {

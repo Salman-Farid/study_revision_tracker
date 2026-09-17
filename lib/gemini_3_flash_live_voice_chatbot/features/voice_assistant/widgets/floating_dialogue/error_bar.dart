@@ -1,5 +1,6 @@
-part of '../study_assistant_dialogue.dart';
+part of '../../study_assistant_dialogue.dart';
 
+/// Inline error/status strip under the header.
 class _ErrorBar extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;

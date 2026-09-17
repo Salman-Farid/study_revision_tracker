@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Voice tools that CREATE class and daily routines.
 extension VoiceAssistantRoutineTools on VoiceAssistantController {
   Future<void> _registerClassRoutine(String callId, Map<String, dynamic> args) async {
     final subjectName = (args['subjectName'] as String?)?.trim();

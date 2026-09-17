@@ -1,5 +1,6 @@
-part of '../voice_assistant_screen.dart';
+part of '../../voice_assistant_screen.dart';
 
+/// Bottom-sheet voice UI layout.
 extension VoiceAssistantSheetLayout on VoiceAssistantSheet {
   Widget _buildHandle() => Center(
         child: Container(

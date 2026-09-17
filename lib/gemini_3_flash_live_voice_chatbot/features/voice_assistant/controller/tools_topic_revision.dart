@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Voice tools for topic status + mark first-read / revision complete.
 extension VoiceAssistantTopicRevisionTools on VoiceAssistantController {
   Future<void> _getTopicStatus(String callId, Map<String, dynamic> args) async {
     var subjectName = args['subjectName'] as String?;

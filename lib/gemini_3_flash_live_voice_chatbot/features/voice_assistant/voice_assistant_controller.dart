@@ -18,15 +18,28 @@ import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';
 
-part 'controller_parts/voice_assistant_dialogue_layout.dart';
-part 'controller_parts/voice_assistant_function_batching.dart';
-part 'controller_parts/voice_assistant_mic_state.dart';
-part 'controller_parts/voice_assistant_routine_tools.dart';
-part 'controller_parts/voice_assistant_session_lifecycle.dart';
-part 'controller_parts/voice_assistant_subject_crud_tools.dart';
-part 'controller_parts/voice_assistant_subject_read_tools.dart';
-part 'controller_parts/voice_assistant_tools_definition.dart';
-part 'controller_parts/voice_assistant_topic_revision_tools.dart';
+part 'controller/dialogue_panel_sizing.dart';
+
+// ─────────────────────────────────────────────────────────────
+// Voice assistant controller — file map (start here if new):
+//   controller/session_lifecycle.dart     connect / reconnect / stop
+//   controller/mic_state.dart             mute / unmute / echo guard
+//   controller/function_call_batching.dart batch Gemini tool replies
+//   controller/tools_definition.dart      tool schemas for Gemini
+//   controller/tools_subject_*.dart       subject/topic voice tools
+//   controller/tools_topic_revision.dart  mark read / revision done
+//   controller/tools_class_daily_routine.dart class + daily routine tools
+//   controller/dialogue_panel_sizing.dart floating panel geometry
+// ─────────────────────────────────────────────────────────────
+
+part 'controller/function_call_batching.dart';
+part 'controller/mic_state.dart';
+part 'controller/tools_class_daily_routine.dart';
+part 'controller/session_lifecycle.dart';
+part 'controller/tools_subject_create_delete.dart';
+part 'controller/tools_subject_read.dart';
+part 'controller/tools_definition.dart';
+part 'controller/tools_topic_revision.dart';
 
 // ── Top-level constants so regex is compiled once, not per-call ──
 final _normalizeNonWord = RegExp(r'[^\w\s]');

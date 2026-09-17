@@ -1,5 +1,6 @@
-part of '../study_assistant_dialogue.dart';
+part of '../../study_assistant_dialogue.dart';
 
+/// Chat message bubbles (role-specific styling).
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isDark;

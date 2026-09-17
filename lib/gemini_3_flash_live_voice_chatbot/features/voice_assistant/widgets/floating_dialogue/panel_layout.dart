@@ -1,5 +1,6 @@
-part of '../study_assistant_dialogue.dart';
+part of '../../study_assistant_dialogue.dart';
 
+/// Floating draggable/resizable panel chrome.
 extension DialoguePanelLayout on _StudyAssistantDialogueState {
   Widget _panelShell({
     required VoiceAssistantController c,

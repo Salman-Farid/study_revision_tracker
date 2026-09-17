@@ -1,5 +1,6 @@
-part of '../study_assistant_dialogue.dart';
+part of '../../study_assistant_dialogue.dart';
 
+/// Custom painter for the resizable dialogue corner.
 class _CornerGripPainter extends CustomPainter {
   _CornerGripPainter({required this.isDark, required this.corner});
   final bool isDark;

@@ -1,5 +1,6 @@
-part of '../study_assistant_dialogue.dart';
+part of '../../study_assistant_dialogue.dart';
 
+/// Builds ChatMessage → bubble widgets + actions.
 extension DialogueMessageBuilders on _StudyAssistantDialogueState {
   Widget _buildHeader(VoiceAssistantController c, bool isDark, BuildContext context) {
     return Column(

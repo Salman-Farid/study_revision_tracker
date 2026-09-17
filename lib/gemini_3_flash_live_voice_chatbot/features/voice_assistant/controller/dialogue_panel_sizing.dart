@@ -1,5 +1,6 @@
 part of '../voice_assistant_controller.dart';
 
+/// Floating dialogue panel size/position/resize logic.
 extension VoiceAssistantDialogueLayout on VoiceAssistantController {
   void ensureDialogueSize({
     required bool allowResize,

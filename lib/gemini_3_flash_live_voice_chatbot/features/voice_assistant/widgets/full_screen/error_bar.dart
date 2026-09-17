@@ -1,5 +1,6 @@
-part of '../voice_assistant_screen.dart';
+part of '../../voice_assistant_screen.dart';
 
+/// Inline error/status strip under the header.
 class _ErrorBar extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
