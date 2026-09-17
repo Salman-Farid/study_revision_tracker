@@ -3,7 +3,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/responsive.dart';
 import '../../../core/constants/size_constants.dart';
-import '../../../core/constants/subject_icons.dart';
 import '../../../theme/app_theme.dart';
 import 'statistics_streak_card.dart';
 
@@ -46,7 +45,7 @@ class SubjectProgressList extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  SubjectIcons.forCodePoint(subject.iconCodePoint),
+                  IconData(subject.iconCodePoint, fontFamily: 'MaterialIcons'),
                   color: subject.color,
                   size: S.iconMd,
                 ),

@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/size_constants.dart';
-import '../../../core/constants/subject_icons.dart';
 import '../../../data/models/subject_model.dart';
 import '../../../theme/app_theme.dart';
 import '../subjects_controller.dart';
@@ -62,7 +61,7 @@ class SubjectsGrid extends StatelessWidget {
                           borderRadius: BorderRadius.circular(S.radiusMd),
                         ),
                         child: Icon(
-                          SubjectIcons.forCodePoint(sub.iconCodePoint),
+                          IconData(sub.iconCodePoint, fontFamily: 'MaterialIcons'),
                           color: hasImage ? Colors.white : sub.color,
                           size: S.iconLg,
                         ),
