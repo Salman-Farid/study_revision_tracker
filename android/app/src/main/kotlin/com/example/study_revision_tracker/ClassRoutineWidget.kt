@@ -85,7 +85,6 @@ class ClassRoutineWidget : AppWidgetProvider() {
                 val nowMs = System.currentTimeMillis()
 
                 var nowShown = false
-                var listCount = 0
 
                 for (i in 0 until count) {
                     val o = arr.getJSONObject(i)
@@ -120,8 +119,6 @@ class ClassRoutineWidget : AppWidgetProvider() {
                             views.setTextColor(R.id.widget_now_time, timeCol)
                             views.setTextColor(R.id.widget_now_location, locCol)
                         }
-                    } else {
-                        listCount++
                     }
                 }
 
@@ -141,20 +138,11 @@ class ClassRoutineWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_class_list, View.GONE)
                     views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
                     views.setTextViewText(R.id.widget_empty, "Nothing to show\nNo classes today")
-                    views.setTextViewText(R.id.widget_footer, "")
                 } else {
                     // List is visible even when only the NOW card is present
                     // (factory skips the current class, so rows may be 0).
                     views.setViewVisibility(R.id.widget_class_list, View.VISIBLE)
                     views.setViewVisibility(R.id.widget_empty, View.GONE)
-
-                    val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
-                    val t = lastUpdated.substringAfter("T", "").take(5)
-                    val footerCount = if (listCount > 0) listCount else count
-                    views.setTextViewText(
-                        R.id.widget_footer,
-                        if (t.isNotEmpty()) "Updated $t" else "$footerCount class(es) today"
-                    )
                 }
 
                 val open = Intent(

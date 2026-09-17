@@ -122,14 +122,21 @@ class _WidgetPromoDialogState extends State<WidgetPromoDialog>
                         ),
                       ],
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildHeader(d),
-                        _buildSubtitle(d),
-                        _buildWidgetCards(d),
-                        _buildButtons(d),
-                      ],
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: size.height * 0.78,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildHeader(d),
+                            _buildSubtitle(d),
+                            _buildWidgetCards(d),
+                            _buildButtons(d),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

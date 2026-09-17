@@ -163,16 +163,22 @@ class WidgetDataProvider {
 
   // ── Daily Routine ──
 
+  /// Matches the Routine tab: this widget shows ONLY assistant-created daily
+  /// routine items for today. Class routines live on the Class widget.
+  static const String _kDailyEmptyMessage =
+      'No Daily Routine Created, Tap To Create One';
+
   static Future<Map<String, dynamic>> _fetchDailyRoutineData(
     SupabaseClient client, String userId, DateTime now, DateTime today, DateTime tomorrow,
   ) async {
     final result = <String, dynamic>{
       'hasData': false,
-      'statusMessage': 'Nothing to show',
+      'statusMessage': _kDailyEmptyMessage,
+      'upcomingItems': <Map<String, dynamic>>[],
+      'allItems': <Map<String, dynamic>>[],
     };
 
     try {
-      // Fetch daily routines for today
       final dailyRows = await client
           .from('daily_routines')
           .select()
@@ -181,13 +187,6 @@ class WidgetDataProvider {
           .lt('date', tomorrow.toIso8601String().substring(0, 10))
           .order('date', ascending: true);
 
-      // Fetch class routines for today
-      final classRows = await client
-          .from('class_routines')
-          .select()
-          .eq('user_id', userId);
-
-      // Parse daily routine items
       final dailyItems = <Map<String, dynamic>>[];
       for (final row in dailyRows) {
         final model = DailyRoutineModel.fromJson(row);
@@ -210,30 +209,7 @@ class WidgetDataProvider {
         }
       }
 
-      // Parse class routine items for today
-      final classItems = <Map<String, dynamic>>[];
-      for (final row in classRows) {
-        final cr = ClassRoutineModel.fromJson(row);
-        final isToday = _classMatchesDay(cr, today);
-        if (isToday) {
-          final start = DateTime(today.year, today.month, today.day, cr.startTime.hour, cr.startTime.minute);
-          final end = start.add(Duration(minutes: cr.durationMinutes));
-          classItems.add({
-            'subject': cr.subjectName,
-            'topic': '',
-            'type': 'class',
-            'start': start,
-            'end': end,
-            'timeText': cr.timeText,
-            'endTimeText': cr.endTimeText,
-            'sortKey': '${cr.startTime.hour.toString().padLeft(2, '0')}:${cr.startTime.minute.toString().padLeft(2, '0')}',
-            'location': cr.locationText,
-          });
-        }
-      }
-
-      // Merge and sort
-      final allItems = [...classItems, ...dailyItems];
+      final allItems = [...dailyItems];
       allItems.sort((a, b) => (a['sortKey'] as String).compareTo(b['sortKey'] as String));
 
       if (allItems.isEmpty) return result;
@@ -318,7 +294,10 @@ class WidgetDataProvider {
       result['allItems'] = allItemsJson;
     } catch (e) {
       debugPrint('[WidgetData] _fetchDailyRoutineData error: $e');
-      result['statusMessage'] = 'No routine for today';
+      result['hasData'] = false;
+      result['statusMessage'] = _kDailyEmptyMessage;
+      result['upcomingItems'] = <Map<String, dynamic>>[];
+      result['allItems'] = <Map<String, dynamic>>[];
     }
 
     return result;
@@ -642,8 +621,13 @@ class WidgetDataProvider {
   static Future<void> _saveDailyWidgetData(
     Map<String, dynamic> data,
   ) async {
-    await HomeWidget.saveWidgetData<String>(_kDailyHasData, (data['hasData'] as bool? ?? false).toString());
-    await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, data['statusMessage'] as String? ?? '');
+    final hasData = data['hasData'] as bool? ?? false;
+    final statusMessage = data['statusMessage'] as String? ?? '';
+    await HomeWidget.saveWidgetData<String>(_kDailyHasData, hasData.toString());
+    await HomeWidget.saveWidgetData<String>(
+      _kDailyStatusMessage,
+      statusMessage.isEmpty ? _kDailyEmptyMessage : statusMessage,
+    );
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentSubject, data['currentSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentTopic, data['currentTopic'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentType, data['currentType'] as String? ?? '');
@@ -652,22 +636,31 @@ class WidgetDataProvider {
     await HomeWidget.saveWidgetData<String>(_kDailyCurrentEndTimestamp, (data['currentEndTimestamp'] as int? ?? 0).toString());
     await HomeWidget.saveWidgetData<String>(_kDailyNextSubject, data['nextSubject'] as String? ?? '');
     await HomeWidget.saveWidgetData<String>(_kDailyNextTime, data['nextTime'] as String? ?? '');
-    await HomeWidget.saveWidgetData<String>(_kDailyUpcomingItems, jsonEncode(data['upcomingItems'] ?? []));
-    await HomeWidget.saveWidgetData<String>(_kDailyAllItems, jsonEncode(data['allItems'] ?? []));
+    // Always write valid JSON arrays so the native list never sees null/"null".
+    await HomeWidget.saveWidgetData<String>(
+      _kDailyUpcomingItems,
+      jsonEncode(data['upcomingItems'] as List? ?? const []),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      _kDailyAllItems,
+      jsonEncode(data['allItems'] as List? ?? const []),
+    );
   }
 
   static Future<void> _saveRevisionWidgetData(
     Map<String, dynamic> data,
   ) async {
+    List safeList(Object? value) =>
+        value is List ? value : const <dynamic>[];
     await HomeWidget.saveWidgetData<String>(_kRevisionHasData, (data['hasData'] as bool? ?? false).toString());
-    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, data['statusMessage'] as String? ?? '');
+    await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, data['statusMessage'] as String? ?? 'Nothing planned yet');
     await HomeWidget.saveWidgetData<String>(_kRevisionOverdueCount, (data['overdueCount'] as int? ?? 0).toString());
     await HomeWidget.saveWidgetData<String>(_kRevisionTodayCount, (data['todayCount'] as int? ?? 0).toString());
     await HomeWidget.saveWidgetData<String>(_kRevisionUpcomingCount, (data['upcomingCount'] as int? ?? 0).toString());
-    await HomeWidget.saveWidgetData<String>(_kRevisionItems, jsonEncode(data['items']));
-    await HomeWidget.saveWidgetData<String>(_kRevisionOverdueItems, jsonEncode(data['overdueItems']));
-    await HomeWidget.saveWidgetData<String>(_kRevisionTodayItems, jsonEncode(data['todayItems']));
-    await HomeWidget.saveWidgetData<String>(_kRevisionUpcomingItems, jsonEncode(data['upcomingItems']));
+    await HomeWidget.saveWidgetData<String>(_kRevisionItems, jsonEncode(safeList(data['items'])));
+    await HomeWidget.saveWidgetData<String>(_kRevisionOverdueItems, jsonEncode(safeList(data['overdueItems'])));
+    await HomeWidget.saveWidgetData<String>(_kRevisionTodayItems, jsonEncode(safeList(data['todayItems'])));
+    await HomeWidget.saveWidgetData<String>(_kRevisionUpcomingItems, jsonEncode(safeList(data['upcomingItems'])));
   }
 
   static Future<void> _saveClassWidgetData(
@@ -692,9 +685,20 @@ class WidgetDataProvider {
 
   static Future<void> _setEmptyData() async {
     await HomeWidget.saveWidgetData<String>(_kDailyHasData, 'false');
-    await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, 'Nothing to show');
+    await HomeWidget.saveWidgetData<String>(_kDailyStatusMessage, _kDailyEmptyMessage);
+    await HomeWidget.saveWidgetData<String>(_kDailyUpcomingItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kDailyAllItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kDailyCurrentSubject, '');
+    await HomeWidget.saveWidgetData<String>(_kDailyCurrentEndTimestamp, '0');
     await HomeWidget.saveWidgetData<String>(_kRevisionHasData, 'false');
     await HomeWidget.saveWidgetData<String>(_kRevisionStatusMessage, 'Nothing planned yet');
+    await HomeWidget.saveWidgetData<String>(_kRevisionItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kRevisionOverdueItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kRevisionTodayItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kRevisionUpcomingItems, '[]');
+    await HomeWidget.saveWidgetData<String>(_kRevisionOverdueCount, '0');
+    await HomeWidget.saveWidgetData<String>(_kRevisionTodayCount, '0');
+    await HomeWidget.saveWidgetData<String>(_kRevisionUpcomingCount, '0');
     await HomeWidget.saveWidgetData<String>(_kClassHasToday, 'false');
     await HomeWidget.saveWidgetData<String>(_kClassStatusMessage, 'Nothing to show');
     await HomeWidget.saveWidgetData<String>(_kClassItems, '[]');

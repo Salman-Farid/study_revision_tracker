@@ -8,6 +8,7 @@ import '../../core/services/notification_service.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../core/localization/language_controller.dart';
+import '../../core/services/password_recovery_service.dart';
 import '../../routes/app_routes.dart';
 
 /// Drives the Profile/Settings screen: real account info, live study stats,
@@ -157,6 +158,10 @@ class SettingsController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged_in', false);
       await prefs.remove('user_email');
+      try {
+        Get.find<PasswordRecoveryService>().resetAfterSignOut();
+      } catch (_) {}
+      PasswordRecoveryService.clearAuthQueryFromUrl();
       Get.offAllNamed(AppRoutes.auth);
     } catch (_) {}
   }

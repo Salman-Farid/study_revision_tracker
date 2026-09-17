@@ -145,12 +145,13 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
         val hasData = prefs.getString("widget_daily_has_data", "false") == "true"
         var statusMessage = prefs.getString("widget_daily_status_message", "") ?: ""
         if (statusMessage.isBlank() || statusMessage.contains("Error", ignoreCase = true)) {
-            statusMessage = "Nothing to show"
+            statusMessage = "No Daily Routine Created, Tap To Create One"
         }
-        val lastUpdated = prefs.getString("widget_last_updated", "") ?: ""
         val nowMs = System.currentTimeMillis()
 
-        val active = DailyRoutineWidget.resolveActiveBlock(prefs, nowMs)
+        // Only show a live block when a daily routine actually exists for today.
+        // Class routines must never leak into this widget.
+        val active = if (hasData) DailyRoutineWidget.resolveActiveBlock(prefs, nowMs) else null
         val hasCurrent = active != null && active.endMs > nowMs
 
         val views = RemoteViews(context.packageName, R.layout.daily_routine_widget)
@@ -214,13 +215,6 @@ private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, a
             views.setTextViewText(R.id.widget_empty_message, "No more blocks today")
         } else {
             views.setViewVisibility(R.id.widget_empty, View.GONE)
-        }
-
-        if (lastUpdated.isNotEmpty()) {
-            val time = lastUpdated.substringAfter("T", "").take(5)
-            if (time.isNotEmpty()) {
-                views.setTextViewText(R.id.widget_updated, "Updated $time")
-            }
         }
 
         val rootIntent = Intent(Intent.ACTION_VIEW, Uri.parse("study-revision-tracker://routine")).apply {

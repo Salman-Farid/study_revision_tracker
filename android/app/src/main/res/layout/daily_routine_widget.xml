@@ -147,18 +147,10 @@
             android:id="@+id/widget_empty_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Nothing to show"
+            android:text="No Daily Routine Created, Tap To Create One"
             android:textColor="#99000000"
             android:textSize="13sp"
             android:textStyle="italic" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_updated"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="#40000000"
-        android:textSize="9sp"
-        android:layout_marginTop="4dp" />
 
 </LinearLayout>

@@ -29,20 +29,23 @@ class ClassRoutineWidgetFactory(
 
     override fun onDataSetChanged() {
         items.clear()
-        val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-        showDuration = prefs.getString("widget_class_show_duration", "false") == "true"
+        try {
+            val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+            showDuration = prefs.getString("widget_class_show_duration", "false") == "true"
 
-        var itemsJson = prefs.getString("widget_class_today_items", null)
-        if (itemsJson == null) {
-            val all = prefs.getString("widget_class_items", "[]") ?: "[]"
-            itemsJson = filterToday(all)
-        }
+            var itemsJson = prefs.getString("widget_class_today_items", null)
+            if (itemsJson == null || itemsJson == "null") {
+                val all = prefs.getString("widget_class_items", "[]") ?: "[]"
+                itemsJson = filterToday(all)
+            }
+            val json = itemsJson ?: "[]"
+            if (json.isBlank() || json == "null") return
 
-        val arr = try { JSONArray(itemsJson) } catch (_: Exception) { JSONArray() }
-        val nowMs = System.currentTimeMillis()
+            val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+            val nowMs = System.currentTimeMillis()
 
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
             val startTs = o.optLong("startTimestamp", 0L)
             val endTs = o.optLong("endTimestamp", 0L)
             val isNow = o.optBoolean("isCurrent", false) ||
@@ -88,6 +91,9 @@ class ClassRoutineWidgetFactory(
                     locationColor = locCol,
                 )
             )
+            }
+        } catch (_: Exception) {
+            items.clear()
         }
     }
 
@@ -97,28 +103,33 @@ class ClassRoutineWidgetFactory(
 
     override fun getCount(): Int = items.size
 
-    override fun getViewAt(position: Int): RemoteViews {
-        val item = items[position]
-        val row = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
-        row.setTextViewText(R.id.row_subject, item.subject)
-        row.setTextViewText(R.id.row_time, item.timeLine)
-        if (item.location.isNotEmpty()) {
-            row.setViewVisibility(R.id.row_location, android.view.View.VISIBLE)
-            row.setTextViewText(R.id.row_location, item.location)
-        } else {
-            row.setViewVisibility(R.id.row_location, android.view.View.GONE)
+    override fun getViewAt(position: Int): RemoteViews? {
+        if (position < 0 || position >= items.size) return null
+        return try {
+            val item = items[position]
+            val row = RemoteViews(context.packageName, R.layout.class_routine_widget_item)
+            row.setTextViewText(R.id.row_subject, item.subject)
+            row.setTextViewText(R.id.row_time, item.timeLine)
+            if (item.location.isNotEmpty()) {
+                row.setViewVisibility(R.id.row_location, android.view.View.VISIBLE)
+                row.setTextViewText(R.id.row_location, item.location)
+            } else {
+                row.setViewVisibility(R.id.row_location, android.view.View.GONE)
+            }
+            if (showDuration && item.durationText.isNotEmpty()) {
+                row.setViewVisibility(R.id.row_duration_box, android.view.View.VISIBLE)
+                row.setTextViewText(R.id.row_duration, item.durationText)
+                row.setTextColor(R.id.row_duration, item.subjectColor)
+            } else {
+                row.setViewVisibility(R.id.row_duration_box, android.view.View.GONE)
+            }
+            row.setTextColor(R.id.row_subject, item.subjectColor)
+            row.setTextColor(R.id.row_time, item.timeColor)
+            row.setTextColor(R.id.row_location, item.locationColor)
+            row
+        } catch (_: Exception) {
+            null
         }
-        if (showDuration && item.durationText.isNotEmpty()) {
-            row.setViewVisibility(R.id.row_duration_box, android.view.View.VISIBLE)
-            row.setTextViewText(R.id.row_duration, item.durationText)
-            row.setTextColor(R.id.row_duration, item.subjectColor)
-        } else {
-            row.setViewVisibility(R.id.row_duration_box, android.view.View.GONE)
-        }
-        row.setTextColor(R.id.row_subject, item.subjectColor)
-        row.setTextColor(R.id.row_time, item.timeColor)
-        row.setTextColor(R.id.row_location, item.locationColor)
-        return row
     }
 
     override fun getLoadingView(): RemoteViews? = null

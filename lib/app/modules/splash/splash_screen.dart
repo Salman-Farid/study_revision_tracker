@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/responsive.dart';
+import '../../core/services/password_recovery_service.dart';
 import '../../core/services/widget_data_service.dart';
 import '../../modules/navigation/navigation_controller.dart';
 import '../../routes/app_routes.dart';
@@ -120,6 +121,17 @@ class _SplashScreenState extends State<SplashScreen>
           if (initialLink != null) linkHost = initialLink.host;
         } catch (_) {}
       }
+
+      // Recovery email link → always land on Auth so the new-password
+      // dialog can open. Covers PKCE (?recovery=1) and mobile deep link.
+      try {
+        final recovery = Get.find<PasswordRecoveryService>();
+        await recovery.detectInitialRecoveryLink();
+        if (recovery.isRecovery.value) {
+          finish(AppRoutes.auth);
+          return;
+        }
+      } catch (_) {}
 
       if (user != null) {
         finish(AppRoutes.home, host: linkHost);

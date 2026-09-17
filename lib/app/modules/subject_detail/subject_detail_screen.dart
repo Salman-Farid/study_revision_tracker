@@ -274,7 +274,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
         borderRadius: BorderRadius.circular(S.radiusFull),
         onTap: () => _confirmFirstRead(d, t),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(S.radiusFull),
@@ -282,13 +282,13 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
-              SizedBox(width: 6),
+              Icon(Icons.check_circle_rounded, size: 10, color: Colors.white),
+              SizedBox(width: 2),
               Text(
                 'Complete',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 9,
                   fontWeight: FontWeight.w600,
                 ),
               ),

@@ -14,6 +14,7 @@ import 'app/core/localization/language_controller.dart';
 import 'app/core/localization/app_translations.dart';
 import 'app/core/services/connectivity_service.dart';
 import 'app/core/services/notification_service.dart';
+import 'app/core/services/password_recovery_service.dart';
 import 'app/core/services/widget_data_service.dart';
 import 'app/core/web/url_strategy_stub.dart'
     if (dart.library.html) 'app/core/web/url_strategy_web.dart';
@@ -47,17 +48,30 @@ void main() async {
     ]);
   }
 
+  // Capture the launch URL BEFORE Supabase PKCE exchange can rewrite it.
+  // Used to detect password-recovery email links on cold start.
+  final Uri launchUri = Uri.base;
+
   // Supabase persists the session in secure storage (mobile) or
   // localStorage (web). initialize() restores it before we read currentUser.
+  // detectSessionInUri (default true) completes PKCE for recovery/OAuth links.
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
+      // We exchange the recovery `code` once in PasswordRecoveryService.
+      // Auto-detect + our exchange double-burns the one-time PKCE code.
+      detectSessionInUri: false,
     ),
   );
 
+  Get.put(PasswordRecoveryService(launchUri: launchUri), permanent: true);
   Get.put(SupabaseService(), permanent: true);
+
+  // Finish PKCE before first frame so AuthScreen can show the set-password
+  // form as soon as recovery=1 is on the URL.
+  await Get.find<PasswordRecoveryService>().completeFromLaunchUri(launchUri);
   Get.put(SubjectRepository(), permanent: true);
   Get.put(TopicRepository(), permanent: true);
   Get.put(RevisionRepository(), permanent: true);

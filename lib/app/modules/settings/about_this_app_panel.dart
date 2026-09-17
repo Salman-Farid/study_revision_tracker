@@ -59,32 +59,28 @@ class _AboutThisAppPanelState extends State<AboutThisAppPanel>
         children: [
           _stagger(0, _hero(d)),
           const SizedBox(height: 14),
-          _stagger(1, _sectionTitle('Vision & mission', d)),
+          _stagger(1, _problemCard(d)),
           const SizedBox(height: 10),
-          _stagger(2, _visionMission(d)),
-          const SizedBox(height: 10),
-          _stagger(3, _problemCard(d)),
-          const SizedBox(height: 10),
-          _stagger(4, _solutionCard(d)),
+          _stagger(2, _solveCard(d)),
           const SizedBox(height: 18),
 
           // ── AI is the headline feature ──
-          _stagger(5, _putuHeader(d)),
+          _stagger(3, _putuHeader(d)),
           const SizedBox(height: 10),
-          _stagger(6, _putuCapabilityPanel(d)),
+          _stagger(4, _putuCapabilityPanel(d)),
           const SizedBox(height: 18),
 
-          _stagger(7, _sectionTitle('Beyond revisions', d)),
+          _stagger(5, _sectionTitle('Beyond revisions', d)),
           const SizedBox(height: 10),
-          _stagger(8, _beyondGrid(d)),
+          _stagger(6, _beyondGrid(d)),
           const SizedBox(height: 18),
-          _stagger(9, _sectionTitle('Where to go (manual)', d)),
+          _stagger(7, _sectionTitle('Where to go (manual)', d)),
           const SizedBox(height: 10),
-          _stagger(10, _manualList(d)),
+          _stagger(8, _manualList(d)),
           const SizedBox(height: 18),
-          _stagger(11, _spacedCard(d)),
+          _stagger(9, _spacedCard(d)),
           const SizedBox(height: 12),
-          _stagger(12, _footer(d)),
+          _stagger(10, _footer(d)),
         ],
       ),
     );
@@ -206,80 +202,6 @@ class _AboutThisAppPanelState extends State<AboutThisAppPanel>
     );
   }
 
-  Widget _visionMission(bool d) {
-    return Column(
-      children: [
-        _card(
-          d: d,
-          tint: _tint(AppColors.primary, d, amount: 0.035),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _iconBubble(AppColors.primary, Icons.visibility_rounded, d),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Vision',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.textPrimary(d),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Every student remembers what they learned — not just the night before the exam, but months later — with almost zero planning overhead.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary(d),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        _card(
-          d: d,
-          tint: _tint(_putuPurple, d, amount: 0.035),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _iconBubble(_putuPurple, Icons.flag_rounded, d),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Mission',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.textPrimary(d),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Unify spaced revision, class timetable, daily study blocks, home-screen widgets, and a voice-first AI assistant into one calm workspace — so “what should I study now?” is always answered.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary(d),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _problemCard(bool d) {
     return _card(
       d: d,
@@ -289,35 +211,32 @@ class _AboutThisAppPanelState extends State<AboutThisAppPanel>
         children: [
           Row(
             children: [
-              _iconBubble(_putuRose, Icons.warning_amber_rounded, d),
-              const SizedBox(width: 12),
+              _iconBubble(_putuRose, Icons.warning_amber_rounded, d, size: 32),
+              const SizedBox(width: 10),
               Text(
-                'The problem we solve',
+                'The Problem',
                 style: AppTextStyles.titleSmall.copyWith(
                   color: AppColors.textPrimary(d),
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            '• You study a chapter once, then forget it in days.\n'
-            '• Class schedule, daily plan, and revision list live in different notebooks/apps.\n'
-            '• Cramming feels productive but destroys long-term memory.\n'
-            '• Typing subjects, topics, and routines on a phone while studying is slow.\n'
-            '• Opening an app just to check “what’s next?” breaks focus.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary(d),
-              height: 1.55,
-            ),
-          ),
+          _bullet('Study once → forget in hours or days (no structured review)', d),
+          _bullet('No clear record of when / which subject / which topic you studied', d),
+          _bullet('Plans scattered: paper, notes, calendars, many apps', d),
+          _bullet('Class routine and personal study plan live apart from revisions', d),
+          _bullet('Hard to see what’s done, what’s left, and what to study next', d),
+          _bullet('Little progress tracking by subject & topic', d),
+          _bullet('Energy wasted planning instead of studying', d),
+          _bullet('Worse for competitive exams (BCS, NEET, JEE, UPSC, …) with huge syllabi', d),
         ],
       ),
     );
   }
 
-  Widget _solutionCard(bool d) {
+  Widget _solveCard(bool d) {
     return _card(
       d: d,
       tint: _tint(_putuGreen, d, amount: 0.03),
@@ -326,27 +245,53 @@ class _AboutThisAppPanelState extends State<AboutThisAppPanel>
         children: [
           Row(
             children: [
-              _iconBubble(_putuGreen, Icons.lightbulb_rounded, d),
-              const SizedBox(width: 12),
+              _iconBubble(_putuGreen, Icons.check_circle_rounded, d, size: 32),
+              const SizedBox(width: 10),
               Text(
-                'The complete study system',
+                'The Solve',
                 style: AppTextStyles.titleSmall.copyWith(
                   color: AppColors.textPrimary(d),
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
+          _bullet('One workspace for subjects, topics, and first-read tracking', d),
+          _bullet('Auto spaced revisions: Day 1 · 3 · 7 · 14 · 30 · 90', d),
+          _bullet('Today · Missed · Coming Up — always know the next step', d),
+          _bullet('Class + daily routines in the same place as revisions', d),
+          _bullet('Completed vs remaining, history, streaks, completion stats', d),
+          _bullet('Reminders for revisions, classes & the current daily block', d),
+          _bullet('Android widgets — see what to do without opening the app', d),
+          _bullet('Putu (voice) — add, complete, plan, delete without typing', d),
+        ],
+      ),
+    );
+  }
+
+  Widget _bullet(String text, bool d) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            '1. Finish First Read on a topic → auto-schedule revisions Day 1 · 3 · 7 · 14 · 30 · 90.\n'
-            '2. Track Today / Missed / Coming Up; swipe-complete on mobile.\n'
-            '3. Build Class routines and Daily routines side by side.\n'
-            '4. On Android, pin widgets + get auto reminders for the current daily block.\n'
-            '5. Talk to Putu — add, complete, plan, and delete with your voice.',
+            '•',
             style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary(d),
-              height: 1.55,
+              color: AppColors.textMuted(d),
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary(d),
+                height: 1.4,
+              ),
             ),
           ),
         ],

@@ -15,37 +15,29 @@ One Flutter app so students remember what they learned — not just the night be
 
 ---
 
-## 1. Vision & mission
+## 1. Vision, mission & the problem we solve
 
-### Vision
-Every student remembers what they learned — months later — with almost zero planning overhead.
+A student’s study process is often **unorganized and fragmented** — and that is the real problem, not “forgetting” alone.
 
-### Mission
-Unify **spaced revision**, **class timetable**, **daily study blocks**, **home-screen widgets**, and a **voice-first AI assistant** into one calm workspace — so “what should I study now?” is always answered.
+They open a chapter, study it once, and lose most of it within hours or days because nothing forces a structured review. There is rarely a clear record of **when** they studied, **which subject** it was, and **which topic** they actually covered. Planning lives in paper, pen, notebooks, phone notes, calendars, and a pile of different apps. Class timetables sit apart from personal study plans, which sit apart from revision lists. When exam week arrives, the same questions return: *What have I already finished? What is still left? What should I study right now? How am I actually doing across subjects?* There is almost no reliable view of completed vs remaining topics, and no subject- or topic-level sense of progress. So students spend mental energy **organizing instead of studying** — the worst trade when the syllabus is large and the timeline is long.
 
----
+That cost becomes even sharper during **competitive-exam preparation**. BCS, NEET, JEE, UPSC, USMLE, MCAT, SAT, GRE, GMAT, Gaokao, and similar high-stakes exams demand months of coverage across many subjects, with material that must be **revisited repeatedly**, not just read once. Without one system that remembers what was learned and when it should come back again, even hard-working students fall behind.
 
-## 2. The problem we solve
+**Smart Revision Tracker** is that missing system — one organized study workspace, not another reminder app, calendar, flashcard deck, timetable, or chatbot.
 
-- Study a chapter once → forget it in days.  
-- Class schedule, daily plan, and revision list live in different notebooks/apps.  
-- Cramming feels productive but destroys long-term memory.  
-- Typing subjects, topics, and routines on a phone while studying is slow.  
-- Opening an app just to check “what’s next?” breaks focus.
+It records **subjects and topics**, tracks **first-read completion**, and only then automatically schedules spaced revisions on **Day 1 · 3 · 7 · 14 · 30 · 90**. It surfaces **today’s, missed, and upcoming** work so nothing silently disappears. It keeps **class routines** and **daily study routines** in the same place as revision planning. It tracks what is completed versus what remains, with history, progress, streaks, and completion stats. Reminders cover revisions, classes, and the **current daily study block**. On Android, **home-screen widgets** show what to do next without reopening the app. And **Putu**, the voice study assistant, cuts the friction of entering and managing all of that while you are already at the desk.
 
-### The complete system
+The product exists to answer one practical question every day:
 
-1. Finish **First Read** on a topic → auto-schedule revisions **Day 1 · 3 · 7 · 14 · 30 · 90**.  
-2. Track **Today / Missed / Coming Up**; swipe-complete on mobile.  
-3. Build **Class routines** and **Daily routines** (side-by-side on desktop).  
-4. On Android: pin **widgets** + **auto reminders** for the current daily block.  
-5. Talk to **Putu** — add, complete, plan, and delete with your voice.
+> **“What should I study or revise now?”**
 
-**Who it’s for:** University & school students (Bangla / English / Banglish) who want less friction than a spreadsheet.
+The outcome we want is simple and human: students should know **what they studied, what they remember, what needs revision, what is still left, how they are progressing, and what to do next** — without organizing everything by hand. Less planning friction. More consistent learning. Memory that lasts past the night before the exam.
+
+Built for school and university students in general (Bangla / English / Banglish), and especially powerful for anyone grinding a large competitive syllabus where structured revision is not optional.
 
 ---
 
-## 3. Putu — voice study AI (major feature)
+## 2. Putu — voice study AI (major feature)
 
 Putu is the headline feature: **hands-free control of your real study data**. Tools write the same Supabase tables the UI uses — no fake replies.
 
@@ -73,7 +65,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 
 ---
 
-## 4. Features overview
+## 3. Features overview
 
 ### Study core
 | Feature | Detail |
@@ -110,7 +102,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 
 ---
 
-## 5. Web & desktop shell
+## 4. Web & desktop shell
 
 | Breakpoint | Experience |
 |------------|------------|
@@ -135,7 +127,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 
 ---
 
-## 6. Architecture
+## 5. Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -160,7 +152,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 
 ---
 
-## 7. Agentic workflow
+## 6. Agentic workflow
 
 ### A. In-app voice (production)
 ```text
@@ -181,7 +173,7 @@ Gemini STT → Flutter → POST /v1/agent/invoke { task, mode, jwt }
 
 ---
 
-## 8. Repository layout
+## 7. Repository layout
 
 ```text
 study_revision_tracker/
@@ -209,7 +201,7 @@ study_revision_tracker/
 
 ---
 
-## 9. Data model (Supabase)
+## 8. Data model (Supabase)
 
 | Table | Purpose |
 |-------|---------|
@@ -224,7 +216,7 @@ RLS: rows scoped to `user_id`. Widgets read **SharedPreferences** written by Flu
 
 ---
 
-## 10. Spaced-revision product logic
+## 9. Spaced-revision product logic
 
 ```text
 Add topic
@@ -237,7 +229,7 @@ Invariant: days are only `[1, 3, 7, 14, 30, 90]` everywhere.
 
 ---
 
-## 11. Getting started
+## 10. Getting started
 
 ```bash
 flutter pub get
@@ -252,9 +244,33 @@ flutter build web --release --no-tree-shake-icons
 
 Optional Strands backend: see `AWS_STRANDS_AGENT_INTEGRATION/README.md`.
 
+### Password reset (built-in Supabase Auth)
+
+The app uses Supabase’s normal recovery APIs — no custom backend:
+
+1. `auth.resetPasswordForEmail(...)` — sends the official recovery email  
+2. `AuthChangeEvent.passwordRecovery` — fires when the user taps the link  
+3. `auth.updateUser(password)` — saves the new password  
+
+**You do not need a production website.** For Android/iOS the email links back into the app via the custom scheme already in the manifests:
+
+```
+study-revision-tracker://recovery
+```
+
+**One-time dashboard step** — Supabase → **Authentication → URL Configuration → Redirect URLs**:
+
+```
+study-revision-tracker://recovery
+```
+
+(Site URL can stay on the default. Optional for local web only: `http://localhost:PORT/auth?recovery=1`.)
+
+Flow: Sign In → Forgot password? → open email link → app opens → set new password → Home.
+
 ---
 
-## 12. Demo script (judges, 3–5 min)
+## 11. Demo script (judges, 3–5 min)
 
 1. **Auth** desktop: art left, form right.  
 2. **Dashboard** — due counts, Start Revising.  
@@ -269,7 +285,7 @@ Optional Strands backend: see `AWS_STRANDS_AGENT_INTEGRATION/README.md`.
 
 ---
 
-## 13. Impact & differentiation
+## 12. Impact & differentiation
 
 | Pain | How this solves it |
 |------|---------------------|
@@ -283,7 +299,7 @@ Optional Strands backend: see `AWS_STRANDS_AGENT_INTEGRATION/README.md`.
 
 ---
 
-## 14. Tech stack
+## 13. Tech stack
 
 | Layer | Choice |
 |-------|--------|
@@ -299,7 +315,7 @@ Optional Strands backend: see `AWS_STRANDS_AGENT_INTEGRATION/README.md`.
 
 ---
 
-## 15. Docs map
+## 14. Docs map
 
 | File | Contents |
 |------|----------|
