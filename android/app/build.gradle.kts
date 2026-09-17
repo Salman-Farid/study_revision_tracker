@@ -49,7 +49,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Keep only a compact symbol table (not full debug .sym files).
+            ndk {
+                debugSymbolLevel = "symbol_table"
+            }
         }
+    }
+
+    bundle {
+        // Play delivers a single ABI/DPI/language per device — keep splits on.
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
     }
 }
 
