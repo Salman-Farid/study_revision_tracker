@@ -18,7 +18,7 @@ class AuthImagePane extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/auth_study.png',
+            'assets/images/auth_study.jpg',
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _fallbackArt(d),
           ),

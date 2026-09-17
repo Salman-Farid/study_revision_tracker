@@ -16,7 +16,7 @@ class AboutHero extends StatelessWidget {
             height: 160,
             width: double.infinity,
             child: Image.asset(
-              'assets/images/auth_study.png',
+              'assets/images/auth_study.jpg',
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => ColoredBox(
                 color: aboutTint(AppColors.primary, d, amount: 0.08),
