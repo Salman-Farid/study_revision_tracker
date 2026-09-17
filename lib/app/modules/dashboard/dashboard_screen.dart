@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../core/constants/responsive.dart';
 import '../../core/constants/size_constants.dart';
 import '../../routes/app_routes.dart';
@@ -8,6 +7,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/stat_card.dart';
 import '../navigation/navigation_controller.dart';
 import 'dashboard_controller.dart';
+import 'widgets/daily_routine_live_card.dart';
+import 'widgets/dashboard_cards.dart';
+import 'widgets/dashboard_header.dart';
 
 class DashboardScreen extends GetView<DashboardController> {
   const DashboardScreen({super.key});
@@ -16,334 +18,25 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(body: SafeArea(child: Obx(() {
-      if (controller.isLoading.value) return _shimmerLoader(d);
+      if (controller.isLoading.value) return DashboardShimmerLoader(d: d);
       return RefreshIndicator(onRefresh: controller.load,
         child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()), slivers: [
-          SliverToBoxAdapter(child: _header(d)),
-          SliverToBoxAdapter(child: _heroCard(d)),
-          SliverToBoxAdapter(child: _dailyRoutineLiveCard(d)),
+          SliverToBoxAdapter(child: DashboardHeader(d: d, greeting: _greeting())),
+          SliverToBoxAdapter(child: DashboardHeroCard(
+            d: d,
+            today: controller.stats['today_count'] ?? 0,
+            overdue: controller.stats['overdue_count'] ?? 0,
+            onStartRevising: controller.startRevising,
+          )),
+          SliverToBoxAdapter(child: DailyRoutineLiveCard(d: d, controller: controller)),
           SliverToBoxAdapter(child: _statsGrid(d)),
-          SliverToBoxAdapter(child: _actions(d)),
+          SliverToBoxAdapter(child: DashboardQuickActions(
+            d: d,
+            onOpenHistory: () => Get.toNamed(AppRoutes.history),
+          )),
           SliverPadding(padding: EdgeInsets.only(bottom: S.xxxl)),
         ]));
     })));
-  }
-
-  // ─── SHIMMER LOADER ─────────────────────────────────────────
-  Widget _shimmerLoader(bool d) {
-    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
-    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.all(S.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header shimmer
-            Row(children: [
-              Container(width: S.avatarSize, height: S.avatarSize,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusMd))),
-              SizedBox(width: S.md),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(height: 12, width: 80, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
-                SizedBox(height: S.sm),
-                Container(height: 16, width: 160, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
-              ])),
-            ]),
-            SizedBox(height: S.lg),
-            // Hero card shimmer
-            Container(width: double.infinity, height: 140,
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))),
-            SizedBox(height: S.lg),
-            // Stats grid shimmer
-            GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2, crossAxisSpacing: S.gridSpacing, mainAxisSpacing: S.gridSpacing, childAspectRatio: 1.25,
-              children: List.generate(4, (_) => Container(
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusLg))))),
-            SizedBox(height: S.lg),
-            // Actions shimmer
-            Container(height: 16, width: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
-            SizedBox(height: S.md),
-            Container(height: 64, width: double.infinity,
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(S.radiusMd))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _header(bool d) => Padding(padding: EdgeInsets.fromLTRB(S.xl, S.xl, S.xl, S.sm),
-    child: Row(children: [
-      Container(width: S.avatarSize, height: S.avatarSize, decoration: BoxDecoration(
-        gradient:  LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
-        borderRadius: BorderRadius.circular(S.radiusMd)),
-        child: Icon(Icons.person, color: Colors.white, size: S.iconLg)),
-      SizedBox(width: S.md),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_greeting(), style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-        Text('smartRevisionTracker'.tr, style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary(d))),
-      ])),
-    ]));
-
-  // White hero card, no elevation, black/colored text with icons.
-  Widget _heroCard(bool d) {
-    final today = controller.stats['today_count'] ?? 0;
-    final overdue = controller.stats['overdue_count'] ?? 0;
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
-      padding: EdgeInsets.all(S.xl),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(S.radiusLg),
-        border: Border.all(color: AppColors.borderLight, width: 1),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: S.iconLg),
-          SizedBox(width: S.md),
-          Expanded(
-            child: Text(
-              today > 0 ? 'revisionsDueToday'.tr.replaceAll('{n}', '$today') : 'noRevisionsDueToday'.tr,
-              style: AppTextStyles.headlineSmall.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ]),
-        if (overdue > 0) ...[
-          SizedBox(height: S.md),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-            decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(S.radiusSm),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.warning_rounded, color: AppColors.error, size: S.iconSm),
-              SizedBox(width: S.sm),
-              Text(
-                'overdueBadge'.tr.replaceAll('{n}', '$overdue'),
-                style: AppTextStyles.labelLarge.copyWith(color: AppColors.error),
-              ),
-            ]),
-          ),
-        ],
-        SizedBox(height: S.base),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: controller.startRevising,
-            icon: const Icon(Icons.play_arrow_rounded, size: 18),
-            label: Text('startRevising'.tr),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              minimumSize: Size(double.infinity, S.buttonHeight * 0.8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(S.radiusMd),
-              ),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  /// Live daily-routine card (only when a routine exists for today).
-  /// Stream-driven via DashboardController — no pull-to-refresh required.
-  Widget _dailyRoutineLiveCard(bool d) {
-    if (!controller.hasDailyRoutineToday.value) return const SizedBox.shrink();
-
-    final streak = controller.streakDays.value;
-    final current = controller.currentRoutine.value;
-    final upcoming = controller.upcomingRoutines;
-    final total = controller.todayRoutineItems.length;
-    final done = total -
-        upcoming.length -
-        (current != null ? 1 : 0);
-
-    return Container(
-      margin: EdgeInsets.fromLTRB(S.xl, 0, S.xl, S.md),
-      padding: EdgeInsets.all(S.xl),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(S.radiusLg),
-        border: Border.all(color: AppColors.borderLight, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(S.sm + 2),
-                decoration: BoxDecoration(
-                  color: (streak > 0
-                          ? const Color(0xFFFF6B35)
-                          : AppColors.primary)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(S.radiusSm),
-                ),
-                child: Icon(
-                  streak > 0
-                      ? Icons.local_fire_department_rounded
-                      : Icons.schedule_rounded,
-                  color: streak > 0
-                      ? const Color(0xFFFF6B35)
-                      : AppColors.primary,
-                  size: S.iconMd,
-                ),
-              ),
-              SizedBox(width: S.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      streak > 0
-                          ? 'dayStreak'.tr.replaceAll('{n}', '$streak')
-                          : 'dailyRoutine'.tr,
-                      style: AppTextStyles.titleMedium.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '${done.clamp(0, total)}/$total blocks · up next',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textMuted(d)),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: controller.openRoutineTab,
-                child: Text(
-                  'open'.tr,
-                  style: AppTextStyles.labelLarge.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (current != null) ...[
-            SizedBox(height: S.md),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(S.base),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(S.radiusMd),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: S.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'NOW',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: S.sm),
-                  Expanded(
-                    child: Text(
-                      current.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${current.timeText} – ${current.endTimeText}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (upcoming.isNotEmpty) ...[
-            SizedBox(height: S.md),
-            Text(
-              'UP NEXT',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.textMuted(d),
-                letterSpacing: 0.06,
-              ),
-            ),
-            SizedBox(height: S.sm),
-            SizedBox(
-              height: 72,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: upcoming.length,
-                separatorBuilder: (_, __) => SizedBox(width: S.sm),
-                itemBuilder: (_, i) {
-                  final it = upcoming[i];
-                  return Container(
-                    width: 148,
-                    padding: EdgeInsets.all(S.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg(d),
-                      borderRadius: BorderRadius.circular(S.radiusMd),
-                      border: Border.all(color: AppColors.border(d)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          it.timeText,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          it.displayTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.titleSmall.copyWith(
-                            color: AppColors.textPrimary(d),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 
   Widget _statsGrid(bool d) {
@@ -386,28 +79,6 @@ class DashboardScreen extends GetView<DashboardController> {
   void _goToday() => NavigationController.to.goToToday();
   void _goCalendar() => NavigationController.to.goToCalendar();
   void _goSubjects() => NavigationController.to.goToSubjects();
-
-  Widget _actions(bool d) => Padding(padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('quickActions'.tr, style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary(d))),
-      SizedBox(height: S.md),
-      Material(color: Colors.transparent, child: InkWell(onTap: () => Get.toNamed(AppRoutes.history),
-        borderRadius: BorderRadius.circular(S.radiusMd),
-        child: Container(padding: EdgeInsets.all(S.base),
-          decoration: BoxDecoration(border: Border.all(color: AppColors.border(d)),
-            borderRadius: BorderRadius.circular(S.radiusMd)),
-          child: Row(children: [
-            Container(padding: EdgeInsets.all(S.md), decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(S.radiusMd)),
-              child: Icon(Icons.bar_chart_rounded, color: AppColors.success, size: S.iconMd)),
-            SizedBox(width: S.base),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('history'.tr, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary(d))),
-              Text('viewProgressAnalytics'.tr, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d))),
-            ])),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(d)),
-          ])))),
-    ]));
 
   String _greeting() {
     final h = DateTime.now().hour;

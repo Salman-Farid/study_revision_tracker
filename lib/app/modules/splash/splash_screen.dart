@@ -12,6 +12,7 @@ import '../../core/services/widget_data_service.dart';
 import '../../modules/navigation/navigation_controller.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
+import 'widgets/splash_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -176,44 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Center(
         child: AnimatedBuilder(
           animation: _c,
-          builder: (_, __) => Opacity(
-            opacity: _fade.value,
-            child: Transform.scale(
-              scale: _scale.value,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(Icons.school_rounded,
-                        color: Colors.white, size: 42),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    AppConstants.appName,
-                    style: AppTextStyles.headlineLarge.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'startRevisionJourney'.tr,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textMuted(
-                        Theme.of(context).brightness == Brightness.dark,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          builder: (_, __) => SplashLogoContent(fade: _fade, scale: _scale),
         ),
       ),
     );

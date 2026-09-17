@@ -8,6 +8,7 @@ import '../../../gemini_3_flash_live_voice_chatbot/features/voice_assistant/voic
 import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/repositories/routine_repository.dart';
+import '../../domain/routine/routine_time_utils.dart';
 
 enum RoutineMode { daily, class$ }
 
@@ -143,18 +144,6 @@ class RoutineController extends GetxController {
     voice.currentRoutineMode = next == RoutineMode.daily ? 'daily' : 'class';
   }
 
-  /// Convert "14:30" → "2:30 PM"
-  static String _to12Hour(String time24) {
-    final parts = time24.split(':');
-    if (parts.length != 2) return time24;
-    var h = int.tryParse(parts[0]) ?? 0;
-    final m = parts[1];
-    final period = h >= 12 ? 'PM' : 'AM';
-    if (h == 0) h = 12;
-    else if (h > 12) h -= 12;
-    return '$h:$m $period';
-  }
-
   /// Daily tab list = assistant-created daily routine only.
   /// Class routines stay on the Class tab so they aren't duplicated here.
   List<RoutineDisplayItem> get todayItems {
@@ -162,18 +151,8 @@ class RoutineController extends GetxController {
     final today = DateTime(now.year, now.month, now.day);
     final items = <RoutineDisplayItem>[];
 
-    String endText(DateTime start, int durMin) {
-      final end = start.add(Duration(minutes: durMin));
-      var h = end.hour;
-      final m = end.minute.toString().padLeft(2, '0');
-      final period = h >= 12 ? 'PM' : 'AM';
-      if (h == 0) h = 12;
-      else if (h > 12) h -= 12;
-      return '$h:$m $period';
-    }
-
     for (final dr in dailyRoutines) {
-      if (_isSameDay(dr.date, today)) {
+      if (isSameCalendarDay(dr.date, today)) {
         for (final item in dr.items) {
           final parts = item.time.split(':');
           final sh = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
@@ -182,8 +161,8 @@ class RoutineController extends GetxController {
 
           items.add(RoutineDisplayItem(
             subjectName: item.subject,
-            timeText: _to12Hour(item.time),
-            endTimeText: endText(startDt, item.durationMinutes),
+            timeText: formatTime12Hour(item.time),
+            endTimeText: formatEndTimeText(startDt, item.durationMinutes),
             sortKey: item.time,
             locationText: '',
             durationText: '${item.durationMinutes}m',
@@ -198,9 +177,6 @@ class RoutineController extends GetxController {
     items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     return items;
   }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
 
   void openAssistant() {
     voice.currentRoutineMode = mode.value == RoutineMode.daily ? 'daily' : 'class';

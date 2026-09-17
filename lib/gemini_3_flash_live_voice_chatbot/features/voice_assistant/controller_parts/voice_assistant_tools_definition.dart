@@ -1,0 +1,249 @@
+part of '../voice_assistant_controller.dart';
+
+/// Tool declarations sent to Gemini Live (library-private).
+List<Map<String, dynamic>> buildVoiceAssistantTools() {
+  return [
+    {
+      'name': 'getAllData',
+      'description': 'Get a compact SUMMARY of all subjects: name, topic count, pending revision count. Call this first for "what subjects/how many/overview" questions. For topic-level detail of ONE subject, call getSubjectDetail instead.',
+      'parameters': {
+        'type': 'object',
+        'properties': {},
+      },
+    },
+    {
+      'name': 'getSubjectDetail',
+          'description': 'Get full topic list with revision counts and next revision date for ONE subject by name. Use when the user asks about a specific subject\'s topics or revision schedule.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+        },
+        'required': ['subjectName'],
+      },
+    },
+    {
+      'name': 'addSubjectsBulk',
+      'description': 'Add one or more subjects, each optionally with its own topics, in ONE call. Use this for ANY request that adds subjects — a single subject or many (e.g. "add Physics with these 5 topics" -> one item in the array; "add 30 subjects with 10 topics each" -> 30 items, still ONE call). NEVER split this into multiple calls or loop it yourself, no matter how many subjects are requested. Creates each subject if it doesn\'t exist yet, or reuses it if it does. Topics stay in first read — revision dates are NOT set until markFirstReadCompleted.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjects': {
+            'type': 'array',
+            'description': 'One entry per subject to add',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string', 'description': 'Subject name'},
+                'topics': {
+                  'type': 'array',
+                  'items': {'type': 'string'},
+                  'description': 'Optional list of topic names for this subject',
+                },
+                'color': {'type': 'string', 'description': 'Optional hex color code like #87CEEB'},
+              },
+              'required': ['name'],
+            },
+          },
+        },
+        'required': ['subjects'],
+      },
+    },
+    {
+      'name': 'addSubject',
+      'description': 'Add a new study subject with NO topics yet. Use only when the user wants just the subject, not topics too — for subject+topics together use addSubjectsBulk instead.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string', 'description': 'Subject name'},
+          'color': {'type': 'string', 'description': 'Hex color code like #87CEEB'},
+        },
+        'required': ['name'],
+      },
+    },
+    {
+      'name': 'addTopic',
+      'description': 'Add a new topic to an EXISTING subject. Accepts subject NAME (not ID). If user is inside a subject (contextSubject is set), subjectName is optional - omit it to add to the current subject. If the subject doesn\'t exist yet, it will be auto-created. Topic starts in first read — revision dates are set only after markFirstReadCompleted.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name (optional if contextSubject is provided)'},
+          'name': {'type': 'string', 'description': 'Topic name'},
+        },
+        'required': ['name'],
+      },
+    },
+    {
+      'name': 'addMultipleTopics',
+      'description': 'Add multiple topics to an EXISTING subject. Accepts subject NAME. If the subject and topics are being added together for the first time, prefer addSubjectsBulk instead. If this subject doesn\'t exist yet, it will be auto-created. Topics start in first read — no revision dates until markFirstReadCompleted.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topics': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'List of topic names to add',
+          },
+        },
+        'required': ['subjectName', 'topics'],
+      },
+    },
+    {
+      'name': 'deleteAllSubjects',
+      'description': 'Delete ALL subjects and their topics. Use when user says to delete everything or all subjects.',
+      'parameters': {
+        'type': 'object',
+        'properties': {},
+      },
+    },
+    {
+      'name': 'deleteSubjectByName',
+      'description': 'Delete a subject by its NAME. Use when user says to delete a specific subject by name.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string', 'description': 'Subject name to delete'},
+        },
+        'required': ['name'],
+      },
+    },
+    {
+      'name': 'deleteTopicByName',
+      'description': 'Delete a topic by its NAME from a subject.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topicName': {'type': 'string', 'description': 'Topic name to delete'},
+        },
+        'required': ['subjectName', 'topicName'],
+      },
+    },
+    {
+      'name': 'getTopicStatus',
+      'description': 'Get detailed status of a topic: first read completion, revision progress (which revisions are completed/pending, next revision number and day). Use when the user asks about a topic\'s progress or before performing any completion action.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topicName': {'type': 'string', 'description': 'Topic name'},
+        },
+        'required': ['subjectName', 'topicName'],
+      },
+    },
+    {
+      'name': 'markFirstReadCompleted',
+      'description': 'Mark a topic\'s first read as completed. Use when user says "mark the topic as completed", "I\'ve read the topic", "first read done" or similar. The topic moves to revision tracking after this.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topicName': {'type': 'string', 'description': 'Topic name'},
+        },
+        'required': ['subjectName', 'topicName'],
+      },
+    },
+    {
+      'name': 'markRevisionCompleted',
+      'description': 'Mark the NEXT sequential revision as completed for a topic. Follows strict order: 1st(1day) → 2nd(3days) → 3rd(7days) → 4th(14days) → 5th(30days) → 6th(90days). Cannot skip incomplete previous revisions. Use when user says "mark revision as completed", "complete the revision", or similar.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topicName': {'type': 'string', 'description': 'Topic name'},
+        },
+        'required': ['subjectName', 'topicName'],
+      },
+    },
+    {
+      'name': 'getAllTopicsRevisionDates',
+      'description': 'Get revision dates for ALL topics in a subject. Use when user asks "what are all the revision dates?", "show me all revision dates", "when are all revisions due?", or similar. Returns each topic with its 6 revision dates and status.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+        },
+        'required': ['subjectName'],
+      },
+    },
+    {
+      'name': 'registerClassRoutine',
+      'description': 'Register a class routine / timetable entry. Use when user says "I have class", "add my class schedule", "my class is at...", "I have a lecture in room...", or wants to set up their class timetable. Location is optional — user can say it however they want like "UB43A" or "UB20A 3rd floor room 301". If they give a single word like "UB43A", use the "location" field. Do NOT ask separately for building/floor/room.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name for the class'},
+          'startTime': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "09:00" or "14:30"'},
+          'endTime': {'type': 'string', 'description': 'End time in HH:MM 24h format. Auto-calculate if user gives duration (e.g. 9:00 + 1.5h = 10:30).'},
+          'durationMinutes': {'type': 'integer', 'description': 'Duration of the class in minutes, e.g. 60, 90, 120'},
+          'dates': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'List of dates for the class in YYYY-MM-DD format, e.g. ["2026-09-05","2026-09-08"]. For recurring classes, use recurringDays instead.',
+          },
+          'recurringDays': {
+            'type': 'array',
+            'items': {'type': 'integer'},
+            'description': 'Recurring days of week (1=Mon...7=Sun). Use this OR dates, not both. e.g. [1,3,5] for Mon/Wed/Fri.',
+          },
+          'location': {'type': 'string', 'description': 'Location as a single string, e.g. "UB43A", "UB20A 3rd floor room 301", "Science Block". Use this instead of separate building/floor/room when user gives a single location string.'},
+          'building': {'type': 'string', 'description': 'Building name/code (optional). Use "location" field instead if user gives a single string.'},
+          'floor': {'type': 'string', 'description': 'Floor number (optional).'},
+          'room': {'type': 'string', 'description': 'Room number (optional).'},
+          'notes': {'type': 'string', 'description': 'Optional notes about the class'},
+        },
+        'required': ['subjectName', 'startTime', 'durationMinutes'],
+      },
+    },
+    {
+      'name': 'registerDailyRoutine',
+      'description': 'Register a daily study routine / plan. CRITICAL: You MUST call getAllData FIRST to get real subjects/topics. The handler VALIDATES that every study subject exists in the database — fake/made-up names WILL FAIL. Use when user says "create my daily routine", "plan my day", "build my routine". Start from EXACT current time (given in system prompt). End at 23:30. Study blocks: 50 min study → 10 min break. Include meals, power nap (20-25 min, once), active recall (15 min after every 2 blocks), question practice (2×30 min). Do NOT use generic names like "নাস্তা", "খাবার" — use REAL subject names from getAllData.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
+          'items': {
+            'type': 'array',
+            'description': 'Ordered list of study blocks for the day',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'time': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "14:30"'},
+                'subject': {'type': 'string', 'description': 'Subject name'},
+                'topic': {'type': 'string', 'description': 'Topic name within the subject'},
+                'type': {'type': 'string', 'description': 'Block type: "class", "first_read", "revision", "break", "review", "recall", "question_practice", "meal", "nap", "study"'},
+                'durationMinutes': {'type': 'integer', 'description': 'Duration in minutes. Study=50, break=10, meal=20-25, nap=20-25, recall=15, question_practice=30'},
+                'notes': {'type': 'string', 'description': 'Optional notes'},
+              },
+              'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],
+            },
+          },
+        },
+        'required': ['items'],
+      },
+    },
+    {
+      'name': 'deleteClassRoutine',
+      'description': 'Delete a class routine. Use when user says "delete my class routine", "remove this class", "cancel my class schedule". The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. If context is "class", delete from class routines directly. Ask for subject name to identify which one to delete if multiple exist.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name of the class routine to delete'},
+        },
+        'required': ['subjectName'],
+      },
+    },
+    {
+      'name': 'deleteDailyRoutine',
+      'description': 'Delete ALL daily routine items for a given date. Use when user says "delete my daily routine", "remove today\'s plan", "clear my routine", "delete today". This removes the ENTIRE day\'s routine in one operation — not individual items. The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. Use today\'s date unless user specifies otherwise.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'date': {'type': 'string', 'description': 'Date of the daily routine to delete in YYYY-MM-DD format. Use today if not specified.'},
+        },
+        'required': [],
+      },
+    },
+  ];
+}
