@@ -13,7 +13,7 @@ String _formatTime12(int hour, int minute) {
 }
 
 /// Schedule periodic widget updates via AlarmManager.
-Future<void> schedulePeriodicUpdate() async {
+Future<void> _schedulePeriodicUpdate() async {
   if (kIsWeb) return;
   try {
     await HomeWidget.registerInteractivityCallback(backgroundCallback);
@@ -21,7 +21,7 @@ Future<void> schedulePeriodicUpdate() async {
 }
 
 /// Save the App Group ID for iOS widget data sharing.
-Future<void> setAppGroupId(String groupId) async {
+Future<void> _setAppGroupId(String groupId) async {
   if (kIsWeb) return;
   try {
     await HomeWidget.setAppGroupId(groupId);

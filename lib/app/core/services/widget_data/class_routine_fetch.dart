@@ -1,33 +1,12 @@
 part of '../widget_data_service.dart';
 
-/// Class-routine payload + weekday matching.
-/// True if [cr] occurs on [day]. Tolerates ISO timestamps in `dates`,
-/// weekday names, numeric weekdays stored in `dates`, and a missing
-/// `recurring` flag when `recurringDays` is set.
-bool _classMatchesDay(ClassRoutineModel cr, DateTime day) {
-  final dateStr =
-      '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-  const weekdayNames = [
-    '', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-  ];
-  const weekdayShort = ['', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-  final dayName = weekdayNames[day.weekday];
-  final dayShort = weekdayShort[day.weekday];
-
-  for (final raw in cr.dates) {
-    final d = raw.trim();
-    if (d.isEmpty) continue;
-    // Exact or prefix date match (YYYY-MM-DD or ISO datetime)
-    if (d == dateStr || d.startsWith(dateStr)) return true;
-    final lower = d.toLowerCase();
-    if (lower == dayName || lower == dayShort) return true;
-    // Weekday number stored in dates: "3" or 3 as string
-    final asInt = int.tryParse(d);
-    if (asInt != null && asInt == day.weekday) return true;
-  }
-  if (cr.recurringDays.contains(day.weekday)) return true;
-  return false;
-}
+/// True if [cr] occurs on [day]. See [ClassDayMatcher].
+bool _classMatchesDay(ClassRoutineModel cr, DateTime day) =>
+    ClassDayMatcher.matchesDay(
+      dates: cr.dates,
+      recurringDays: cr.recurringDays,
+      day: day,
+    );
 
 Future<Map<String, dynamic>> _fetchClassRoutineData(
   SupabaseClient client, String userId, DateTime now, DateTime today, DateTime tomorrow,

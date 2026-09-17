@@ -10,6 +10,7 @@ import '../constants/app_constants.dart';
 import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/models/revision_schedule_model.dart';
+import '../../domain/routine/class_day_matcher.dart';
 
 part 'widget_data/keys.dart';
 part 'widget_data/daily_routine_fetch.dart';
@@ -129,4 +130,10 @@ class WidgetDataProvider {
       debugPrint('[WidgetData] updateAllWidgets error: $e\n$stack');
     }
   }
+
+  /// Schedule periodic widget updates via AlarmManager.
+  static Future<void> schedulePeriodicUpdate() => _schedulePeriodicUpdate();
+
+  /// Save the App Group ID for iOS widget data sharing.
+  static Future<void> setAppGroupId(String groupId) => _setAppGroupId(groupId);
 }
