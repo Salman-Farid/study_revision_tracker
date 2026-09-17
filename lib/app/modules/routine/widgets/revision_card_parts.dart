@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/size_constants.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/status_badge.dart';
 import '../routine_item_model.dart';
 
 class RevisionStrategyBanner extends StatelessWidget {
@@ -103,35 +104,8 @@ class CardStatusIndicator extends StatelessWidget {
   const CardStatusIndicator({super.key, required this.isCompleted, required this.isDue, required this.d});
 
   @override
-  Widget build(BuildContext context) {
-    Color bgColor;
-    Color iconColor;
-    IconData icon;
-
-    if (isCompleted) {
-      bgColor = AppConstants.successColor.withValues(alpha: 0.12);
-      iconColor = AppConstants.successColor;
-      icon = Icons.check_rounded;
-    } else if (isDue) {
-      bgColor = AppConstants.warningColor.withValues(alpha: 0.12);
-      iconColor = AppConstants.warningColor;
-      icon = Icons.replay_rounded;
-    } else {
-      bgColor = AppConstants.infoColor.withValues(alpha: 0.12);
-      iconColor = AppConstants.infoColor;
-      icon = Icons.replay_rounded;
-    }
-
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: bgColor,
-      ),
-      child: Icon(icon, size: 18, color: iconColor),
-    );
-  }
+  Widget build(BuildContext context) =>
+      StatusDotIcon(isCompleted: isCompleted, isDue: isDue, size: 36);
 }
 
 class RevisionChip extends StatelessWidget {
@@ -140,24 +114,13 @@ class RevisionChip extends StatelessWidget {
   const RevisionChip({super.key, required this.d, required this.stageLabel});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: S.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppConstants.infoColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(S.radiusXs),
-      ),
-      child: Text(
-        stageLabel.toUpperCase(),
-        style: AppTextStyles.labelSmall.copyWith(
-          color: AppConstants.infoColor,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StatusPill(
+        label: stageLabel,
+        color: AppConstants.infoColor,
+        uppercase: true,
+        fontSize: 10,
+        letterSpacing: 0.5,
+      );
 }
 
 class DayBadge extends StatelessWidget {
@@ -166,23 +129,12 @@ class DayBadge extends StatelessWidget {
   const DayBadge({super.key, required this.d, required this.dayNumberLabel});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.textMuted(d).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(S.radiusXs),
-      ),
-      child: Text(
-        dayNumberLabel,
-        style: AppTextStyles.labelSmall.copyWith(
-          color: AppColors.textMuted(d),
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StatusPill(
+        label: dayNumberLabel,
+        color: AppColors.textMuted(d),
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+      );
 }
 
 class CardStatusText extends StatelessWidget {

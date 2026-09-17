@@ -13,8 +13,10 @@
 | P1 ClassDayMatcher in notifications | ✅ class_schedule + bulk_reschedule |
 | P1 same-calendar-day in notifications | ✅ `isSameCalendarDay` |
 | P1 CardEmptyState | ✅ `app/widgets/card_empty_state.dart` (stats uses it) |
-| P1 shimmer consolidation | ⬜ next |
-| P2 filter chips / badges / snackbars | ⬜ next |
+| P1 shimmer consolidation | ✅ `ShimmerTheme` + `SkeletonBox` in `skeleton_loader.dart` |
+| P2 filter chips | ✅ shared `FilterChipBadge` available (metrics differ per screen — local chips kept for pixel parity) |
+| P2 status badges | ✅ `StatusPill` + `StatusDotIcon` in `status_badge.dart`; routine cards delegate |
+| P2 snackbars | ✅ `AppSnack` in `core/utils/snackbars.dart` (ready for call-site adoption) |
 
 
 How to use this file:

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/size_constants.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/skeleton_loader.dart';
 
 class DashboardShimmerLoader extends StatelessWidget {
   final bool d;
@@ -10,11 +10,8 @@ class DashboardShimmerLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
-    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
+    return ShimmerTheme.wrap(
+      dark: d,
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.all(S.xl),

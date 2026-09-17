@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/size_constants.dart';
+import '../../../widgets/skeleton_loader.dart';
 
 class DailyShimmer extends StatelessWidget {
   final bool d;
@@ -8,12 +8,11 @@ class DailyShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
-    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
+    final baseColor = ShimmerTheme.base(d);
+    final highlightColor = ShimmerTheme.highlight(d);
 
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
+    return ShimmerTheme.wrap(
+      dark: d,
       child: ListView.builder(
         padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.xxxl),
         itemCount: 6,
@@ -80,12 +79,11 @@ class ClassShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4);
-    final highlightColor = d ? const Color(0xFF3D4250) : const Color(0xFFF0F3F8);
+    final baseColor = ShimmerTheme.base(d);
+    final highlightColor = ShimmerTheme.highlight(d);
 
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
+    return ShimmerTheme.wrap(
+      dark: d,
       child: ListView.builder(
         padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.xxxl),
         itemCount: 5,
@@ -99,11 +97,7 @@ class ClassShimmer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 160,
-                height: 14,
-                color: highlightColor,
-              ),
+              Container(width: 160, height: 14, color: highlightColor),
               SizedBox(height: S.sm),
               Row(
                 children: [
@@ -118,11 +112,7 @@ class ClassShimmer extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 32,
-                    color: highlightColor,
-                  ),
+                  Container(width: 1, height: 32, color: highlightColor),
                   Expanded(
                     child: Column(
                       children: [
@@ -134,11 +124,7 @@ class ClassShimmer extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 32,
-                    color: highlightColor,
-                  ),
+                  Container(width: 1, height: 32, color: highlightColor),
                   Expanded(
                     child: Column(
                       children: [
