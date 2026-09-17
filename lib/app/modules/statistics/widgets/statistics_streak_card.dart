@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/size_constants.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/card_empty_state.dart';
 
 class StreakCard extends StatelessWidget {
   final bool d;
@@ -87,38 +88,6 @@ class StatisticsEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(S.xl),
-      decoration: BoxDecoration(
-        color: AppColors.surface(d),
-        borderRadius: BorderRadius.circular(S.radiusLg),
-        border: Border.all(color: AppColors.border(d)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.hourglass_empty_rounded,
-            size: S.iconXxl,
-            color: AppColors.textMuted(d),
-          ),
-          SizedBox(height: S.md),
-          Text(
-            title,
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.textSecondary(d),
-            ),
-          ),
-          SizedBox(height: S.xs),
-          Text(
-            subtitle,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textMuted(d),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+    return CardEmptyState(title: title, subtitle: subtitle, d: d);
   }
 }

@@ -16,12 +16,12 @@ extension NotificationClassSchedule on NotificationService {
 
     for (int d = 0; d < daysAhead; d++) {
       final date = today.add(Duration(days: d));
-      final dateStr =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-      final isToday = routine.dates.any((d) =>
-              d == dateStr || d.startsWith(dateStr)) ||
-          routine.recurringDays.contains(date.weekday);
+      final isToday = ClassDayMatcher.matchesDay(
+        dates: routine.dates,
+        recurringDays: routine.recurringDays,
+        day: date,
+      );
       if (!isToday) continue;
 
       final classStart = tz.TZDateTime(

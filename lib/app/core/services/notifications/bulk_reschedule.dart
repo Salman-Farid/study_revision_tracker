@@ -160,10 +160,11 @@ extension NotificationBulkReschedule on NotificationService {
 
     // Class happening now.
     for (final cr in classRoutines) {
-      final dateStr =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final isToday = cr.dates.any((d) => d == dateStr || d.startsWith(dateStr)) ||
-          cr.recurringDays.contains(now.weekday);
+      final isToday = ClassDayMatcher.matchesDay(
+        dates: cr.dates,
+        recurringDays: cr.recurringDays,
+        day: now,
+      );
       if (!isToday) continue;
       final start = DateTime(now.year, now.month, now.day, cr.startTime.hour, cr.startTime.minute);
       final end = start.add(Duration(minutes: cr.durationMinutes));
@@ -181,9 +182,7 @@ extension NotificationBulkReschedule on NotificationService {
 
     // Daily block happening now.
     for (final dr in dailyRoutines) {
-      final sameDay = dr.date.year == now.year &&
-          dr.date.month == now.month &&
-          dr.date.day == now.day;
+      final sameDay = isSameCalendarDay(dr.date, now);
       if (!sameDay) continue;
       for (final item in dr.items) {
         final hm = parseClock(item.time);

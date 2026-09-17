@@ -1,7 +1,21 @@
 # Code Reusability Audit — `lib/`
 
-**Scope:** full `lib/` tree · **Mode:** audit only — **no code changed**  
+**Scope:** full `lib/` tree · **Mode:** audit + incremental implementation  
 **Goal:** one place per pattern so a developer can fix/add/delete once and reuse everywhere, without changing functionality or UI.
+
+## Implementation status
+
+| Item | Status |
+|------|--------|
+| P0 shared chat bubbles | ✅ `widgets/shared/chat_bubbles.dart` (`compact` flag) |
+| P0 shared error bar | ✅ `widgets/shared/error_bar.dart` |
+| P0 12h time format | ✅ `domain/routine/routine_time_utils.dart` → `formatHm12` |
+| P1 ClassDayMatcher in notifications | ✅ class_schedule + bulk_reschedule |
+| P1 same-calendar-day in notifications | ✅ `isSameCalendarDay` |
+| P1 CardEmptyState | ✅ `app/widgets/card_empty_state.dart` (stats uses it) |
+| P1 shimmer consolidation | ⬜ next |
+| P2 filter chips / badges / snackbars | ⬜ next |
+
 
 How to use this file:
 1. Find the pattern in **Duplication found**.
