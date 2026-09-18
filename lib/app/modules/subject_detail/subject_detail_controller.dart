@@ -33,6 +33,8 @@ class SubjectDetailController extends GetxController {
   final schedulesByTopic = <String, List<RevisionScheduleModel>>{}.obs;
   final isLoading = true.obs;
   final selectedFilter = 'firstRead'.obs;
+  /// Topic search — case-insensitive (AI / ai / Ai all match).
+  final topicSearch = ''.obs;
   StreamSubscription<List<TopicModel>>? _realtimeSub;
   StreamSubscription? _schedulesStreamSub;
 
@@ -42,16 +44,23 @@ class SubjectDetailController extends GetxController {
 
   String get _orderKey => 'topic_order_${subject.id}';
 
+  /// Case-insensitive name filter — works for any upper/lower mix.
   List<TopicModel> get filteredTopics {
-    final list = switch (selectedFilter.value) {
+    final q = topicSearch.value.trim().toLowerCase();
+    final byStatus = switch (selectedFilter.value) {
       'firstRead' => topics.where((t) => !t.firstReadCompleted).toList(),
       'inRevision' =>
         topics.where((t) => t.firstReadCompleted && t.totalRevisions < 6).toList(),
       'completed' => topics.where((t) => t.totalRevisions >= 6).toList(),
       _ => topics.toList(),
     };
-    return list;
+    if (q.isEmpty) return byStatus;
+    return byStatus.where((t) => t.name.toLowerCase().contains(q)).toList();
   }
+
+  void setTopicSearch(String value) => topicSearch.value = value;
+
+  void clearTopicSearch() => topicSearch.value = '';
 
   int get firstReadCount => topics.where((t) => !t.firstReadCompleted).length;
   int get inRevisionCount =>
@@ -77,6 +86,7 @@ class SubjectDetailController extends GetxController {
     topics.clear();
     schedulesByTopic.clear();
     selectedFilter.value = 'firstRead';
+    topicSearch.value = '';
     isLoading.value = true;
     unawaited(load());
   }

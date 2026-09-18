@@ -36,10 +36,16 @@ class HistoryController extends GetxController {
   StreamSubscription? _schedulesSub;
   StreamSubscription? _subjectsSub;
   StreamSubscription? _topicsSub;
+  Timer? _debounce;
+  bool _loading = false;
 
   @override
   void onInit() {
     super.onInit();
+    // Realtime must be on — History is often the first dashboard pane to listen.
+    try {
+      Get.find<SupabaseService>().initRealtime();
+    } catch (_) {}
     load();
     _subscribeRealtime();
   }
@@ -49,23 +55,35 @@ class HistoryController extends GetxController {
     _subjectsSub?.cancel();
     _topicsSub?.cancel();
     final svc = Get.find<SupabaseService>();
-    _schedulesSub = svc.schedulesStream.listen((_) => load());
-    _subjectsSub = svc.subjectsStream.listen((_) => load());
-    _topicsSub = svc.topicsStream.listen((_) => load());
+    svc.initRealtime();
+    // Stream subscription → silent reload (no shimmer flicker).
+    _schedulesSub = svc.schedulesStream.listen((_) => _scheduleSilentRefresh());
+    _subjectsSub = svc.subjectsStream.listen((_) => _scheduleSilentRefresh());
+    _topicsSub = svc.topicsStream.listen((_) => _scheduleSilentRefresh());
+  }
+
+  void _scheduleSilentRefresh() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      load(showLoading: false);
+    });
   }
 
   @override
   void onClose() {
+    _debounce?.cancel();
     _schedulesSub?.cancel();
     _subjectsSub?.cancel();
     _topicsSub?.cancel();
     super.onClose();
   }
 
-  Future<void> load() async {
+  Future<void> load({bool showLoading = true}) async {
+    if (_loading) return;
+    _loading = true;
     try {
       if (Get.find<SupabaseService>().currentUser == null) return;
-      isLoading.value = true;
+      if (showLoading) isLoading.value = true;
 
       // Load stats and subjects in parallel
       final results = await Future.wait([
@@ -93,7 +111,6 @@ class HistoryController extends GetxController {
       schedules.assignAll(allSchedules);
 
       // ── Real revision-weighted progress ──
-      // Every topic has up to 6 revisions (1,3,7,14,30,90-day plan).
       totalSubjects.value = subjects.length;
       totalTopics.value = topics.length;
       completedTopics.value = topics.where((t) => t.totalRevisions >= 6).length;
@@ -104,7 +121,6 @@ class HistoryController extends GetxController {
       // ── Real weekly activity (completed revisions per weekday) ──
       weeklyActivity.value = _computeWeeklyActivity(allSchedules);
 
-      // Calculate streak: consecutive days with completed revisions
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final completedDates = allSchedules
@@ -122,6 +138,7 @@ class HistoryController extends GetxController {
       // silent
     } finally {
       isLoading.value = false;
+      _loading = false;
     }
   }
 

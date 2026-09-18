@@ -18,6 +18,7 @@ import '../statistics/statistics_controller.dart';
 import '../settings/settings_screen.dart';
 import '../settings/settings_controller.dart';
 import '../settings/about_this_app_panel.dart';
+import '../../data/services/supabase_service.dart';
 import 'app_side_bar.dart';
 import 'navigation_controller.dart';
 import 'widgets/desktop_workspace.dart';
@@ -93,6 +94,9 @@ class _MainNavigationState extends State<MainNavigation> {
           if (!Get.isRegistered<HistoryController>()) {
             Get.put(HistoryController(), permanent: true);
           }
+          // History pane is always beside Dashboard — keep it live on open.
+          Get.find<SupabaseService>().initRealtime();
+          Get.find<HistoryController>().load(showLoading: false);
         } catch (_) {}
       }
       if (i == NavigationController.settings) {

@@ -31,12 +31,13 @@ class TopicFirstReadCard extends StatelessWidget {
         border: Border.all(color: AppColors.border(d)),
               ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Press-and-drag reorder grip (explicit — not a whole-row default handle).
           ReorderableDragStartListener(
             index: index,
             child: Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.only(right: 4, top: 10),
               child: Icon(
                 Icons.drag_indicator_rounded,
                 color: AppColors.textMuted(d),
@@ -44,47 +45,45 @@ class TopicFirstReadCard extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 20),
             ),
-            child: Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 20),
           ),
           SizedBox(width: S.md),
-          // Title + badge
+          // Title wraps to as many lines as the name needs — card grows with it.
           Expanded(
-            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  t.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${t.name}',
+                  softWrap: true,
                   style: AppTextStyles.titleMedium.copyWith(
                     color: AppColors.textPrimary(d),
                     fontWeight: FontWeight.w600,
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 TopicBadge(d: d, label: 'firstRead'.tr, color: AppColors.primary),
               ],
             ),
           ),
           SizedBox(width: S.sm),
-          // Complete sits mid-right, not glued to the bin.
-          Flexible(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: CompleteChip(onTap: onComplete),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: CompleteChip(onTap: onComplete),
           ),
-          SizedBox(width: S.md),
+          SizedBox(width: S.sm),
           TopicDeleteButton(d: d, t: t, onDelete: onDelete),
         ],
       ),

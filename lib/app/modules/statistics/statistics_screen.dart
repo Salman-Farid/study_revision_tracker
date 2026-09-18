@@ -21,16 +21,16 @@ class HistoryScreen extends GetView<HistoryController> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh_rounded, color: AppColors.textMuted(d)),
-            onPressed: controller.load,
+            onPressed: () => controller.load(),
           ),
         ],
       ),
       body: Obx(() {
-        if (controller.isLoading.value) {
+        if (controller.isLoading.value && controller.topics.isEmpty) {
           return StatisticsShimmerLoader(d: d);
         }
         return RefreshIndicator(
-          onRefresh: controller.load,
+          onRefresh: () => controller.load(),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             padding: EdgeInsets.all(S.xl),

@@ -44,6 +44,61 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       body: Column(
         children: [
           SubjectFilterChips(controller: controller, d: d),
+          // Case-sensitive live search — Obx list below rebuilds on each keystroke.
+          Padding(
+            padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.sm),
+            child: TextField(
+              onChanged: controller.setTopicSearch,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textPrimary(d),
+              ),
+              cursorColor: AppConstants.primaryColor,
+              decoration: InputDecoration(
+                hintText: 'Search topics…',
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textMuted(d),
+                  size: 20,
+                ),
+                suffixIcon: Obx(() {
+                  if (controller.topicSearch.value.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return IconButton(
+                    tooltip: 'Clear',
+                    onPressed: controller.clearTopicSearch,
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textMuted(d),
+                      size: 18,
+                    ),
+                  );
+                }),
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.surface(d),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.border(d)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.border(d)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: AppConstants.primaryColor,
+                    width: 1.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
@@ -60,10 +115,15 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               }
               final filtered = controller.filteredTopics;
               if (filtered.isEmpty) {
+                final q = controller.topicSearch.value;
                 return EmptyState(
-                  icon: Icons.filter_list_off_rounded,
+                  icon: q.isEmpty
+                      ? Icons.filter_list_off_rounded
+                      : Icons.search_off_rounded,
                   title: 'noTopicsYet'.tr,
-                  subtitle: 'No topics match this filter',
+                  subtitle: q.isEmpty
+                      ? 'No topics match this filter'
+                      : 'No topics match "$q"',
                 );
               }
               return _list(d, filtered);

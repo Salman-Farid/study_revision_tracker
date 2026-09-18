@@ -54,9 +54,12 @@ class SupabaseService extends GetxService {
   RealtimeChannel? _schedulesChannel;
   RealtimeChannel? _classRoutinesChannel;
   RealtimeChannel? _dailyRoutinesChannel;
+  bool _realtimeStarted = false;
 
-  /// Start listening to all table changes. Call once on app start.
+  /// Start listening to all table changes. Safe to call many times.
   void initRealtime() {
+    if (_realtimeStarted) return;
+    _realtimeStarted = true;
     _subjectsChannel = client.channel('subjects-realtime')
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,

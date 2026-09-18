@@ -71,11 +71,12 @@ class TopicRevisionCard extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ReorderableDragStartListener(
                         index: index,
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.only(right: 4, top: 12),
                           child: Icon(
                             Icons.drag_indicator_rounded,
                             color: AppColors.textMuted(d),
@@ -83,19 +84,22 @@ class TopicRevisionCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      CollapsedIndicator(d: d, t: t, isCompleted: isCompleted),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: CollapsedIndicator(d: d, t: t, isCompleted: isCompleted),
+                      ),
                       SizedBox(width: S.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              t.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              '${t.name}',
+                              softWrap: true,
                               style: AppTextStyles.titleMedium.copyWith(
                                 color: AppColors.textPrimary(d),
                                 fontWeight: FontWeight.w600,
+                                height: 1.35,
                               ),
                             ),
                             SizedBox(height: S.xs),
@@ -103,10 +107,13 @@ class TopicRevisionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textMuted(d),
-                        size: 22,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.textMuted(d),
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
