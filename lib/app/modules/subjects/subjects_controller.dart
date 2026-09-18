@@ -11,6 +11,7 @@ import '../../data/models/topic_model.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/services/supabase_service.dart';
+import '../../data/services/image_search_service.dart';
 import '../../data/services/gemini_service.dart';
 import '../../core/constants/size_constants.dart';
 import '../../theme/app_theme.dart';
@@ -45,6 +46,12 @@ class SubjectsController extends GetxController {
 
   // Global key for Study Assistant button to get its position
   final studyAssistantButtonKey = GlobalKey();
+
+  // ── Subject wallpaper picker (expand/collapse overlay) ──
+  final wallpaperSubjectId = RxnString();
+  final wallpaperUrls = <String>[].obs;
+  final wallpaperLoading = false.obs;
+  final wallpaperSubjectName = ''.obs;
 
   SubjectModel? get selectedSubject {
     final id = selectedSubjectId.value;

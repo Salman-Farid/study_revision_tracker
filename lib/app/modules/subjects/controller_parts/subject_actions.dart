@@ -99,4 +99,55 @@ extension SubjectsActions on SubjectsController {
     subjects.assignAll(next);
     await _persistSubjectOrder();
   }
+
+  /// Wallpaper picker — expand/collapse on subject card (does not open topics).
+  /// State lives on SubjectsController; methods live here.
+  bool isWallpaperOpenFor(String subjectId) =>
+      wallpaperSubjectId.value == subjectId;
+
+  Future<void> toggleWallpaperPicker(SubjectModel subject) async {
+    if (wallpaperSubjectId.value == subject.id) {
+      closeWallpaperPicker();
+      return;
+    }
+    wallpaperSubjectId.value = subject.id;
+    wallpaperSubjectName.value = subject.name;
+    wallpaperLoading.value = true;
+    wallpaperUrls.clear();
+    try {
+      final pool =
+          await ImageSearchService.fetchSubjectImagePool(subject.name);
+      wallpaperUrls.assignAll(pool);
+    } catch (_) {
+      wallpaperUrls.clear();
+    } finally {
+      wallpaperLoading.value = false;
+    }
+  }
+
+  void closeWallpaperPicker() {
+    // Only mark closed — keep wallpaperUrls so the reverse animation
+    // still has content (clearing them makes collapse look instant).
+    wallpaperSubjectId.value = null;
+    wallpaperLoading.value = false;
+    wallpaperSubjectName.value = '';
+  }
+
+  /// Pick a cover — local update + DB write; close (animated) after apply.
+  Future<void> applySubjectWallpaper(
+      String subjectId, String imageUrl) async {
+    closeWallpaperPicker();
+    final i = subjects.indexWhere((s) => s.id == subjectId);
+    if (i >= 0) {
+      final s = subjects[i];
+      subjects[i] = s.copyWith(imageUrl: imageUrl);
+      subjects.refresh();
+    }
+    try {
+      await _repo.update(subjectId, {'image_url': imageUrl});
+      _repo.refresh();
+    } catch (e) {
+      Get.snackbar('error'.tr, 'error'.tr);
+    }
+  }
 }
