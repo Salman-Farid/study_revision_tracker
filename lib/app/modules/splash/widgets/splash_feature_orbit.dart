@@ -53,7 +53,8 @@ class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
     final size = MediaQuery.sizeOf(context);
     final cardW = (size.width * 0.20).clamp(168.0, 250.0);
     final cardH = cardW * 0.52; // long / wide tiles
-    final radius = (math.min(size.width, size.height) * 0.20).clamp(110.0, 190.0);
+    // Wider ring so the four feature cards never crowd each other.
+    final radius = (math.min(size.width, size.height) * 0.30).clamp(160.0, 260.0);
 
     return ColoredBox(
       color: d ? AppColors.bgDark : AppColors.bgLight,

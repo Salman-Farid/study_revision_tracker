@@ -199,22 +199,22 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine. REVISIONS: only if revisions_due_today has items — then ALL of them, each EXACTLY 30 min, ALL at the BEGINNING (first blocks, back-to-back). If none due → zero revision blocks. NEVER type review. After revisions (or if none): study/first_read 50 min on user topics. question_practice MAX 1/day 50 min. break 10 min MAX 6/day only after long work. END EXACTLY 23:30 (tell user 11:30 PM). JSON time=HH:mm 24h; speech=12h AM/PM.',
+      'description': 'Register a daily study routine. REVISIONS: only if revisions_due_today has items — ALL of them, each 30 min, at the BEGINNING. NEVER type review. After revisions: study 50 on user topics. BREAK RULE: after EACH study add break 10 ONLY if next block is not meal/nap/class; no daily break cap; never break without study; app auto-inserts study breaks. question_practice MAX 1/day 50 min. END EXACTLY 23:30 (11:30 PM to user). JSON time=HH:mm; speech=12h AM/PM.',
       'parameters': {
         'type': 'object',
         'properties': {
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
             'type': 'array',
-            'description': 'Ordered blocks. REVISION first if due: ALL revisions_due_today, each 30 min, at the very start. Then study 50. question_practice max 1. break 10 max 6 after long work. NEVER review. End last block 23:30.',
+            'description': 'Ordered blocks. REVISION first if due (30 min each, all at start). Then study 50. Break 10 after study when next is not meal/nap/class (no daily cap). question_practice max 1. NEVER review. End last block 23:30.',
             'items': {
               'type': 'object',
               'properties': {
                 'time': {'type': 'string', 'description': 'Start time 24h HH:mm for tools, e.g. "14:30". Tell user "2:30 PM" in chat.'},
                 'subject': {'type': 'string', 'description': 'Subject name'},
                 'topic': {'type': 'string', 'description': 'Topic name within the subject'},
-                'type': {'type': 'string', 'description': 'revision (due only, 30 min, ALL first) | study | first_read | question_practice (max 1) | break | meal | nap | class. NEVER review.'},
-                'durationMinutes': {'type': 'integer', 'description': 'revision=30 (due only, all at start), study/first_read=50, question_practice=50 (max 1), break=10 (max 6), meal=20-25, nap=20-25'},
+                'type': {'type': 'string', 'description': 'revision (due only, 30 min, all first) | study | first_read | question_practice (max 1) | break (after study only) | meal | nap | class. NEVER review.'},
+                'durationMinutes': {'type': 'integer', 'description': 'revision=30, study/first_read=50, question_practice=50 (max 1), break=10 (after study; skip if meal/nap/class next), meal=20-25, nap=20-25'},
                 'notes': {'type': 'string', 'description': 'Optional notes'},
               },
               'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],

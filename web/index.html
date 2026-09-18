@@ -43,8 +43,8 @@
 
     .orbit-stage {
       position: relative;
-      width: min(72vw, 560px);
-      height: min(72vw, 560px);
+      width: min(86vw, 640px);
+      height: min(86vw, 640px);
     }
     .orbit-center {
       position: absolute;
@@ -130,7 +130,7 @@
         var scale = 0.92 + breath * 0.14;
         stage.style.transform = 'scale(' + scale + ')';
         stage.style.opacity = String(0.62 + breath * 0.38);
-        var radius = Math.min(stage.clientWidth, stage.clientHeight) * 0.34;
+        var radius = Math.min(stage.clientWidth, stage.clientHeight) * 0.42;
         for (var i = 0; i < cards.length; i++) {
           var card = cards[i];
           var a = spin + i * Math.PI / 2;

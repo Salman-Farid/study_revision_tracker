@@ -350,63 +350,67 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
 
   bool _isStudy(String type) => type == 'study' || type == 'first_read';
 
-  /// True for blocks that justify a following 10-min break.
-  bool _isLongWork(String type) =>
-      _isStudy(type) ||
-      type == 'revision' ||
-      type == 'question_practice';
-
-  /// Drop forbidden/redundant blocks and enforce student-realistic rules:
-  /// - no type "review"
-  /// - at most 1 question_practice
-  /// - at most [maxBreaks] breaks, only after long work, never stacked
-  /// - ALL due revision blocks first (30 min each), then study
+  /// Break policy (student-realistic, no hard daily cap):
+  /// - NEVER a break unless the previous block was study/first_read (or other long work).
+  /// - After each study session: add Break 10 ONLY if the next block is not
+  ///   already meal / nap / class (those already rest the student).
+  /// - If nothing follows the study block (end of list), no break is inserted.
+  /// - Never stack two breaks; never break before the first work block.
   List<DailyRoutineItem> _enforceRoutinePolicy(
     List<DailyRoutineItem> items, {
     int maxBreaks = 6,
   }) {
-    var breaksUsed = 0;
+    // maxBreaks is unused — kept for call-site compatibility. No daily cap.
     var qpUsed = 0;
     final revisions = <DailyRoutineItem>[];
     final leadingClasses = <DailyRoutineItem>[];
-    final rest = <DailyRoutineItem>[];
-    String? prevType;
+    final work = <DailyRoutineItem>[];
 
     for (final it in items) {
       final type = it.type;
       if (type == 'review') continue; // forbidden filler
-      if (type == 'revision') {
-        revisions.add(it); // collect — placed at the start later
-        prevType = 'revision';
-        continue;
-      }
+      if (type == 'break') continue; // re-inserted only after study
       if (type == 'question_practice') {
         if (qpUsed >= 1) continue;
         qpUsed++;
       }
-      if (type == 'break') {
-        // Breaks after long work only; stack against prev non-revision type.
-        final afterLong = prevType != null && _isLongWork(prevType);
-        if (!afterLong || prevType == 'break' || breaksUsed >= maxBreaks) {
-          continue;
-        }
-        breaksUsed++;
-        rest.add(it);
-        prevType = 'break';
+      if (type == 'revision') {
+        revisions.add(it);
         continue;
       }
-      if (type == 'class' && rest.isEmpty && revisions.isEmpty) {
+      if (type == 'class' && work.isEmpty && revisions.isEmpty) {
         leadingClasses.add(it);
-        prevType = 'class';
         continue;
       }
-      rest.add(it);
-      prevType = type;
+      work.add(it);
     }
 
-    // Order: any class already running → ALL due revisions → everything else.
-    // Revision blocks stay 30 min (enforced in _canonicalDuration).
-    return [...leadingClasses, ...revisions, ...rest];
+    // Rebuild: leading class → ALL due revisions → work, with study→break.
+    final body = [...revisions, ...work];
+    final out = <DailyRoutineItem>[...leadingClasses];
+
+    for (var i = 0; i < body.length; i++) {
+      final it = body[i];
+      out.add(it);
+      final isStudy = it.type == 'study' || it.type == 'first_read';
+      if (!isStudy) continue;
+      final next = i + 1 < body.length ? body[i + 1] : null;
+      if (next == null) continue; // end of day — no trailing break
+      // Meal / nap / class already rest the student → skip break.
+      if (next.type == 'meal' || next.type == 'nap' || next.type == 'class') {
+        continue;
+      }
+      out.add(DailyRoutineItem(
+        time: it.time,
+        subject: 'Break',
+        topic: '',
+        type: 'break',
+        durationMinutes: 10,
+        notes: 'After study session',
+      ));
+    }
+
+    return out;
   }
 
   Future<void> _deleteClassRoutine(String callId, Map<String, dynamic> args) async {
