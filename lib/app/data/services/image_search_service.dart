@@ -12,11 +12,14 @@ class ImageSearchService {
   static final _rng = Random();
   static final _client = http.Client();
 
+  /// Fetch up to 20 Unsplash hits for [subjectName] and pick one at random
+  /// so the same subject does not always get the same cover.
   static Future<String?> searchSubjectImage(String subjectName) async {
     try {
       final query = Uri.encodeQueryComponent('$subjectName study');
+      // per_page=20 → pool of URLs; random index avoids always using [0].
       final uri = Uri.parse('https://api.unsplash.com/search/photos'
-          '?query=$query&per_page=2&orientation=landscape');
+          '?query=$query&per_page=20&orientation=landscape');
 
       final res = await _client.get(
         uri,
@@ -31,7 +34,8 @@ class ImageSearchService {
         if (results != null && results.isNotEmpty) {
           final pick = results[_rng.nextInt(results.length)];
           final urls = pick['urls'] as Map<String, dynamic>?;
-          return urls?['regular'] as String?;
+          final url = urls?['regular'] as String?;
+          if (url != null && url.isNotEmpty) return url;
         }
       }
     } catch (_) {
