@@ -11,7 +11,7 @@ import '../../core/services/password_recovery_service.dart';
 import '../../core/services/widget_data_service.dart';
 import '../../modules/navigation/navigation_controller.dart';
 import '../../routes/app_routes.dart';
-import '../../theme/app_theme.dart';
+import 'widgets/splash_feature_orbit.dart';
 import 'widgets/splash_logo.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -25,8 +25,8 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _c;
   late final Animation<double> _scale, _fade;
 
-  /// Desktop / tablet / browser: no cinematic splash — go straight to auth/home.
-  bool _skipSplash = false;
+  /// Desktop / tablet / web: orbit feature loader (breathing ring).
+  bool _useOrbitLoader = false;
   bool _started = false;
 
   @override
@@ -50,10 +50,10 @@ class _SplashScreenState extends State<SplashScreen>
     if (_started) return;
     _started = true;
     Responsive.init(context);
-    // Browser always skips; tablet/desktop (rail layout) skips too.
-    _skipSplash = kIsWeb || Responsive.useNavRail;
-    if (_skipSplash) {
-      // Immediate navigation — no animation, no delay.
+    // Phone keeps the cinematic logo; desktop / tablet / web use the orbit.
+    _useOrbitLoader = kIsWeb || Responsive.useNavRail;
+    if (_useOrbitLoader) {
+      // Resolve auth/home in the background; orbit stays up for ≥10 seconds.
       unawaited(_go(fast: true));
     } else {
       _c.forward();
@@ -66,19 +66,29 @@ class _SplashScreenState extends State<SplashScreen>
     void finish(String route, {String? host}) {
       if (navigated || !mounted) return;
       navigated = true;
-      try {
-        Get.offAllNamed(route);
-        if (host != null) {
-          Future.microtask(() {
-            try {
-              Get.put(NavigationController(), permanent: true).applyHost(host);
-            } catch (_) {}
-          });
-        }
-      } catch (_) {
+      void land() {
+        if (!mounted) return;
         try {
-          Get.offAllNamed(AppRoutes.home);
-        } catch (_) {}
+          Get.offAllNamed(route);
+          if (host != null) {
+            Future.microtask(() {
+              try {
+                Get.put(NavigationController(), permanent: true).applyHost(host);
+              } catch (_) {}
+            });
+          }
+        } catch (_) {
+          try {
+            Get.offAllNamed(AppRoutes.home);
+          } catch (_) {}
+        }
+      }
+
+      if (_useOrbitLoader) {
+        // Hold the orbital feature loader ≥10s so it is clearly visible.
+        unawaited(Future<void>.delayed(const Duration(seconds: 10), land));
+      } else {
+        land();
       }
     }
 
@@ -98,13 +108,15 @@ class _SplashScreenState extends State<SplashScreen>
           user = Supabase.instance.client.auth.currentUser;
         } catch (_) {}
       } else if (user == null && fast) {
-        // Brief wait so localStorage session can hydrate on web.
+        // Web cold start: session usually hydrates from localStorage during
+        // Supabase.initialize — a short poll is enough before Auth.
         try {
           await Supabase.instance.client.auth.onAuthStateChange
               .first
-              .timeout(const Duration(milliseconds: 400));
+              .timeout(const Duration(milliseconds: 150));
           user = Supabase.instance.client.auth.currentUser;
         } catch (_) {}
+        user ??= Supabase.instance.client.auth.currentUser;
       }
 
       if (!fast) {
@@ -168,10 +180,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Invisible placeholder while the fast path navigates.
-    if (_skipSplash) {
-      final d = Theme.of(context).brightness == Brightness.dark;
-      return ColoredBox(color: AppColors.bg(d));
+    if (_useOrbitLoader) {
+      return const Scaffold(
+        body: SizedBox.expand(child: SplashFeatureOrbit()),
+      );
     }
     return Scaffold(
       body: Center(

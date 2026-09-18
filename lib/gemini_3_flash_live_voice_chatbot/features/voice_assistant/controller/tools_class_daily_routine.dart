@@ -85,7 +85,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'time': routine.timeText,
         'duration': routine.durationText,
         'location': routine.locationText,
-        'message': 'Class routine registered: $subjectName at ${routine.timeText} ($durationMinutes min)$locationText$dateText.',
+        'message': 'Class routine registered: $subjectName at ${routine.timeText} (${routine.durationText})$locationText$dateText. Reply times in 12-hour AM/PM only.',
       }, params: args);
 
       // Force refresh so RoutineController picks it up immediately
@@ -170,24 +170,112 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         final dur = (m['durationMinutes'] as num?)?.toInt()
             ?? (m['duration_minutes'] as num?)?.toInt()
             ?? 45;
+        final subject = m['subject'] as String? ?? '';
+        final type = m['type'] as String? ?? 'study';
         return DailyRoutineItem(
           time: m['time'] as String? ?? '',
-          subject: m['subject'] as String? ?? '',
+          subject: subject,
           topic: m['topic'] as String? ?? '',
-          type: m['type'] as String? ?? 'study',
-          durationMinutes: dur,
+          type: type,
+          // Enforce canonical durations — never break=50 / study=10; review/QP=50.
+          durationMinutes: _canonicalDuration(type, dur, subject: subject),
           notes: m['notes'] as String?,
         );
       }).toList();
 
+      // Policy: no review spam, max 1 QP, break rules, study-first reorder.
+      final policyItems = _enforceRoutinePolicy(items, maxBreaks: 6);
+
+      if (!policyItems.any((e) => _isStudy(e.type) || e.type == 'revision')) {
+        _respondToFunction(callId, 'registerDailyRoutine', {
+          'success': false,
+          'error': 'Routine has no study/revision blocks. Include due revisions (30 min each, all at the start) if any are due, then study sessions on real topics. Do not send only breaks/question practice/review.',
+        }, params: args);
+        return;
+      }
+
+      // HARD RULE: day ends at exactly 23:30 (11:30 PM). Times stay continuous.
+      final dayEnd = DateTime(date.year, date.month, date.day, 23, 30);
+      DateTime parseStart(String time) {
+        final parts = time.split(':');
+        final h = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
+        final mnt = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+        return DateTime(date.year, date.month, date.day, h, mnt);
+      }
+
+      String fmt(DateTime t) =>
+          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+      // Keep class slots fixed; pack other blocks continuously from the first start.
+      final sorted = [...policyItems]
+        ..sort((a, b) => parseStart(a.time).compareTo(parseStart(b.time)));
+      final firstStart = sorted.isEmpty
+          ? DateTime.now()
+          : parseStart(sorted.first.time);
+      var cursor = firstStart.isAfter(dayEnd.subtract(const Duration(minutes: 10)))
+          ? dayEnd.subtract(const Duration(minutes: 50))
+          : firstStart;
+
+      final clamped = <DailyRoutineItem>[];
+      for (final it in sorted) {
+        if (cursor.isAfter(dayEnd) || cursor.isAtSameMomentAs(dayEnd)) break;
+        var start = parseStart(it.time);
+        var duration = it.durationMinutes;
+
+        if (it.type == 'class') {
+          // Keep registered class time; resume after it if we're behind.
+          if (!start.isBefore(dayEnd)) continue;
+          final maxMin = dayEnd.difference(start).inMinutes;
+          duration = duration.clamp(1, maxMin);
+          final classEnd = start.add(Duration(minutes: duration));
+          if (classEnd.isAfter(cursor)) cursor = classEnd;
+        } else {
+          if (start.isBefore(cursor)) start = cursor;
+          if (!start.isBefore(dayEnd)) break;
+          final maxMin = dayEnd.difference(start).inMinutes;
+          // Don't start a long study block that cannot fit meaningfully.
+          if ((it.type == 'study' || it.type == 'first_read') && maxMin < 20) {
+            break;
+          }
+          duration = duration.clamp(1, maxMin);
+          cursor = start.add(Duration(minutes: duration));
+        }
+
+        clamped.add(DailyRoutineItem(
+          time: fmt(start),
+          subject: it.subject,
+          topic: it.topic,
+          type: it.type,
+          durationMinutes: duration,
+          notes: it.notes,
+        ));
+      }
+
+      if (clamped.isEmpty) {
+        _respondToFunction(callId, 'registerDailyRoutine', {
+          'success': false,
+          'error': 'All blocks fall outside the day. Routine must run until exactly 11:30 PM — start from the current time.',
+        }, params: args);
+        return;
+      }
+
       final routine = await _routineRepo.createDailyRoutine(
         date: date,
-        items: items,
+        items: clamped,
       );
 
-      final summary = items.map((it) => '${it.time} ${it.subject}→${it.topic}').join('; ');
+      // Always report times to the user in 12-hour AM/PM.
+      final summary = clamped.map((it) {
+        final startText = formatTime12Hour(it.time);
+        final startDt = parseStart(it.time);
+        final endText = formatHm12(
+          startDt.add(Duration(minutes: it.durationMinutes)).hour,
+          startDt.add(Duration(minutes: it.durationMinutes)).minute,
+        );
+        return '$startText–$endText ${it.subject}${it.topic.isNotEmpty ? ' / ${it.topic}' : ''} (${it.durationMinutes}m)';
+      }).join('; ');
 
-      Get.snackbar('Success', 'Daily routine saved: ${items.length} blocks for ${date.toIso8601String().substring(0, 10)}',
+      Get.snackbar('Success', 'Daily routine saved: ${clamped.length} blocks until 11:30 PM',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.green.shade700,
           colorText: Colors.white,
@@ -198,8 +286,11 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'success': true,
         'routine_id': routine.id,
         'date': date.toIso8601String().substring(0, 10),
-        'blocks_count': items.length,
-        'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} with ${items.length} blocks: $summary',
+        'blocks_count': clamped.length,
+        'ends_at': '11:30 PM',
+        'time_format_reply': '12-hour AM/PM',
+        'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} — ${clamped.length} blocks, ends at 11:30 PM. '
+            'Tell the user ONLY in 12-hour format. Blocks: $summary',
       }, params: args);
 
       // Schedule a local notification for every future block right away.
@@ -223,6 +314,99 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'success': false, 'error': e.toString(),
       }, params: args);
     }
+  }
+
+  /// Canonical block lengths — study is never 10 min; break is never 50 min.
+  int _canonicalDuration(String type, int sent, {String subject = ''}) {
+    switch (type) {
+      case 'study':
+      case 'first_read':
+      case 'question_practice':
+        return 50;
+      case 'break':
+        return 10;
+      case 'recall':
+        return 15;
+      case 'nap':
+        return (sent <= 0 ? 20 : sent).clamp(20, 25);
+      case 'revision':
+        // Due-revision blocks are always 30 minutes (user rule).
+        return 30;
+      case 'meal':
+        final s = subject.toLowerCase();
+        if (s.contains('breakfast')) return 20;
+        if (s.contains('lunch')) return 25;
+        if (s.contains('dinner')) return 20;
+        return (sent <= 0 ? 20 : sent).clamp(15, 30);
+      case 'class':
+        return sent <= 0 ? 60 : sent;
+      // review/quick review are forbidden — duration irrelevant (dropped later).
+      case 'review':
+        return 50;
+      default:
+        return (sent <= 0 ? 30 : sent).clamp(5, 90);
+    }
+  }
+
+  bool _isStudy(String type) => type == 'study' || type == 'first_read';
+
+  /// True for blocks that justify a following 10-min break.
+  bool _isLongWork(String type) =>
+      _isStudy(type) ||
+      type == 'revision' ||
+      type == 'question_practice';
+
+  /// Drop forbidden/redundant blocks and enforce student-realistic rules:
+  /// - no type "review"
+  /// - at most 1 question_practice
+  /// - at most [maxBreaks] breaks, only after long work, never stacked
+  /// - ALL due revision blocks first (30 min each), then study
+  List<DailyRoutineItem> _enforceRoutinePolicy(
+    List<DailyRoutineItem> items, {
+    int maxBreaks = 6,
+  }) {
+    var breaksUsed = 0;
+    var qpUsed = 0;
+    final revisions = <DailyRoutineItem>[];
+    final leadingClasses = <DailyRoutineItem>[];
+    final rest = <DailyRoutineItem>[];
+    String? prevType;
+
+    for (final it in items) {
+      final type = it.type;
+      if (type == 'review') continue; // forbidden filler
+      if (type == 'revision') {
+        revisions.add(it); // collect — placed at the start later
+        prevType = 'revision';
+        continue;
+      }
+      if (type == 'question_practice') {
+        if (qpUsed >= 1) continue;
+        qpUsed++;
+      }
+      if (type == 'break') {
+        // Breaks after long work only; stack against prev non-revision type.
+        final afterLong = prevType != null && _isLongWork(prevType);
+        if (!afterLong || prevType == 'break' || breaksUsed >= maxBreaks) {
+          continue;
+        }
+        breaksUsed++;
+        rest.add(it);
+        prevType = 'break';
+        continue;
+      }
+      if (type == 'class' && rest.isEmpty && revisions.isEmpty) {
+        leadingClasses.add(it);
+        prevType = 'class';
+        continue;
+      }
+      rest.add(it);
+      prevType = type;
+    }
+
+    // Order: any class already running → ALL due revisions → everything else.
+    // Revision blocks stay 30 min (enforced in _canonicalDuration).
+    return [...leadingClasses, ...revisions, ...rest];
   }
 
   Future<void> _deleteClassRoutine(String callId, Map<String, dynamic> args) async {

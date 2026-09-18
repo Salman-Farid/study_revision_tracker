@@ -1,6 +1,6 @@
 # Smart Revision Tracker
 
-**A complete study companion: spaced revision · class & daily routines · home-screen widgets · voice AI (Putu).**
+**A complete study companion: spaced revision · class & daily routines · home-screen widgets · voice AI (Pootu).**
 
 One Flutter app so students remember what they learned — not just the night before the exam.
 
@@ -8,7 +8,7 @@ One Flutter app so students remember what they learned — not just the night be
 |---|---|
 | **Platforms** | Android · iOS · Web (Chrome/Safari/Firefox) · Desktop-ready |
 | **Backend** | Supabase (Postgres + Auth + Realtime) |
-| **Voice AI** | **Putu** on Gemini Live (WebSocket STT + TTS) |
+| **Voice AI** | **Pootu** on Gemini Live (WebSocket STT + TTS) |
 | **Agentic tools** | Optional AWS Bedrock **Strands Agents** (Python) |
 | **Widgets** | 3 Android home-screen widgets (scrollable) |
 | **Reminders** | Local notifications for revisions, classes, daily blocks |
@@ -25,7 +25,7 @@ That cost becomes even sharper during **competitive-exam preparation**. BCS, NEE
 
 **Smart Revision Tracker** is that missing system — one organized study workspace, not another reminder app, calendar, flashcard deck, timetable, or chatbot.
 
-It records **subjects and topics**, tracks **first-read completion**, and only then automatically schedules spaced revisions on **Day 1 · 3 · 7 · 14 · 30 · 90**. It surfaces **today’s, missed, and upcoming** work so nothing silently disappears. It keeps **class routines** and **daily study routines** in the same place as revision planning. It tracks what is completed versus what remains, with history, progress, streaks, and completion stats. Reminders cover revisions, classes, and the **current daily study block**. On Android, **home-screen widgets** show what to do next without reopening the app. And **Putu**, the voice study assistant, cuts the friction of entering and managing all of that while you are already at the desk.
+It records **subjects and topics**, tracks **first-read completion**, and only then automatically schedules spaced revisions on **Day 1 · 3 · 7 · 14 · 30 · 90**. It surfaces **today’s, missed, and upcoming** work so nothing silently disappears. It keeps **class routines** and **daily study routines** in the same place as revision planning. It tracks what is completed versus what remains, with history, progress, streaks, and completion stats. Reminders cover revisions, classes, and the **current daily study block**. On Android, **home-screen widgets** show what to do next without reopening the app. And **Pootu**, the voice study assistant, cuts the friction of entering and managing all of that while you are already at the desk.
 
 The product exists to answer one practical question every day:
 
@@ -37,9 +37,9 @@ Built for school and university students in general (Bangla / English / Banglish
 
 ---
 
-## 2. Putu — voice study AI (major feature)
+## 2. Pootu — voice study AI (major feature)
 
-Putu is the headline feature: **hands-free control of your real study data**. Tools write the same Supabase tables the UI uses — no fake replies.
+Pootu is the headline feature: **hands-free control of your real study data**. Tools write the same Supabase tables the UI uses — no fake replies.
 
 | Capability | What you can say / do |
 |------------|------------------------|
@@ -56,7 +56,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 - Never invent subject/topic names  
 - Revisions only on **1, 3, 7, 14, 30, 90**  
 - Schedules only after **first read complete**  
-- Identity: **Putu** — never reveals model/vendor names  
+- Identity: **Pootu** — never reveals model/vendor names  
 - Replies match the user’s language (EN / BN / Banglish)
 
 **Web/desktop audio:** Web Audio capture (resampled to 24 kHz PCM) + smooth scheduled playback (edge fades, seam overlap).
@@ -116,7 +116,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 - Subjects │ Subject detail (select on the grid)  
 - Today │ Calendar  
 - Routine │ full-width **Daily + Class**  
-- **Settings │ About this app** (soft animated guide: vision, problem, Putu capabilities, manual)
+- **Settings │ About this app** (soft animated guide: vision, problem, Pootu capabilities, manual)
 
 **Other desktop polish**
 - Auth: **image left, form right**  
@@ -132,7 +132,7 @@ Putu is the headline feature: **hands-free control of your real study data**. To
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │  Flutter (Android · iOS · Web · Desktop)                    │
-│  GetX UI │ WidgetDataProvider │ Gemini Live client (Putu)   │
+│  GetX UI │ WidgetDataProvider │ Gemini Live client (Pootu)   │
 └──────┬────────────┬────────────────────┬────────────────────┘
        │            │                    │ WSS
        ▼            ▼                    ▼
@@ -238,8 +238,8 @@ flutter pub get
 flutter run -d chrome
 flutter run -d android
 
-# Web release (dynamic IconData → disable icon tree-shake)
-flutter build web --release --no-tree-shake-icons
+# Web release (const SubjectIcons map enables icon tree-shake)
+flutter build web --release
 ```
 
 Optional Strands backend: see `AWS_STRANDS_AGENT_INTEGRATION/README.md`.
@@ -278,8 +278,8 @@ Flow: Sign In → Forgot password? → open email link → app opens → set new
 4. **Complete first read** → Day 1…90 appear.  
 5. **Today** — Today / Missed / Upcoming; swipe complete.  
 6. **Routine** — Daily | Class side-by-side.  
-7. **Putu** — “Add topic …”, “Plan my day”, “What’s due this week?”  
-8. **Settings | About** — vision, Putu capability list, manual.  
+7. **Pootu** — “Add topic …”, “Plan my day”, “What’s due this week?”  
+8. **Settings | About** — vision, Pootu capability list, manual.  
 9. **Android widgets** — Revision 3-tab, Class ListView, Daily countdown.  
 10. **Resize browser** — sidebar collapse, split panes, 4-corner assistant resize.
 
@@ -291,7 +291,7 @@ Flow: Sign In → Forgot password? → open email link → app opens → set new
 |------|---------------------|
 | Forgetting after one read | Automatic 6-step spaced schedule |
 | Scattered plans | Subjects + class + daily + calendar in one graph |
-| Phone friction while studying | **Putu voice** writes real rows |
+| Phone friction while studying | **Pootu voice** writes real rows |
 | App-open cost | Widgets + auto reminders |
 | Desktop study sessions | Split workspace, not a stretched phone UI |
 
@@ -319,10 +319,10 @@ Flow: Sign In → Forgot password? → open email link → app opens → set new
 
 | File | Contents |
 |------|----------|
-| `README.md` | Product, vision, Putu, architecture, demo |
+| `README.md` | Product, vision, Pootu, architecture, demo |
 | `STRANDS_AGENT_INTEGRATION.md` | Gemini voice vs Strands tools |
 | `AWS_STRANDS_AGENT_INTEGRATION/README.md` | Docker / AgentCore deploy |
 
 ---
 
-**Putu says:** revise on Day 1, not the night before. 📚
+**Pootu says:** revise on Day 1, not the night before. 📚

@@ -1,0 +1,162 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../../theme/app_theme.dart';
+
+/// Desktop / tablet splash loader: four wide feature images arranged like
+/// seats on a round table, slowly orbiting while the whole ring "breathes".
+class SplashFeatureOrbit extends StatefulWidget {
+  const SplashFeatureOrbit({super.key});
+
+  static const featureAssets = <String>[
+    'assets/images/splash_feature_revision.png',
+    'assets/images/splash_feature_routines.png',
+    'assets/images/splash_feature_voice.png',
+    'assets/images/splash_feature_progress.png',
+  ];
+
+  @override
+  State<SplashFeatureOrbit> createState() => _SplashFeatureOrbitState();
+}
+
+class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
+    with TickerProviderStateMixin {
+  late final AnimationController _spin;
+  late final AnimationController _breathe;
+
+  @override
+  void initState() {
+    super.initState();
+    // Slow full turn — calm, not carnival.
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 28),
+    )..repeat();
+    // Human-breath cadence: inhale ~1.6s, exhale ~1.6s.
+    _breathe = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    _breathe.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = Theme.of(context).brightness == Brightness.dark;
+    final size = MediaQuery.sizeOf(context);
+    final cardW = (size.width * 0.20).clamp(168.0, 250.0);
+    final cardH = cardW * 0.52; // long / wide tiles
+    final radius = (math.min(size.width, size.height) * 0.20).clamp(110.0, 190.0);
+
+    return ColoredBox(
+      color: d ? AppColors.bgDark : AppColors.bgLight,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_spin, _breathe]),
+          builder: (_, __) {
+            // Breathing: soft expand on inhale, ease back on exhale.
+            final breath =
+                Curves.easeInOutSine.transform(_breathe.value.clamp(0.0, 1.0));
+            final scale = 0.92 + breath * 0.14; // 0.92 → 1.06
+            final angle0 = _spin.value * 2 * math.pi;
+
+            return Opacity(
+              opacity: 0.55 + breath * 0.45,
+              child: Transform.scale(
+                scale: scale,
+                child: SizedBox(
+                  width: radius * 2 + cardW,
+                  height: radius * 2 + cardH,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Soft "table" glow at the center.
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          color: AppColors.primary,
+                          size: 30,
+                        ),
+                      ),
+                      for (var i = 0; i < SplashFeatureOrbit.featureAssets.length; i++)
+                        _orbitCard(
+                          index: i,
+                          angle: angle0 + i * math.pi / 2,
+                          radius: radius,
+                          cardW: cardW,
+                          cardH: cardH,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _orbitCard({
+    required int index,
+    required double angle,
+    required double radius,
+    required double cardW,
+    required double cardH,
+  }) {
+    final dx = math.cos(angle) * radius;
+    final dy = math.sin(angle) * radius;
+    return Transform.translate(
+      offset: Offset(dx, dy),
+      child: SizedBox(
+        width: cardW,
+        height: cardH,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(13),
+            child: Image.asset(
+              SplashFeatureOrbit.featureAssets[index],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => ColoredBox(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                child: const Center(
+                  child: Icon(Icons.auto_stories_rounded, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

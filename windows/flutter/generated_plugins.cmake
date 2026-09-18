@@ -7,7 +7,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   flutter_sound
   flutter_timezone
-  permission_handler_windows
   record_windows
   speech_to_text_windows
   url_launcher_windows

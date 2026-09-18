@@ -25,13 +25,9 @@ class RoutineScreen extends GetView<RoutineController> {
         backgroundColor: AppColors.bg(d),
         elevation: 0,
         title: Text('routine'.tr),
-        actions: [
-          IconButton(
-            tooltip: 'assistant'.tr,
-            icon: const Icon(Icons.mic_rounded),
-            onPressed: controller.openAssistant,
-          ),
-        ],
+      ),
+      floatingActionButton: _AnimatedAssistantFab(
+        onPressed: controller.openAssistant,
       ),
       body: Stack(
         children: [
@@ -102,6 +98,75 @@ class RoutineScreen extends GetView<RoutineController> {
             return const StudyAssistantDialogue();
           }),
         ],
+      ),
+    );
+  }
+}
+
+/// Bottom FAB that continuously bounces / tilts like a cartoon character.
+class _AnimatedAssistantFab extends StatefulWidget {
+  const _AnimatedAssistantFab({required this.onPressed});
+  final VoidCallback onPressed;
+
+  @override
+  State<_AnimatedAssistantFab> createState() => _AnimatedAssistantFabState();
+}
+
+class _AnimatedAssistantFabState extends State<_AnimatedAssistantFab>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  late final Animation<double> _scale;
+  late final Animation<double> _dy;
+  late final Animation<double> _tilt;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.1, end: 0.96), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.96, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+    _dy = Tween<double>(begin: 0, end: -10).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    );
+    _tilt = Tween<double>(begin: -0.08, end: 0.08).animate(
+      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, child) {
+        return Transform.translate(
+          offset: Offset(0, _dy.value),
+          child: Transform.rotate(
+            angle: _tilt.value,
+            child: Transform.scale(
+              scale: _scale.value,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: FloatingActionButton(
+        heroTag: 'routine_assistant_fab',
+        backgroundColor: AppConstants.primaryColor,
+        onPressed: widget.onPressed,
+        tooltip: 'assistant'.tr,
+        child: const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
       ),
     );
   }

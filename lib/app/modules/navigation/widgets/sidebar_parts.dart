@@ -56,16 +56,7 @@ class SidebarHeader extends StatelessWidget {
               ),
             ),
           ],
-          IconButton(
-            onPressed: onToggleExpanded,
-            tooltip: expanded ? 'Collapse' : 'Expand',
-            visualDensity: VisualDensity.compact,
-            icon: Icon(
-              expanded ? Icons.menu_open_rounded : Icons.menu_rounded,
-              color: AppColors.textMuted(d),
-              size: 22,
-            ),
-          ),
+          // Collapse/expand lives only in the footer (bottom), not the header.
         ],
       ),
     );
@@ -187,30 +178,53 @@ class SidebarFooter extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.psychology_rounded, color: AppColors.primary, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Voice assistant ready',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary(d),
-                  fontWeight: FontWeight.w500,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.psychology_rounded, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Voice assistant ready',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary(d),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Collapse control — bottom only (never in the header).
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onToggleExpanded,
+              icon: Icon(Icons.menu_open_rounded, size: 18, color: AppColors.textMuted(d)),
+              label: Text(
+                'Collapse',
+                style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted(d)),
+              ),
+              style: TextButton.styleFrom(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

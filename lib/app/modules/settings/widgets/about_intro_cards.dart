@@ -56,7 +56,7 @@ class AboutHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Revision · Routines · Widgets · Voice AI (Putu)',
+                  'Revision · Routines · Widgets · Voice AI (Pootu)',
                   style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
                 ),
               ],
@@ -143,7 +143,7 @@ class AboutSolveCard extends StatelessWidget {
           AboutBullet(text: 'Completed vs remaining, history, streaks, completion stats', d: d),
           AboutBullet(text: 'Reminders for revisions, classes & the current daily block', d: d),
           AboutBullet(text: 'Android widgets — see what to do without opening the app', d: d),
-          AboutBullet(text: 'Putu (voice) — add, complete, plan, delete without typing', d: d),
+          AboutBullet(text: 'Pootu (voice) — add, complete, plan, delete without typing', d: d),
         ],
       ),
     );

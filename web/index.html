@@ -26,53 +26,135 @@
       background: #F8F9FC;
       overflow: hidden;
     }
-    /* Boot overlay: phone web only. Desktop/tablet never show a loader. */
+    /* Orbital feature loader — same idea as Flutter SplashFeatureOrbit.
+       Shows immediately while main.dart.js downloads; Flutter continues it. */
     #boot {
       position: fixed;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
-      gap: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #1A1D26;
+      background: #F8F9FC;
       z-index: 9999;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.45s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     #boot.hide { opacity: 0; pointer-events: none; }
-    #boot .logo {
-      width: 48px; height: 48px; border-radius: 14px;
-      background: linear-gradient(135deg, #87CEEB, #81D4FA);
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 22px;
+
+    .orbit-stage {
+      position: relative;
+      width: min(72vw, 560px);
+      height: min(72vw, 560px);
     }
-    #boot .msg { font-size: 13px; color: #6B7280; }
+    .orbit-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 72px;
+      height: 72px;
+      margin: -36px 0 0 -36px;
+      border-radius: 50%;
+      background: rgba(135, 206, 235, 0.16);
+      border: 1px solid rgba(135, 206, 235, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      z-index: 2;
+    }
+    .orbit-card {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: clamp(140px, 28vw, 220px);
+      height: clamp(74px, 14.5vw, 114px);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1.2px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
+      background: #87CEEB;
+      will-change: transform;
+    }
+    .orbit-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
     #boot .err {
-      font-size: 12px; color: #D93025;
-      max-width: 320px; text-align: center; display: none;
-    }
-    /* Desktop / large tablet / browser: no boot UI at all. */
-    @media (min-width: 760px) {
-      #boot { display: none !important; }
+      position: absolute;
+      bottom: 12%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #D93025;
+      max-width: 320px;
+      text-align: center;
+      display: none;
     }
   </style>
 </head>
 <body>
   <div id="boot">
-    <div class="logo">📚</div>
-    <div class="msg">Loading…</div>
+    <div class="orbit-stage" id="orbit-stage" aria-label="Loading features">
+      <div class="orbit-card" data-i="0">
+        <img src="assets/assets/images/splash_feature_revision.png" alt="Spaced Revision" />
+      </div>
+      <div class="orbit-card" data-i="1">
+        <img src="assets/assets/images/splash_feature_routines.png" alt="Routines" />
+      </div>
+      <div class="orbit-card" data-i="2">
+        <img src="assets/assets/images/splash_feature_voice.png" alt="Putu Voice AI" />
+      </div>
+      <div class="orbit-card" data-i="3">
+        <img src="assets/assets/images/splash_feature_progress.png" alt="Progress" />
+      </div>
+      <div class="orbit-center">📚</div>
+    </div>
     <div class="err" id="boot-err"></div>
   </div>
 
   <script>
+    // Round-table orbit: four wide feature cards circle the center, upright,
+    // while the whole ring breathes (inhale/exhale) like a calm loader.
+    (function () {
+      var stage = document.getElementById('orbit-stage');
+      var cards = stage ? stage.querySelectorAll('.orbit-card') : [];
+      var t0 = performance.now();
+      function frame(now) {
+        if (!stage || !stage.isConnected) return;
+        var t = (now - t0) / 1000;
+        var spin = (t / 28) * Math.PI * 2;
+        var breath = 0.5 + 0.5 * Math.sin((t / 3.2) * Math.PI * 2);
+        var scale = 0.92 + breath * 0.14;
+        stage.style.transform = 'scale(' + scale + ')';
+        stage.style.opacity = String(0.62 + breath * 0.38);
+        var radius = Math.min(stage.clientWidth, stage.clientHeight) * 0.34;
+        for (var i = 0; i < cards.length; i++) {
+          var card = cards[i];
+          var a = spin + i * Math.PI / 2;
+          var x = Math.cos(a) * radius;
+          var y = Math.sin(a) * radius;
+          var hw = card.offsetWidth / 2;
+          var hh = card.offsetHeight / 2;
+          // Keep cards upright (translate only) while they orbit.
+          card.style.transform = 'translate(' + (x - hw) + 'px,' + (y - hh) + 'px)';
+        }
+        requestAnimationFrame(frame);
+      }
+      if (cards.length) requestAnimationFrame(frame);
+    })();
+
+    // HTML orbit shows during engine download; Flutter SplashFeatureOrbit
+    // continues it and holds ≥10s before auth/home.
     window.addEventListener('flutter-first-frame', function () {
       var el = document.getElementById('boot');
       if (!el) return;
       el.classList.add('hide');
       setTimeout(function () {
         if (el && el.parentNode) el.parentNode.removeChild(el);
-      }, 300);
+      }, 500);
     });
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-err');

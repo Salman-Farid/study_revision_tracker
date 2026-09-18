@@ -91,7 +91,7 @@ class AboutManualList extends StatelessWidget {
       ('Routine', Icons.event_note_rounded, 'Class timetable + daily blocks (side-by-side on desktop)'),
       ('Calendar', Icons.calendar_month_rounded, 'See every scheduled revision on the month grid'),
       ('Settings', Icons.settings_rounded, 'Language, theme, reminders, account, this About guide'),
-      ('Mic / Putu', Icons.graphic_eq_rounded, 'Open the assistant from Subjects, Routine, or subject detail'),
+      ('Mic / Pootu', Icons.graphic_eq_rounded, 'Open the assistant from Subjects, Routine, or subject detail'),
     ];
     return AboutCard(
       d: d,

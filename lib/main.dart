@@ -25,18 +25,24 @@ import 'app/theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configureUrlStrategy();
-  await SharedPreferences.getInstance();
-  await lockPortraitOrientation();
 
   // Capture the launch URL BEFORE Supabase PKCE exchange can rewrite it.
   // Used to detect password-recovery email links on cold start.
   final Uri launchUri = Uri.base;
 
+  // Warm prefs / orientation in parallel — never block first frame on them.
+  // LanguageController and splash read prefs asynchronously on their own.
+  unawaited(SharedPreferences.getInstance());
+  unawaited(lockPortraitOrientation());
+
+  // Critical path only: Supabase must exist before services bind to it.
   await initSupabaseAndRecovery(launchUri);
   registerAppServices();
-  await initNotificationService();
+
+  // Platform channels and web no-ops — must not delay auth/home UI.
+  unawaited(initNotificationService());
   initRealtimeIfLoggedIn();
-  await initNativeWidgets();
+  unawaited(initNativeWidgets());
   applySystemUiOverlayStyle();
 
   runApp(const RevisionTrackerApp());

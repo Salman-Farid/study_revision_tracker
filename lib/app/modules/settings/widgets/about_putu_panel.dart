@@ -28,7 +28,7 @@ class AboutPutuHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Putu — your voice study AI',
+                'Pootu — your voice study AI',
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.textPrimary(d),
                   fontWeight: FontWeight.w800,
@@ -83,13 +83,13 @@ class AboutPutuCapabilityPanel extends StatelessWidget {
       _Capability(
         Icons.quiz_outlined,
         'Tell you what’s due when',
-        '“Which topics need revision this week?” Putu reads your real schedules and answers with dates.',
+        '“Which topics need revision this week?” Pootu reads your real schedules and answers with dates.',
         putuBlue,
       ),
       _Capability(
         Icons.insights_rounded,
         'Study performance & situation',
-        'Ask for progress, overdue load, or how you’re doing — Putu summarizes counts from your live data, not guesses.',
+        'Ask for progress, overdue load, or how you’re doing — Pootu summarizes counts from your live data, not guesses.',
         putuTeal,
       ),
       _Capability(
@@ -107,7 +107,7 @@ class AboutPutuCapabilityPanel extends StatelessWidget {
       _Capability(
         Icons.delete_outline_rounded,
         'Delete anything safely',
-        'Remove a subject, topic, or routine with your voice — Putu asks before destructive actions.',
+        'Remove a subject, topic, or routine with your voice — Pootu asks before destructive actions.',
         putuRose,
       ),
       _Capability(
@@ -138,7 +138,7 @@ class AboutPutuCapabilityPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Text(
-              'What Putu can do — just by talking',
+              'What Pootu can do — just by talking',
               style: AppTextStyles.titleSmall.copyWith(
                 color: AppColors.textPrimary(d),
                 fontWeight: FontWeight.w700,

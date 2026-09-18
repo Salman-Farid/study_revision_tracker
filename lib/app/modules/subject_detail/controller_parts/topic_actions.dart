@@ -97,8 +97,8 @@ extension SubjectDetailActions on SubjectDetailController {
   }
 
   /// Reorder the currently visible (filtered) list and persist the full order.
+  /// [newIndex] is already adjusted by ReorderableListView's onReorderItem.
   void reorderTopics(int oldIndex, int newIndex) {
-    if (oldIndex < newIndex) newIndex -= 1;
     final visible = filteredTopics;
     if (oldIndex < 0 ||
         oldIndex >= visible.length ||

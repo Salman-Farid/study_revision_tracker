@@ -199,22 +199,22 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine / plan. CRITICAL: You MUST call getAllData FIRST to get real subjects/topics. The handler VALIDATES that every study subject exists in the database — fake/made-up names WILL FAIL. Use when user says "create my daily routine", "plan my day", "build my routine". Start from EXACT current time (given in system prompt). End at 23:30. Study blocks: 50 min study → 10 min break. Include meals, power nap (20-25 min, once), active recall (15 min after every 2 blocks), question practice (2×30 min). Do NOT use generic names like "নাস্তা", "খাবার" — use REAL subject names from getAllData.',
+      'description': 'Register a daily study routine. REVISIONS: only if revisions_due_today has items — then ALL of them, each EXACTLY 30 min, ALL at the BEGINNING (first blocks, back-to-back). If none due → zero revision blocks. NEVER type review. After revisions (or if none): study/first_read 50 min on user topics. question_practice MAX 1/day 50 min. break 10 min MAX 6/day only after long work. END EXACTLY 23:30 (tell user 11:30 PM). JSON time=HH:mm 24h; speech=12h AM/PM.',
       'parameters': {
         'type': 'object',
         'properties': {
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
             'type': 'array',
-            'description': 'Ordered list of study blocks for the day',
+            'description': 'Ordered blocks. REVISION first if due: ALL revisions_due_today, each 30 min, at the very start. Then study 50. question_practice max 1. break 10 max 6 after long work. NEVER review. End last block 23:30.',
             'items': {
               'type': 'object',
               'properties': {
-                'time': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "14:30"'},
+                'time': {'type': 'string', 'description': 'Start time 24h HH:mm for tools, e.g. "14:30". Tell user "2:30 PM" in chat.'},
                 'subject': {'type': 'string', 'description': 'Subject name'},
                 'topic': {'type': 'string', 'description': 'Topic name within the subject'},
-                'type': {'type': 'string', 'description': 'Block type: "class", "first_read", "revision", "break", "review", "recall", "question_practice", "meal", "nap", "study"'},
-                'durationMinutes': {'type': 'integer', 'description': 'Duration in minutes. Study=50, break=10, meal=20-25, nap=20-25, recall=15, question_practice=30'},
+                'type': {'type': 'string', 'description': 'revision (due only, 30 min, ALL first) | study | first_read | question_practice (max 1) | break | meal | nap | class. NEVER review.'},
+                'durationMinutes': {'type': 'integer', 'description': 'revision=30 (due only, all at start), study/first_read=50, question_practice=50 (max 1), break=10 (max 6), meal=20-25, nap=20-25'},
                 'notes': {'type': 'string', 'description': 'Optional notes'},
               },
               'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],

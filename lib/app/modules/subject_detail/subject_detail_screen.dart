@@ -7,7 +7,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import 'subject_detail_controller.dart';
 import 'widgets/subject_filter_chips.dart';
-import 'widgets/topic_card_badges.dart';
 import 'widgets/topic_first_read_card.dart';
 import 'widgets/topic_revision_card.dart';
 
@@ -86,7 +85,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
         child: ReorderableListView.builder(
           padding: EdgeInsets.fromLTRB(S.base, S.sm, S.base, 96),
           itemCount: topics.length,
-          onReorder: controller.reorderTopics,
+          // Flutter 3.44+: onReorderItem supplies an already-adjusted newIndex.
+          // Children MUST carry keys — ReorderableListView does child.key! and
+          // unkeyed items crash the list into a grey ErrorWidget in release.
+          onReorderItem: controller.reorderTopics,
           // Explicit handle only — no default trailing grips overlapping the bin.
           buildDefaultDragHandles: false,
           proxyDecorator: (child, index, animation) {
@@ -104,10 +106,10 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
             final t = topics[i];
             final isFirstRead = !t.firstReadCompleted;
             final isCompleted = t.totalRevisions >= 6;
-            final isAllFilter = controller.selectedFilter.value == 'all';
 
             if (isFirstRead) {
               return TopicFirstReadCard(
+                key: ValueKey('fr_${t.id}'),
                 d: d,
                 t: t,
                 index: i,
@@ -119,6 +121,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               );
             } else {
               return TopicRevisionCard(
+                key: ValueKey('rev_${t.id}'),
                 d: d,
                 t: t,
                 isCompleted: isCompleted,
