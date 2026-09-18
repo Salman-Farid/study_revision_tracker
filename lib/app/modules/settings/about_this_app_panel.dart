@@ -48,6 +48,14 @@ class _AboutThisAppPanelState extends State<AboutThisAppPanel>
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
         children: [
+          Text(
+            'About Us',
+            style: AppTextStyles.headlineMedium.copyWith(
+              color: AppColors.textPrimary(d),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
           _stagger(0, AboutHero(d: d)),
           const SizedBox(height: 14),
           _stagger(1, AboutProblemCard(d: d)),

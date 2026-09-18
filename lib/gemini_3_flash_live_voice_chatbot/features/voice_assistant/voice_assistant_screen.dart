@@ -108,18 +108,13 @@ class VoiceAssistantScreen extends StatelessWidget {
                 final st = c.connectionState.value;
                 if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
 
-                final muted = c.isMuted;
-                final processing = c.isProcessing.value;
-                final statusText = processing
-                    ? 'Processing your request...'
-                    : muted
-                        ? 'Muted — tap mic to unmute'
-                        : 'Listening... speak now';
-                final statusColor = processing
+                final muted = c.micIconOff;
+                final statusText = c.floorLabel.value;
+                final statusColor = c.floorBusy.value
                     ? AppConstants.warningColor
-                    : muted
+                    : (c.isMuted
                         ? AppColors.textMutedDark
-                        : AppConstants.successColor;
+                        : AppConstants.successColor);
 
                 return Container(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -136,17 +131,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                             color: muted
                                 ? AppConstants.warningColor
                                 : AppConstants.successColor,
-                            boxShadow: !muted
-                                ? [
-                                    BoxShadow(
-                                      color: AppConstants.successColor
-                                          .withOpacity(0.3),
-                                      blurRadius: 12,
-                                      spreadRadius: 2,
-                                    ),
-                                  ]
-                                : [],
-                          ),
+                                                      ),
                           child: Icon(
                             muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                             color: Colors.white,

@@ -9,6 +9,7 @@ import '../../data/models/class_routine_model.dart';
 import '../../data/models/daily_routine_model.dart';
 import '../../data/repositories/routine_repository.dart';
 import '../../domain/routine/routine_time_utils.dart';
+import 'widgets/routine_break_taglines.dart';
 
 enum RoutineMode { daily, class$ }
 
@@ -61,20 +62,20 @@ class RoutineDisplayItem {
     }
   }
 
-  /// Motivational tagline for non-study blocks
+  /// Motivational tagline for non-study blocks.
+  /// Break: prefer creation-time unique notes; else assign a non-repeating
+  /// line per break slot for this day.
   String? get tagline {
     switch (type) {
       case 'break':
-        final breakLines = [
-          'Take a deep breath',
-          'Stretch your body',
-          'Hydrate & recharge',
-          'Close your eyes for a moment',
-          'Stay humble, keep going',
-          '放松一下 — you earned it',
-        ];
-        // Deterministic pick based on sortKey hash
-        return breakLines[sortKey.hashCode.abs() % breakLines.length];
+        final fromNotes = notes?.trim();
+        if (fromNotes != null &&
+            fromNotes.isNotEmpty &&
+            fromNotes != 'After study session') {
+          return fromNotes;
+        }
+        // Caller passes used-set via notes when available; fallback uses time.
+        return RoutineBreakTaglines.pickFor('$sortKey|$subjectName|$type|$timeText');
       case 'nap':
         return 'Power nap for memory consolidation';
       case 'meal':
@@ -150,6 +151,8 @@ class RoutineController extends GetxController {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final items = <RoutineDisplayItem>[];
+    final usedBreakLines = <String>{};
+    var breakSlot = 0;
 
     for (final dr in dailyRoutines) {
       if (isSameCalendarDay(dr.date, today)) {
@@ -158,6 +161,25 @@ class RoutineController extends GetxController {
           final sh = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
           final sm = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
           final startDt = DateTime(today.year, today.month, today.day, sh, sm);
+
+          String? breakNote;
+          if (item.type == 'break') {
+            final raw = item.notes?.trim();
+            if (raw != null &&
+                raw.isNotEmpty &&
+                raw != 'After study session' &&
+                !usedBreakLines.contains(raw)) {
+              breakNote = raw;
+              usedBreakLines.add(raw);
+            } else {
+              breakNote = RoutineBreakTaglines.pickUniqueForDay(
+                today.toIso8601String().substring(0, 10),
+                breakSlot,
+                usedBreakLines,
+              );
+            }
+            breakSlot++;
+          }
 
           items.add(RoutineDisplayItem(
             subjectName: item.subject,
@@ -168,7 +190,7 @@ class RoutineController extends GetxController {
             durationText: '${item.durationMinutes}m',
             type: item.type,
             topicName: item.topic,
-            notes: item.notes,
+            notes: item.type == 'break' ? breakNote : item.notes,
           ));
         }
       }

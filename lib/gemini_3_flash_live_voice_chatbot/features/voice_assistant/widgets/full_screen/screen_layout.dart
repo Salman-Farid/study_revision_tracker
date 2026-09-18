@@ -48,19 +48,13 @@ extension VoiceAssistantScreenLayout on VoiceAssistantScreen {
                   ),
                 ),
                 Obx(() {
-                  final st = c.connectionState.value;
-                  final processing = c.isProcessing.value;
-                  final (color, label) = switch (processing) {
-                    true => (AppConstants.warningColor, 'Processing...'),
-                    false => switch (st) {
-                      ws.ConnectionState.connecting =>
-                        (AppConstants.warningColor, 'Connecting...'),
-                      ws.ConnectionState.connected =>
-                        (AppConstants.successColor, 'Listening'),
-                      ws.ConnectionState.error =>
-                        (AppConstants.errorColor, 'Offline'),
-                      _ => (AppColors.textMutedDark, 'Offline'),
-                    },
+                  final busy = c.floorBusy.value;
+                  final label = c.floorLabel.value;
+                  final color = switch (label) {
+                    'Listening' => AppConstants.successColor,
+                    'Offline' => AppConstants.errorColor,
+                    _ when busy => AppConstants.warningColor,
+                    _ => AppColors.textMutedDark,
                   };
                   return Row(
                     children: [

@@ -224,8 +224,7 @@ class SubjectsVoiceChatPanel extends StatelessWidget {
             onTap: controller.isListening.value ? controller.stopListening : controller.startListening,
             child: AnimatedContainer(duration: AppConstants.shortDuration, padding: EdgeInsets.all(S.base),
               decoration: BoxDecoration(color: controller.isListening.value ? AppColors.error : AppColors.primary,
-                shape: BoxShape.circle, boxShadow: controller.isListening.value
-                  ? [BoxShadow(color: AppColors.error.withOpacity(0.4), blurRadius: 20, spreadRadius: 2)] : []),
+                shape: BoxShape.circle, ),
               child: Icon(controller.isListening.value ? Icons.stop_rounded : Icons.mic_rounded,
                 color: Colors.white, size: S.iconLg))))),
         ])));

@@ -6,9 +6,15 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
   // Cache is invalidated (set to null) on every write (add/delete).
   Future<void> _getAllData(String callId) async {
     try {
-      // ── FIX: actually use the cache on read ──
-      if (_summaryCache != null) {
-        debugPrint('[Gemini] ⚡ getAllData — returning cached summary');
+      // Always live-read for routine planning — stale cache after delete/create
+      // made the model "see" a ghost routine and loop. Keep a very short TTL only.
+      final cacheAge = _summaryCachedAt == null
+          ? null
+          : DateTime.now().difference(_summaryCachedAt!);
+      if (_summaryCache != null &&
+          cacheAge != null &&
+          cacheAge < const Duration(seconds: 2)) {
+        debugPrint('[Gemini] ⚡ getAllData — fresh cache (${cacheAge.inMilliseconds}ms)');
         _respondToFunction(callId, 'getAllData', _summaryCache!, params: {});
         return;
       }
@@ -38,6 +44,20 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
         }
       }
 
+      // Live daily-routine snapshot (empty after delete) so the model never loops.
+      List<Map<String, dynamic>> dailyToday = [];
+      try {
+        final drs = await _routineRepo.getDailyRoutines(fromDate: todayStart, toDate: todayEnd);
+        for (final dr in drs) {
+          dailyToday.addAll(dr.items.map((e) => {
+                'time': e.time,
+                'subject': e.subject,
+                'topic': e.topic,
+                'type': e.type,
+              }));
+        }
+      } catch (_) {}
+
       // ── Get revision dates due today for each subject ──
       const revisionDays = [1, 3, 7, 14, 30, 90]; // Day 1, 3, 7, 14, 30, 90 after first read
       final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -64,10 +84,20 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
       }
 
       final summary = <Map<String, dynamic>>[];
+      final fastReadTopics = <Map<String, dynamic>>[];
       for (final sub in subjects) {
         final topics = await _topicRepo.getBySubject(sub.id);
         final subSchedules = allSchedules.where((s) => s.subjectId == sub.id);
         final pendingCount = subSchedules.where((s) => s.status == 'pending').length;
+
+        for (final t in topics) {
+          if (!t.firstReadCompleted) {
+            fastReadTopics.add({
+              'subject': sub.name,
+              'topic': t.name,
+            });
+          }
+        }
 
         summary.add({
           's': sub.name,
@@ -75,6 +105,7 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
           'c': topics.where((t) => t.totalRevisions >= 6).length,
           'p': pendingCount,
           'fr': topics.where((t) => t.firstReadCompleted).length,
+          'fast_read_left': topics.where((t) => !t.firstReadCompleted).length,
         });
       }
 
@@ -84,10 +115,14 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
         'subjects': summary,
         'class_routines_today': todayClasses,
         'revisions_due_today': revisionsDueToday,
-        'today': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
-        'note': 'Compact summary (s=name,t=topics,c=completed,p=pending_revisions,fr=first_read_done). class_routines_today = classes scheduled today. revisions_due_today = topics needing revision today.',
+        'daily_routines_today': dailyToday,
+        'daily_routines_today_empty': dailyToday.isEmpty,
+        'topics_for_fast_read': fastReadTopics,
+        'today': todayStr,
+        'note': 'subjects: s=name,t=topics,c=completed,p=pending,fr=first_read_done,fast_read_left=topics not yet first-read. topics_for_fast_read = exact subject+topic names still in first read — answer "which subjects/topics for fast read" from THIS list in the user\'s language. daily_routines_today is the live plan (empty = none).',
       };
       _summaryCache = result;
+      _summaryCachedAt = DateTime.now();
       _respondToFunction(callId, 'getAllData', result, params: {});
     } catch (e) {
       Get.snackbar('getAllData Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));

@@ -80,6 +80,7 @@ class _EmbeddedSubjectDetailState extends State<EmbeddedSubjectDetail> {
 }
 
 /// Card-like chrome for side-by-side panes.
+/// Flat UI (no shadow): a visible border keeps each split screen distinct.
 class PaneFrame extends StatelessWidget {
   const PaneFrame({super.key, required this.child, this.showBorder = true});
 
@@ -89,19 +90,18 @@ class PaneFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = Theme.of(context).brightness == Brightness.dark;
+    // Stronger than AppColors.border so panes don't blend after shadow removal.
+    final edge = Color.lerp(
+      AppColors.border(d),
+      AppColors.textMuted(d),
+      d ? 0.45 : 0.40,
+    )!;
     if (!showBorder) return child;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface(d),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border(d)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: d ? 0.25 : 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: edge, width: 1.5),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),

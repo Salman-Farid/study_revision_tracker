@@ -18,9 +18,7 @@ class SettingsProfileHeader extends StatelessWidget {
           begin: Alignment.topLeft, end: Alignment.bottomRight,
           colors: [Color(0xFF6C63FF), Color(0xFF9D97FF)]),
         borderRadius: BorderRadius.circular(S.radiusLg),
-        boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3),
-          blurRadius: 20, offset: const Offset(0, 8))],
-      ),
+              ),
       child: Row(children: [
         // Avatar with initial
         Obx(() => Container(
@@ -93,7 +91,7 @@ class MiniStat extends StatelessWidget {
         color: AppColors.surface(d),
         borderRadius: BorderRadius.circular(S.radiusLg),
         border: Border.all(color: AppColors.border(d)),
-        boxShadow: S.shadowSm),
+      ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: color, size: S.iconMd),
         SizedBox(height: S.sm),

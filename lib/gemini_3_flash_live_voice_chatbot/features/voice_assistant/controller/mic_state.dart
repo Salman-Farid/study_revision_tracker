@@ -55,8 +55,14 @@ extension VoiceAssistantMicState on VoiceAssistantController {
   void _startMicReconcileTimer() {
     _micReconcileTimer?.cancel();
     _micReconcileTimer = Timer.periodic(_kMicReconcilePeriod, (_) {
-      if (isLoading.value) return;
-      if (_pendingCallIds.isEmpty && !_batchInProgress) {
+      // While assistant owns the floor, FORCE mic closed — never drift open.
+      if (assistantOwnsFloor) {
+        if (!_service.isMuted || !_micMuted.value) {
+          _setMicMuted(true, reason: 'assistant owns floor — force mute');
+        }
+        return;
+      }
+      if (_pendingCallIds.isEmpty && !_batchInProgress && !isLoading.value && !isProcessing.value) {
         final actual = _service.isMuted;
         if (_micMuted.value != actual) {
           debugPrint('[Gemini] 🔄 Mic state drift detected — reconciling ($actual)');
@@ -75,6 +81,7 @@ extension VoiceAssistantMicState on VoiceAssistantController {
       _mutedByFunctionCall = true;
     }
     _setMicMuted(true, reason: 'loading:$reason');
+    _updateFloorStatus();
   }
 
   void _exitLoading(String reason) {
@@ -82,11 +89,13 @@ extension VoiceAssistantMicState on VoiceAssistantController {
       isLoading.value = false;
       debugPrint('[Gemini] ✅ Loading ended ($reason)');
     }
+    _updateFloorStatus();
   }
 
   void toggleListening() {
-    if (isLoading.value || _pendingCallIds.isNotEmpty || _batchInProgress) {
-      debugPrint('[Gemini] 🚫 Mic toggle blocked — loading/batch in progress');
+    // Never open the mic while thinking / searching / working / speaking.
+    if (assistantOwnsFloor || isLoading.value || _pendingCallIds.isNotEmpty || _batchInProgress) {
+      debugPrint('[Gemini] 🚫 Mic toggle blocked — assistant owns the floor');
       return;
     }
     if (connectionState.value != ws.ConnectionState.connected) {
@@ -94,25 +103,37 @@ extension VoiceAssistantMicState on VoiceAssistantController {
       return;
     }
     _setMicMuted(!_service.isMuted, reason: 'user toggle');
+    _updateFloorStatus();
+    _triggerUiUpdate();
   }
 
   void _unmuteAfterFunctionCall() {
     if (_mutedByFunctionCall) {
       _mutedByFunctionCall = false;
       _exitLoading('after function call');
-      _setMicMuted(false, reason: 'after function call');
     }
+    // Only open mic if the user floor is free.
+    if (!assistantOwnsFloor) {
+      _setMicMuted(false, reason: 'after function call — user floor');
+    }
+    _updateFloorStatus();
   }
 
-  /// Open the mic shortly after Gemini finishes speaking, unless a tool
-  /// batch is still running. Timing = [_kUnmuteDebounce].
+  /// Open the mic shortly after Gemini finishes — ONLY if nothing is pending.
   void scheduleUnmuteAfterTurn(int generation) {
     _unmuteDebounceTimer?.cancel();
     _unmuteDebounceTimer = Timer(_kUnmuteDebounce, () {
       if (generation != _generation) return;
-      if (_pendingCallIds.isEmpty && !_batchInProgress) {
+      if (assistantOwnsFloor) {
+        debugPrint('[Gemini] 🔒 Mic stays OFF — assistant still busy after turn');
+        _updateFloorStatus();
+        return;
+      }
+      if (_pendingCallIds.isEmpty && !_batchInProgress && !isProcessing.value && !isLoading.value) {
         _exitLoading('turnComplete');
-        _setMicMuted(false, reason: 'turnComplete (debounced)');
+        _setMicMuted(false, reason: 'turnComplete — user floor');
+        _updateFloorStatus();
+        _triggerUiUpdate();
       }
     });
   }

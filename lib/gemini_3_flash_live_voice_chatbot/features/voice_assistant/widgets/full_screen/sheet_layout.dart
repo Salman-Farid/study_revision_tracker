@@ -43,19 +43,13 @@ extension VoiceAssistantSheetLayout on VoiceAssistantSheet {
                         fontSize: 16,
                         fontWeight: FontWeight.w600)),
                 Obx(() {
-                  final st = c.connectionState.value;
-                  final processing = c.isProcessing.value;
-                  final (color, label) = switch (processing) {
-                    true => (AppConstants.warningColor, 'Processing...'),
-                    false => switch (st) {
-                      ws.ConnectionState.connecting =>
-                        (AppConstants.warningColor, 'Connecting...'),
-                      ws.ConnectionState.connected =>
-                        (AppConstants.successColor, 'Listening'),
-                      ws.ConnectionState.error =>
-                        (AppConstants.errorColor, 'Offline'),
-                      _ => (AppColors.textMutedDark, 'Offline'),
-                    },
+                  final busy = c.floorBusy.value;
+                  final label = c.floorLabel.value;
+                  final color = switch (label) {
+                    'Listening' => AppConstants.successColor,
+                    'Offline' => AppConstants.errorColor,
+                    _ when busy => AppConstants.warningColor,
+                    _ => AppColors.textMutedDark,
                   };
                   return Row(children: [
                     Container(
@@ -86,18 +80,13 @@ extension VoiceAssistantSheetLayout on VoiceAssistantSheet {
     return Obx(() {
       final st = c.connectionState.value;
       if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
-      final muted = c.isMuted;
-      final processing = c.isProcessing.value;
-      final statusText = processing
-          ? 'Processing...'
-          : muted
-              ? 'Muted — tap mic'
-              : 'Listening...';
-      final statusColor = processing
+      final muted = c.micIconOff;
+      final statusText = c.floorLabel.value;
+      final statusColor = c.floorBusy.value
           ? AppConstants.warningColor
-          : muted
+          : (c.isMuted
               ? AppColors.textMutedDark
-              : AppConstants.successColor;
+              : AppConstants.successColor);
       return Container(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
         child: Row(children: [
@@ -112,16 +101,7 @@ extension VoiceAssistantSheetLayout on VoiceAssistantSheet {
                 color: muted
                     ? AppConstants.warningColor
                     : AppConstants.successColor,
-                boxShadow: !muted
-                    ? [
-                        BoxShadow(
-                            color:
-                                AppConstants.successColor.withOpacity(0.3),
-                            blurRadius: 12,
-                            spreadRadius: 2)
-                      ]
-                    : [],
-              ),
+                              ),
               child: Icon(
                   muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                   color: Colors.white,

@@ -289,8 +289,9 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'blocks_count': clamped.length,
         'ends_at': '11:30 PM',
         'time_format_reply': '12-hour AM/PM',
+        'language_rule': 'Reply in EXACTLY ONE language — the language the user last used (any: Hindi, Bengali, English, Chinese, …). Never two languages in one reply. Never translate after answering.',
         'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} — ${clamped.length} blocks, ends at 11:30 PM. '
-            'Tell the user ONLY in 12-hour format. Blocks: $summary',
+            'Tell the user ONLY in 12-hour format AND in THEIR language. Blocks: $summary',
       }, params: args);
 
       // Schedule a local notification for every future block right away.
@@ -301,8 +302,13 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         debugPrint('[Gemini] ⚠️ Failed to schedule daily routine notifications: $e');
       }
 
-      // Force refresh so RoutineController picks it up immediately
+      // Force refresh so RoutineController / Dashboard pick it up immediately.
+      _summaryCache = null;
+      _summaryCachedAt = null;
       refreshDailyRoutines();
+      unawaited(Future<void>.delayed(const Duration(milliseconds: 350), () {
+        refreshDailyRoutines();
+      }));
     } catch (e) {
       Get.snackbar('Error', 'Daily routine save failed: $e',
           snackPosition: SnackPosition.BOTTOM,
@@ -312,6 +318,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
           duration: const Duration(seconds: 5));
       _respondToFunction(callId, 'registerDailyRoutine', {
         'success': false, 'error': e.toString(),
+        'language_rule': 'Tell the user save failed in EXACTLY ONE language (theirs). Do not mix languages. Do not loop.',
       }, params: args);
     }
   }
@@ -389,6 +396,10 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
     final body = [...revisions, ...work];
     final out = <DailyRoutineItem>[...leadingClasses];
 
+    // Unique break copy — never the same tagline twice in one day plan.
+    final breakLines = RoutineBreakTaglines.uniqueBatch(8);
+    var breakIdx = 0;
+
     for (var i = 0; i < body.length; i++) {
       final it = body[i];
       out.add(it);
@@ -406,8 +417,9 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         topic: '',
         type: 'break',
         durationMinutes: 10,
-        notes: 'After study session',
+        notes: breakLines[breakIdx % breakLines.length],
       ));
+      breakIdx++;
     }
 
     return out;
@@ -482,36 +494,65 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
     final date = dateStr != null && dateStr.isNotEmpty
         ? DateTime.parse(dateStr)
         : DateTime(now.year, now.month, now.day);
+    final dateLabel = date.toIso8601String().substring(0, 10);
 
     try {
+      // Bust caches FIRST so a create/delete in the same turn never sees stale data.
+      _summaryCache = null;
+      _recentCalls.removeWhere((h) => h.contains('deleteDailyRoutine') || h.contains('getAllData'));
+
       final deletedCount = await _routineRepo.deleteDailyRoutinesByDate(date);
 
+      // Force UI refresh (routine tab + dashboard live card).
+      refreshDailyRoutines();
+      refreshClassRoutines();
+      unawaited(Future<void>.delayed(const Duration(milliseconds: 350), () {
+        refreshDailyRoutines();
+      }));
+
       if (deletedCount == 0) {
-        Get.snackbar('Not Found', 'No daily routine for ${date.toIso8601String().substring(0, 10)}',
+        Get.snackbar('Not Found', 'No daily routine for $dateLabel',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.orange.shade700,
             colorText: Colors.white,
             margin: const EdgeInsets.all(12),
             duration: const Duration(seconds: 3));
+        messages.add(ChatMessage(
+          role: ChatRole.system,
+          text: 'ℹ️ No daily routine found for $dateLabel — nothing to delete. You can create a new one now.',
+        ));
+        _triggerUiUpdate();
         _respondToFunction(callId, 'deleteDailyRoutine', {
-          'success': false, 'error': 'No daily routine found for ${date.toIso8601String().substring(0, 10)}.',
+          'success': false,
+          'error': 'No daily routine found for $dateLabel.',
+          'ui_refreshed': true,
+          'language_rule': 'EXPLAIN in ONE language only (the user\'s last language) that there was no routine to delete. If they want a new one → getAllData then build — no Thinking loop, no second language.',
         }, params: args);
         return;
       }
 
-      refreshDailyRoutines();
-
-      Get.snackbar('Deleted', 'Daily routine removed: ${date.toIso8601String().substring(0, 10)} ($deletedCount items)',
+      Get.snackbar('Deleted', 'Daily routine removed for $dateLabel ($deletedCount blocks)',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.green.shade700,
           colorText: Colors.white,
           margin: const EdgeInsets.all(12),
           duration: const Duration(seconds: 3));
 
+      // Visible chat feedback even if the model is slow to speak.
+      messages.add(ChatMessage(
+        role: ChatRole.system,
+        text: '🗑️ Daily routine deleted for $dateLabel ($deletedCount blocks).',
+      ));
+      _triggerUiUpdate();
+
       _respondToFunction(callId, 'deleteDailyRoutine', {
         'success': true,
-        'message': 'Deleted daily routine for ${date.toIso8601String().substring(0, 10)} ($deletedCount items).',
         'deleted_count': deletedCount,
+        'date': dateLabel,
+        'ui_refreshed': true,
+        'message': 'Deleted daily routine for $dateLabel ($deletedCount blocks).',
+        'language_rule': 'Confirm deletion in EXACTLY ONE language (the user\'s last language) — short. No bilingual reply. If they already asked to create a new routine → getAllData (fresh) → registerDailyRoutine. Never re-delete. Never stall on Thinking.',
+        'next_step': 'If user wants a new routine: getAllData → if they named subject/topic use only those → registerDailyRoutine ending at 23:30. Do not ask the same question twice in one turn.',
       }, params: args);
     } catch (e) {
       Get.snackbar('Error', 'Failed to delete daily routine: $e',
@@ -520,8 +561,15 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
           colorText: Colors.white,
           margin: const EdgeInsets.all(12),
           duration: const Duration(seconds: 5));
+      messages.add(ChatMessage(
+        role: ChatRole.system,
+        text: '⚠️ Could not delete the daily routine. Please try again.',
+      ));
+      _triggerUiUpdate();
       _respondToFunction(callId, 'deleteDailyRoutine', {
-        'success': false, 'error': e.toString(),
+        'success': false,
+        'error': e.toString(),
+        'language_rule': 'Tell the user delete failed in ONE language only (theirs). Do not mix. Do not loop.',
       }, params: args);
     }
   }

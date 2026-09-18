@@ -91,8 +91,7 @@ class StatisticsInsights extends StatelessWidget {
             color: AppColors.surface(d),
             borderRadius: BorderRadius.circular(S.radiusLg),
             border: Border.all(color: AppColors.border(d)),
-            boxShadow: S.shadowSm,
-          ),
+                      ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

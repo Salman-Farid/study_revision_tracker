@@ -55,19 +55,13 @@ extension DialogueMessageBuilders on _StudyAssistantDialogueState {
                       ),
                     ),
                     Obx(() {
-                      final st = c.connectionState.value;
-                      final processing = c.isProcessing.value;
-                      final (color, label) = switch (processing) {
-                        true => (AppConstants.warningColor, 'Processing...'),
-                        false => switch (st) {
-                          ws.ConnectionState.connecting =>
-                            (AppConstants.warningColor, 'Connecting...'),
-                          ws.ConnectionState.connected =>
-                            (AppConstants.successColor, 'Listening'),
-                          ws.ConnectionState.error =>
-                            (AppConstants.errorColor, 'Offline'),
-                          _ => (AppColors.textMutedDark, 'Offline'),
-                        },
+                      final busy = c.floorBusy.value;
+                      final label = c.floorLabel.value;
+                      final color = switch (label) {
+                        'Listening' => AppConstants.successColor,
+                        'Offline' => AppConstants.errorColor,
+                        _ when busy => AppConstants.warningColor,
+                        _ => AppColors.textMutedDark,
                       };
                       return Row(
                         children: [
@@ -81,9 +75,10 @@ extension DialogueMessageBuilders on _StudyAssistantDialogueState {
                           Text(
                             label,
                             style: TextStyle(
-                                color: color,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500),
+                              color: color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       );
@@ -169,18 +164,14 @@ extension DialogueMessageBuilders on _StudyAssistantDialogueState {
       final st = c.connectionState.value;
       if (st == ws.ConnectionState.connecting) return const SizedBox.shrink();
 
-      final muted = c.isMuted;
-      final processing = c.isProcessing.value;
-      final statusText = processing
-          ? 'Processing...'
-          : muted
-              ? 'Muted — tap mic'
-              : 'Listening...';
-      final statusColor = processing
+      final busy = c.floorBusy.value;
+      final muted = c.micIconOff;
+      final statusText = c.floorLabel.value;
+      final statusColor = busy
           ? AppConstants.warningColor
-          : muted
+          : (c.isMuted
               ? AppColors.textMutedDark
-              : AppConstants.successColor;
+              : AppConstants.successColor);
 
       return Container(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -194,20 +185,11 @@ extension DialogueMessageBuilders on _StudyAssistantDialogueState {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  // Mic closed (off) whenever assistant owns the floor.
                   color: muted
                       ? AppConstants.warningColor
                       : AppConstants.successColor,
-                  boxShadow: !muted
-                      ? [
-                          BoxShadow(
-                            color: AppConstants.successColor
-                                .withOpacity(0.3),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : [],
-                ),
+                                  ),
                 child: Icon(
                     muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                     color: Colors.white,

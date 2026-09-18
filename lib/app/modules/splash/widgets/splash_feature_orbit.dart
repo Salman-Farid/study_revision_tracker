@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../theme/app_theme.dart';
 
@@ -102,6 +103,7 @@ class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
                           radius: radius,
                           cardW: cardW,
                           cardH: cardH,
+                          d: d,
                         ),
                     ],
                   ),
@@ -120,6 +122,7 @@ class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
     required double radius,
     required double cardW,
     required double cardH,
+    required bool d,
   }) {
     final dx = math.cos(angle) * radius;
     final dy = math.sin(angle) * radius;
@@ -135,23 +138,35 @@ class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
               color: Colors.white.withValues(alpha: 0.35),
               width: 1.2,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
+                      ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(13),
             child: Image.asset(
               SplashFeatureOrbit.featureAssets[index],
               fit: BoxFit.cover,
+              gaplessPlayback: true,
+              // Bundled assets decode instantly — never wrap in Shimmer
+              // (that paints a loader ON TOP of the photo).
+              frameBuilder: (context, child, frame, wasSyncLoaded) {
+                if (wasSyncLoaded || frame != null) return child;
+                return Shimmer.fromColors(
+                  baseColor: d
+                      ? const Color(0xFF2D3140)
+                      : const Color(0xFFE8ECF4),
+                  highlightColor: d
+                      ? const Color(0xFF3D4250)
+                      : const Color(0xFFF5F7FB),
+                  period: const Duration(milliseconds: 1200),
+                  child: ColoredBox(
+                    color: d ? const Color(0xFF2D3140) : const Color(0xFFE8ECF4),
+                  ),
+                );
+              },
               errorBuilder: (_, __, ___) => ColoredBox(
                 color: AppColors.primary.withValues(alpha: 0.2),
                 child: const Center(
-                  child: Icon(Icons.auto_stories_rounded, color: Colors.white),
+                  child:
+                      Icon(Icons.auto_stories_rounded, color: Colors.white),
                 ),
               ),
             ),

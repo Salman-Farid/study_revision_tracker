@@ -116,14 +116,7 @@ class _WidgetPromoDialogState extends State<WidgetPromoDialog>
                       border: Border.all(
                         color: AppColors.border(d).withValues(alpha: 0.3),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          blurRadius: 40,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-                    ),
+                                          ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         maxHeight: size.height * 0.78,

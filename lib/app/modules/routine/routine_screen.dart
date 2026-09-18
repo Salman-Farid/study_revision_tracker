@@ -42,6 +42,7 @@ class RoutineScreen extends GetView<RoutineController> {
                   ],
                 );
               }
+              // No white PaneFrame cards — content sits on the screen background.
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -57,7 +58,11 @@ class RoutineScreen extends GetView<RoutineController> {
                       ],
                     ),
                   ),
-                  VerticalDivider(width: 1, thickness: 1, color: AppColors.border(d)),
+                  VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: AppColors.border(d),
+                  ),
                   Expanded(
                     child: Column(
                       children: [

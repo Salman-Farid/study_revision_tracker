@@ -31,8 +31,7 @@ extension SubjectsUi on SubjectsController {
             child: AnimatedContainer(duration: AppConstants.microDuration, width: 36, height: 36,
               decoration: BoxDecoration(color: AppConstants.subjectColors[i], shape: BoxShape.circle,
                 border: sci.value == i ? Border.all(color: Colors.white, width: 3) : null,
-                boxShadow: sci.value == i
-                  ? [BoxShadow(color: AppConstants.subjectColors[i].withOpacity(0.4), blurRadius: 8, spreadRadius: 1)] : null)))))),
+                )))))),
         SizedBox(height: S.xl),
         SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () {
           final n = nc.text.trim();

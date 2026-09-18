@@ -88,7 +88,7 @@ class AppTheme {
     cardTheme: CardThemeData(color: AppColors.surfaceLight, elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 4,
+      backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
     inputDecorationTheme: InputDecorationTheme(
       filled: true, fillColor: AppColors.surfaceLight,
@@ -134,7 +134,7 @@ class AppTheme {
     cardTheme: CardThemeData(color: AppColors.surfaceDark, elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 4,
+      backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
     inputDecorationTheme: InputDecorationTheme(
       filled: true, fillColor: AppColors.surfaceDark,

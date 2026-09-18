@@ -29,8 +29,7 @@ class TopicFirstReadCard extends StatelessWidget {
         color: AppColors.surface(d),
         borderRadius: BorderRadius.circular(S.radiusLg),
         border: Border.all(color: AppColors.border(d)),
-        boxShadow: S.shadowSm,
-      ),
+              ),
       child: Row(
         children: [
           // Press-and-drag reorder grip (explicit — not a whole-row default handle).

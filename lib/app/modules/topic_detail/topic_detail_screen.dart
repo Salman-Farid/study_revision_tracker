@@ -49,8 +49,11 @@ class TopicDetailScreen extends GetView<TopicDetailController> {
   }
 
   Widget _infoCard(bool d) => Container(padding: EdgeInsets.all(S.xl),
-    decoration: BoxDecoration(color: AppColors.surface(d), borderRadius: BorderRadius.circular(S.radiusLg),
-      border: Border.all(color: AppColors.border(d)), boxShadow: S.shadowSm),
+    decoration: BoxDecoration(
+      color: AppColors.surface(d),
+      borderRadius: BorderRadius.circular(S.radiusLg),
+      border: Border.all(color: AppColors.border(d)),
+    ),
     child: Row(children: [
       _infoTile('Revisions', '${controller.topic.totalRevisions}', AppColors.primary),
     ]));

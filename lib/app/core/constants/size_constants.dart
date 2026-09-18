@@ -60,13 +60,8 @@ class S {
   static double get streakCardHeight => Responsive.scale(120);
   static double get chartHeight => Responsive.scale(220);
 
-  static List<BoxShadow> get shadowSm => [
-    BoxShadow(color: Colors.black.withOpacity(0.04),
-      blurRadius: Responsive.scale(6), offset: Offset(0, Responsive.scale(2))),
-  ];
-  static List<BoxShadow> get shadowMd => [
-    BoxShadow(color: Colors.black.withOpacity(0.06),
-      blurRadius: Responsive.scale(16), offset: Offset(0, Responsive.scale(4))),
-  ];
+  /// Flat UI — no drop shadows on cards/containers.
+  static List<BoxShadow> get shadowSm => const <BoxShadow>[];
+  static List<BoxShadow> get shadowMd => const <BoxShadow>[];
 }
 

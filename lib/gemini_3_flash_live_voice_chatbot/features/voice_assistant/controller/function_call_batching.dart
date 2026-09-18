@@ -105,14 +105,25 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
     }
 
     if (_processedCallIds.contains(callId)) {
-      debugPrint('[Gemini] ⏭️ SKIP duplicate call ID: $name id=$callId');
+      debugPrint('[Gemini] ⏭️ Duplicate call ID — answering anyway so Gemini does not hang: $name id=$callId');
+      // MUST respond — skipping without a tool result leaves the model on Thinking forever.
+      _respondToFunction(callId, name, {
+        'success': true,
+        'skipped': true,
+        'note': 'Duplicate call id ignored. Treat this operation as already completed. Continue — do not retry the same call.',
+      }, params: args);
       return;
     }
 
     final sortedArgs = SplayTreeMap<String, dynamic>.from(args);
     final argsHash = '$name:${jsonEncode(sortedArgs)}';
     if (_recentCalls.contains(argsHash)) {
-      debugPrint('[Gemini] ⏭️ SKIP duplicate call (same args): $name hash=$argsHash');
+      debugPrint('[Gemini] ⏭️ Duplicate args — answering with already-done result: $name hash=$argsHash');
+      _respondToFunction(callId, name, {
+        'success': true,
+        'skipped': true,
+        'note': 'Identical call already succeeded. Do not repeat it. Continue with the next step (e.g. if user asked to create a new routine after delete, call getAllData fresh then registerDailyRoutine).',
+      }, params: args);
       return;
     }
     _processedCallIds.add(callId);
@@ -247,7 +258,9 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
       messages.remove(_batchProgressMessage);
       _batchProgressMessage = null;
     }
+    _clearThinking();
     isProcessing.value = false;
+    _exitLoading('batch-ui-finish');
     _triggerUiUpdate();
   }
 

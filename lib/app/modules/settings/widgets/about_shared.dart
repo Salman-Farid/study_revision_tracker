@@ -44,14 +44,7 @@ class AboutCard extends StatelessWidget {
         color: tint ?? AppColors.surface(d),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border(d).withValues(alpha: 0.85)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: d ? 0.2 : 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+              ),
       child: child,
     );
   }

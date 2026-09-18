@@ -26,14 +26,7 @@ extension DialoguePanelLayout on _StudyAssistantDialogueState {
           decoration: BoxDecoration(
             color: isDark ? AppColors.bgDark : AppColors.bgLight,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.25),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
+                      ),
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [

@@ -31,14 +31,7 @@ class WidgetPromoHeader extends StatelessWidget {
                 colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
               ),
               borderRadius: BorderRadius.circular(S.radiusMd),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+                          ),
             child: Icon(Icons.widgets_rounded, color: Colors.white, size: S.iconMd + 4),
           ),
           SizedBox(width: S.base),

@@ -21,14 +21,7 @@ class SidebarHeader extends StatelessWidget {
                 colors: [AppColors.primary, AppColors.secondary],
               ),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+                          ),
             child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 22),
           ),
           if (expanded) ...[

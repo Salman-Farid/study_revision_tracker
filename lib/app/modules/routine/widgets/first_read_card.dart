@@ -41,14 +41,7 @@ class FirstReadCard extends StatelessWidget {
                     : (d ? Colors.white : Colors.black).withValues(alpha: 0.08),
                 width: isCompleted ? 1.5 : 1,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: d ? 0.25 : 0.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
+                          ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

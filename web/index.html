@@ -72,8 +72,26 @@
       overflow: hidden;
       border: 1.2px solid rgba(255, 255, 255, 0.45);
       box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
-      background: #87CEEB;
+      background: #e8ecf4;
       will-change: transform;
+    }
+    /* Skeleton only until the photo is ready — then class is removed. */
+    .orbit-card.is-loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        100deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.55) 50%,
+        transparent 70%
+      );
+      transform: translateX(-100%);
+      animation: orbit-shimmer 1.4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes orbit-shimmer {
+      100% { transform: translateX(100%); }
     }
     .orbit-card img {
       width: 100%;
@@ -98,16 +116,16 @@
 <body>
   <div id="boot">
     <div class="orbit-stage" id="orbit-stage" aria-label="Loading features">
-      <div class="orbit-card" data-i="0">
+      <div class="orbit-card is-loading" data-i="0">
         <img src="assets/assets/images/splash_feature_revision.png" alt="Spaced Revision" />
       </div>
-      <div class="orbit-card" data-i="1">
+      <div class="orbit-card is-loading" data-i="1">
         <img src="assets/assets/images/splash_feature_routines.png" alt="Routines" />
       </div>
-      <div class="orbit-card" data-i="2">
+      <div class="orbit-card is-loading" data-i="2">
         <img src="assets/assets/images/splash_feature_voice.png" alt="Putu Voice AI" />
       </div>
-      <div class="orbit-card" data-i="3">
+      <div class="orbit-card is-loading" data-i="3">
         <img src="assets/assets/images/splash_feature_progress.png" alt="Progress" />
       </div>
       <div class="orbit-center">📚</div>
@@ -121,6 +139,22 @@
     (function () {
       var stage = document.getElementById('orbit-stage');
       var cards = stage ? stage.querySelectorAll('.orbit-card') : [];
+      // Drop skeleton shimmer once each feature photo has decoded.
+      for (var ci = 0; ci < cards.length; ci++) {
+        (function (card) {
+          var img = card.querySelector('img');
+          if (!img) {
+            card.classList.remove('is-loading');
+            return;
+          }
+          function done() { card.classList.remove('is-loading'); }
+          if (img.complete && img.naturalWidth > 0) done();
+          else {
+            img.addEventListener('load', done);
+            img.addEventListener('error', done);
+          }
+        })(cards[ci]);
+      }
       var t0 = performance.now();
       function frame(now) {
         if (!stage || !stage.isConnected) return;

@@ -123,14 +123,7 @@ class AboutPutuCapabilityPanel extends StatelessWidget {
         color: AppColors.surface(d),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border(d).withValues(alpha: 0.9)),
-        boxShadow: [
-          BoxShadow(
-            color: putuPurple.withValues(alpha: d ? 0.15 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+              ),
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

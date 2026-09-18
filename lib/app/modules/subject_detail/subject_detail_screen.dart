@@ -96,7 +96,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               animation: animation,
               builder: (_, __) => Material(
                 color: Colors.transparent,
-                elevation: 4,
+                elevation: 0,
                 borderRadius: BorderRadius.circular(S.radiusLg),
                 child: child,
               ),

@@ -14,7 +14,9 @@ import '../../../app/data/models/daily_routine_model.dart';
 import '../../../app/data/services/supabase_service.dart';
 import '../../../app/data/services/image_search_service.dart';
 import '../../../app/core/services/notification_service.dart';
+import '../../../app/core/services/connectivity_service.dart';
 import '../../../app/domain/routine/routine_time_utils.dart';
+import '../../../app/modules/routine/widgets/routine_break_taglines.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';
@@ -167,9 +169,107 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
 
   final RxBool isLoading = false.obs;
 
+  /// Floor / mic UX — shared by all voice UIs.
+  /// Mic stays OFF while assistant is thinking, searching, working, or speaking.
+  final RxString floorLabel = 'Connecting...'.obs;
+  final RxBool floorBusy = false.obs;
+  Timer? _userTurnWatchdog;
+  Timer? _silentRecoverTimer;
+  /// True once a session was requested this controller lifetime.
+  bool _sessionStartRequested = false;
+  /// Set when the user spoke/typed; cleared when assistant text arrives.
+  bool _awaitingAssistantReply = false;
+
+  /// True if any non-empty assistant bubble exists after the latest user message.
+  bool _assistantRepliedSinceUser() {
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final m = messages[i];
+      if (m.role == ChatRole.user) return false;
+      if (m.role == ChatRole.assistant && m.text.trim().isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  void _removeSilentNotices() {
+    messages.removeWhere((m) =>
+        m.role == ChatRole.system &&
+        (m.text.contains('did not reply') ||
+            m.text.contains('Still no reply') ||
+            m.text.contains('taking too long') ||
+            m.text.contains('No reply from Pootu')));
+  }
+
+  /// Delayed recovery — NEVER fire while Pootu is still thinking/working/streaming.
+  void _scheduleSilentRecover(Duration delay, {required String reason}) {
+    _silentRecoverTimer?.cancel();
+    _silentRecoverTimer = Timer(delay, () {
+      if (!_awaitingAssistantReply) return;
+      if (_assistantRepliedSinceUser()) {
+        _awaitingAssistantReply = false;
+        _removeSilentNotices();
+        return;
+      }
+      if (_pendingCallIds.isNotEmpty || _batchInProgress) {
+        // Tools still running — wait a bit longer for the spoken/text reply.
+        _scheduleSilentRecover(const Duration(seconds: 6), reason: reason);
+        return;
+      }
+      if (_streamingMessage != null && _streamingMessage!.text.trim().isNotEmpty) {
+        _awaitingAssistantReply = false;
+        _removeSilentNotices();
+        return;
+      }
+      debugPrint('[Gemini] ⏰ Silent recover: $reason');
+      _noteSilentTurn(reason: reason);
+    });
+  }
+
   final RxBool _micMuted = false.obs;
   bool get isMuted => _micMuted.value;
   bool _mutedByFunctionCall = false;
+
+  /// True while the assistant owns the turn (not the user).
+  bool get assistantOwnsFloor =>
+      isLoading.value ||
+      isProcessing.value ||
+      _batchInProgress ||
+      _pendingCallIds.isNotEmpty ||
+      _thinkingMessage != null ||
+      _batchProgressMessage != null ||
+      _streamingMessage != null;
+
+  /// Mic button state: OFF (muted icon) whenever assistant owns the floor.
+  bool get micIconOff => isMuted || assistantOwnsFloor;
+
+  void _updateFloorStatus() {
+    final busy = assistantOwnsFloor;
+    floorBusy.value = busy;
+    floorLabel.value = () {
+      if (connectionState.value == ws.ConnectionState.connecting) {
+        return 'Connecting...';
+      }
+      if (connectionState.value == ws.ConnectionState.connected) {
+        if (_pendingCallIds.isNotEmpty || _batchInProgress) return 'Working...';
+        if (_thinkingMessage != null || isLoading.value) return 'Thinking...';
+        if (_streamingMessage != null) return 'Speaking...';
+        if (isProcessing.value) return 'Processing...';
+        if (_awaitingAssistantReply) return 'No reply — tap mic or send again';
+        if (isMuted) return 'Mic off — tap mic';
+        return 'Listening';
+      }
+      // Not connected:
+      // - Opening / never started / still coming up → Connecting (not Offline).
+      // - Offline ONLY when the phone has no internet.
+      final netDown = Get.isRegistered<ConnectivityService>() &&
+          !Get.find<ConnectivityService>().isConnected.value;
+      if (netDown) return 'Offline';
+      if (connectionState.value == ws.ConnectionState.error && _sessionStartRequested) {
+        // Session tried and failed — still say Connecting unless we know net is down.
+        return 'Connecting...';
+      }
+      return _sessionStartRequested ? 'Connecting...' : 'Connecting...';
+    }();
+  }
 
   /// Controls visibility of the StudyAssistantDialogue overlay.
   final RxBool showDialogue = false.obs;
@@ -223,11 +323,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   bool _userInitiatedStop = false;
   bool _isStopping = false;
 
-  // ── FIX: _summaryCache is now actually read before querying the DB.
-  // Previously it was written on every getAllData call but never read,
-  // making it dead code. Now: cache hit → return immediately (no DB scan);
-  // any write op (add/delete) sets _summaryCache = null to invalidate.
+  // Short TTL — stale cache after delete/create caused ghost routines + Thinking loops.
   Map<String, dynamic>? _summaryCache;
+  DateTime? _summaryCachedAt;
+  Timer? _thinkingSafetyTimer;
 
   // Tools blocked in routine mode — routine can only fetch data, never modify subjects/topics
   static const _routineBlockedTools = {
@@ -269,6 +368,9 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     _reconnectTimer?.cancel();
     _unmuteDebounceTimer?.cancel();
     _uiRefreshDebounce?.cancel();
+    _userTurnWatchdog?.cancel();
+    _thinkingSafetyTimer?.cancel();
+    _silentRecoverTimer?.cancel();
     _sheetAnimCtrl?.dispose();
     _expandAnimCtrl?.dispose();
     textCtrl.dispose();
@@ -278,6 +380,34 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     super.onClose();
   }
 
+  /// User-visible recovery when the model goes silent (empty turn / timeout).
+  void _noteSilentTurn({String reason = ''}) {
+    if (!_awaitingAssistantReply) return;
+    if (_assistantRepliedSinceUser()) {
+      _awaitingAssistantReply = false;
+      _removeSilentNotices();
+      return;
+    }
+    if (_streamingMessage != null && _streamingMessage!.text.trim().isNotEmpty) {
+      _awaitingAssistantReply = false;
+      _removeSilentNotices();
+      return;
+    }
+    if (_pendingCallIds.isNotEmpty || _batchInProgress) return;
+    _awaitingAssistantReply = false;
+    _clearThinking();
+    isProcessing.value = false;
+    _exitLoading('silent-turn');
+    messages.add(ChatMessage(
+      role: ChatRole.system,
+      text: reason.isEmpty
+          ? 'Still waiting for Pootu… Tap mic or send again if it stays quiet.'
+          : reason,
+    ));
+    _updateFloorStatus();
+    _triggerUiUpdate();
+  }
+
   void sendText(String text) {
     if (connectionState.value != ws.ConnectionState.connected) {
       debugPrint('[Gemini] 🚫 Cannot send text — not connected');
@@ -285,17 +415,49 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         role: ChatRole.system,
         text: 'Not connected yet — please wait a moment and try again.',
       ));
+      _updateFloorStatus();
       _triggerUiUpdate();
       return;
     }
     try {
+      // Always show the user's bubble immediately (even if Live has no echo).
+      messages.add(ChatMessage(role: ChatRole.user, text: text));
+      _removeSilentNotices();
+      // User floor ends — assistant is about to work/speak. Mic stays OFF.
+      isProcessing.value = true;
+      _awaitingAssistantReply = true;
+      _setMicMuted(true, reason: 'user message — assistant turn');
       _showThinking();
       _service.sendText(text);
+      _userTurnWatchdog?.cancel();
+      _silentRecoverTimer?.cancel();
+      // getAllData + speech can take >20s — only flag silence much later.
+      _userTurnWatchdog = Timer(const Duration(seconds: 40), () {
+        if (_assistantRepliedSinceUser() || !_awaitingAssistantReply) {
+          _awaitingAssistantReply = false;
+          _removeSilentNotices();
+          return;
+        }
+        if (_pendingCallIds.isNotEmpty || _batchInProgress) {
+          _updateFloorStatus();
+          _triggerUiUpdate();
+          return;
+        }
+        _noteSilentTurn(
+          reason:
+              'Still waiting for Pootu… Tap mic or send again if it stays quiet.',
+        );
+      });
+      _updateFloorStatus();
+      _triggerUiUpdate();
     } catch (e) {
       debugPrint('[Gemini] ⚠️ sendText failed: $e');
       _clearThinking();
+      isProcessing.value = false;
+      _awaitingAssistantReply = false;
       _exitLoading('sendText-failed');
       messages.add(ChatMessage(role: ChatRole.system, text: 'Failed to send message: $e'));
+      _updateFloorStatus();
       _triggerUiUpdate();
     }
   }

@@ -61,8 +61,7 @@ class TopicRevisionCard extends StatelessWidget {
                   : AppColors.border(d),
               width: isExpanded ? 1.5 : 1,
             ),
-            boxShadow: isExpanded ? S.shadowMd : S.shadowSm,
-          ),
+                      ),
           child: Column(
             children: [
               // ── COLLAPSED HEADER (always visible) ──

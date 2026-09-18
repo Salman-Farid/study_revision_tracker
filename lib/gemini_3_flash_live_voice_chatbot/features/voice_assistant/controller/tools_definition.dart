@@ -237,7 +237,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'deleteDailyRoutine',
-      'description': 'Delete ALL daily routine items for a given date. Use when user says "delete my daily routine", "remove today\'s plan", "clear my routine", "delete today". This removes the ENTIRE day\'s routine in one operation — not individual items. The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. Use today\'s date unless user specifies otherwise.',
+      'description': 'Delete ALL daily routine items for a date (default today). ALWAYS tell the user (in THEIR language) that it was deleted and how many blocks were removed. UI refreshes automatically. After success, if the user also asked to create a new routine, call getAllData immediately (fresh) then registerDailyRoutine — never stall on Thinking, never re-delete the same day in a loop.',
       'parameters': {
         'type': 'object',
         'properties': {
