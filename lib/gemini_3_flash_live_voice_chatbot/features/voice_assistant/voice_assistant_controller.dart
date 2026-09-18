@@ -11,6 +11,7 @@ import '../../../app/data/repositories/topic_repository.dart';
 import '../../../app/data/repositories/revision_repository.dart';
 import '../../../app/data/repositories/routine_repository.dart';
 import '../../../app/data/models/daily_routine_model.dart';
+import '../../../app/data/models/topic_model.dart';
 import '../../../app/data/services/supabase_service.dart';
 import '../../../app/data/services/image_search_service.dart';
 import '../../../app/core/services/notification_service.dart';

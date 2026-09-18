@@ -22,7 +22,13 @@ class TodayRevisionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subjectLabel = s.subjectName ?? 'subject'.tr;
-    final topicLabel = s.topicName ?? 'topic'.tr;
+    final parent = s.parentTopicName;
+    final topicLabel = (parent != null && parent.isNotEmpty)
+        ? '${s.topicName ?? 'topic'.tr}'
+        : (s.topicName ?? 'topic'.tr);
+    final line2 = (parent != null && parent.isNotEmpty)
+        ? '$parent · $topicLabel'
+        : topicLabel;
     final dateStr =
         '${s.scheduledDate.day}/${s.scheduledDate.month}/${s.scheduledDate.year}';
 
@@ -61,9 +67,20 @@ class TodayRevisionTile extends StatelessWidget {
                     style: AppTextStyles.labelMedium
                         .copyWith(color: AppColors.textMuted(d))),
                 SizedBox(height: 2),
-                Text(topicLabel,
+                Text(line2,
+                    softWrap: true,
                     style: AppTextStyles.titleSmall
                         .copyWith(color: AppColors.textPrimary(d), fontWeight: FontWeight.w600)),
+                if (parent != null && parent.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      s.hierarchyLabel,
+                      softWrap: true,
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textMuted(d), fontSize: 11),
+                    ),
+                  ),
                 SizedBox(height: 4),
                 Flexible(
                   child: Wrap(children: [

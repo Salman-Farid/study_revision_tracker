@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/widgets/widgets.dart';
 import 'package:get/get.dart';
@@ -170,8 +172,11 @@ class ReorderableBuilderWrap extends StatelessWidget {
       onDragStarted: (_) => controller.isDragging.value = true,
       onDragEnd: (_) => controller.isDragging.value = false,
       onReorder: (ReorderedListFunction reorderedListFunction) {
-        final reordered = reorderedListFunction(controller.subjects.toList()).cast<SubjectModel>();
-        controller.subjects.assignAll(reordered);
+        final reordered =
+            reorderedListFunction(controller.subjects.toList())
+                .cast<SubjectModel>();
+        // Persist so refresh/reload keeps the manual order.
+        unawaited(controller.applyReorderedSubjects(reordered));
       },
       builder: (children) {
         return LayoutBuilder(builder: (context, constraints) {

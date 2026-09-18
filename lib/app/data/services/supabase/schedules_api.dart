@@ -25,18 +25,36 @@ extension SupabaseSchedulesApi on SupabaseService {
     if (schedules.isEmpty) return schedules;
     final topicIds = schedules.map((s) => s.topicId).toSet();
     final subjectIds = schedules.map((s) => s.subjectId).toSet();
-    final results = await Future.wait([
-      _fetchNames('topics', topicIds),
-      _fetchNames('subjects', subjectIds),
-    ]);
-    final topicNames = results[0];
-    final subjectNames = results[1];
-    return schedules
-        .map((s) => s.copyWith(
-              topicName: topicNames[s.topicId],
-              subjectName: subjectNames[s.subjectId],
-            ))
-        .toList();
+
+    final topicRows = await client
+        .from('topics')
+        .select('id, name, parent_topic_id')
+        .inFilter('id', topicIds.toList());
+    final subjectNames = await _fetchNames('subjects', subjectIds);
+
+    final topicNames = <String, String>{};
+    final parentIds = <String>{};
+    final topicParent = <String, String?>{};
+    for (final r in (topicRows as List)) {
+      final id = r['id'] as String;
+      topicNames[id] = r['name'] as String? ?? '';
+      final pid = r['parent_topic_id'] as String?;
+      topicParent[id] = pid;
+      if (pid != null && pid.isNotEmpty) parentIds.add(pid);
+    }
+    final parentNames = <String, String>{};
+    if (parentIds.isNotEmpty) {
+      parentNames.addAll(await _fetchNames('topics', parentIds));
+    }
+
+    return schedules.map((s) {
+      final pid = topicParent[s.topicId];
+      return s.copyWith(
+        topicName: topicNames[s.topicId],
+        subjectName: subjectNames[s.subjectId],
+        parentTopicName: pid == null ? null : parentNames[pid],
+      );
+    }).toList();
   }
 
   Future<Map<String, String>> _fetchNames(String table, Set<String> ids) async {

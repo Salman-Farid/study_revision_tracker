@@ -12,11 +12,29 @@ extension SubjectDetailUi on SubjectDetailController {
         crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(
             color: AppColors.textMuted(Get.isDarkMode), borderRadius: BorderRadius.circular(2)))),
-          SizedBox(height: S.xl), Text('Add Topic', style: AppTextStyles.headlineSmall),
-          SizedBox(height: S.sm), Text('Subject: ${subject.name}',
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary)),
           SizedBox(height: S.xl),
-          TextField(controller: nc, decoration: const InputDecoration(labelText: 'Topic Name *', prefixIcon: Icon(Icons.topic_rounded)), autofocus: true),
+          Text(
+            isSubtopicMode
+                ? 'Add Subtopic'
+                : 'Add Topic',
+            style: AppTextStyles.headlineSmall,
+          ),
+          SizedBox(height: S.sm),
+          Text(
+            isSubtopicMode
+                ? 'Topic: ${_parentTopic!.name} · ${subject.name}'
+                : 'Subject: ${subject.name}',
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary),
+          ),
+          SizedBox(height: S.xl),
+          TextField(
+            controller: nc,
+            decoration: InputDecoration(
+              labelText: isSubtopicMode ? 'Subtopic Name *' : 'Topic Name *',
+              prefixIcon: const Icon(Icons.topic_rounded),
+            ),
+            autofocus: true,
+          ),
           SizedBox(height: S.base),
           Row(children: [
             Expanded(child: Obx(() => OutlinedButton.icon(onPressed: () async {

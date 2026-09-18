@@ -4,7 +4,6 @@ part of '../subject_detail_controller.dart';
 extension SubjectDetailRealtime on SubjectDetailController {
   void _subscribeRealtime() {
     _realtimeSub = _topicRepo.stream.listen((allTopics) async {
-      // Don't clobber a drag-reorder the user just made.
       if (_ignoreNextRealtime ||
           (_lastReorderAt != null &&
               DateTime.now().difference(_lastReorderAt!) <
@@ -14,9 +13,16 @@ extension SubjectDetailRealtime on SubjectDetailController {
       }
       final mine =
           allTopics.where((t) => t.subjectId == subject.id).toList();
-      topics.assignAll(await _applySavedOrder(mine));
+      final ordered = await _applySavedOrder(mine);
+      allSubjectTopics.assignAll(ordered);
+      if (isSubtopicMode) {
+        final pid = _parentTopic!.id;
+        topics.assignAll(ordered.where((t) => t.parentTopicId == pid));
+      } else {
+        topics.assignAll(ordered
+            .where((t) => t.parentTopicId == null || t.parentTopicId!.isEmpty));
+      }
     });
-    // Keep revision cards in sync when Today/Calendar mark a schedule done.
     _schedulesStreamSub = Get.find<SupabaseService>().schedulesStream.listen((_) {
       unawaited(_reloadSchedulesQuiet());
     });

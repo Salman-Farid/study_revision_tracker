@@ -16,7 +16,7 @@ extension SubjectDetailActions on SubjectDetailController {
 
       final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
       schedulesByTopic[topicId] = updatedSchedules;
-      topics.assignAll(await _topicRepo.getBySubject(subject.id));
+      await load();
 
       Get.snackbar('Done', 'Revision marked as completed',
           snackPosition: SnackPosition.BOTTOM,
@@ -28,20 +28,36 @@ extension SubjectDetailActions on SubjectDetailController {
     }
   }
 
-  Future<void> createTopic({required String name, String? notes, String? refAnswer, DateTime? firstRead}) async {
+  Future<void> createTopic({
+    required String name,
+    String? notes,
+    String? refAnswer,
+    DateTime? firstRead,
+  }) async {
     try {
       if (topics.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
-        Get.snackbar('Duplicate', '"$name" exists', snackPosition: SnackPosition.BOTTOM); return;
+        Get.snackbar('Duplicate', '"$name" exists', snackPosition: SnackPosition.BOTTOM);
+        return;
       }
       final rd = firstRead ?? DateTime.now();
-      final t = await _topicRepo.create(subjectId: subject.id, name: name,
-        notes: notes, referenceAnswer: refAnswer, firstReadDate: rd);
-      // Revision schedules are created only after first-read is marked complete.
+      final t = await _topicRepo.create(
+        subjectId: subject.id,
+        name: name,
+        parentTopicId: _parentTopic?.id,
+        notes: notes,
+        referenceAnswer: refAnswer,
+        firstReadDate: rd,
+      );
       topics.insert(0, t);
+      allSubjectTopics.insert(0, t);
       _subjectRepo.refresh();
-      Get.snackbar('Created', '"$name" added to first read', snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.success.withOpacity(0.1));
-    } catch (e) { Get.snackbar('error'.tr, e.toString()); }
+      final kind = isSubtopicMode ? 'subtopic' : 'topic';
+      Get.snackbar('Created', '"$name" added as $kind (first read)',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.success.withOpacity(0.1));
+    } catch (e) {
+      Get.snackbar('error'.tr, e.toString());
+    }
   }
 
   Future<void> deleteTopic(String id) async {
@@ -80,11 +96,7 @@ extension SubjectDetailActions on SubjectDetailController {
       }
 
       _topicRepo.refresh();
-      // Refresh topics
-      topics.assignAll(await _topicRepo.getBySubject(subject.id));
-      // Reload schedules for this topic
-      final updatedSchedules = await _revRepo.getSchedules(topicId: topicId);
-      schedulesByTopic[topicId] = updatedSchedules;
+      await load();
 
       Get.snackbar('save'.tr, 'firstReadDone'.tr,
           snackPosition: SnackPosition.BOTTOM,

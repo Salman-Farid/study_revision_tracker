@@ -60,23 +60,20 @@ class TopicDeleteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(S.radiusSm),
-        onTap: () => Get.defaultDialog(
-          title: 'deleteQ'.tr,
-          middleText: 'Delete "${t.name}"?',
-          textConfirm: 'delete'.tr,
-          textCancel: 'cancel'.tr,
-          confirmTextColor: Colors.white,
-          buttonColor: AppColors.error,
-          onConfirm: onDelete,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
-        ),
+    return GestureDetector(
+      onTap: () => Get.defaultDialog(
+        title: 'deleteQ'.tr,
+        middleText: 'Delete "${t.name}"?',
+        textConfirm: 'delete'.tr,
+        textCancel: 'cancel'.tr,
+        confirmTextColor: Colors.white,
+        buttonColor: AppColors.error,
+        onConfirm: onDelete,
+      ),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
       ),
     );
   }

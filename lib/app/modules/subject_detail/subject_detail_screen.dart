@@ -8,6 +8,7 @@ import '../../widgets/empty_state.dart';
 import 'subject_detail_controller.dart';
 import 'widgets/subject_filter_chips.dart';
 import 'widgets/topic_first_read_card.dart';
+import 'widgets/topic_parent_card.dart';
 import 'widgets/topic_revision_card.dart';
 
 class SubjectDetailScreen extends GetView<SubjectDetailController> {
@@ -18,11 +19,44 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
     final d = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: Center(child: Text(controller.subject.name)),
+        leading: Obx(() {
+          // listVersion ticks when entering/leaving subtopic mode.
+          final _ = controller.listVersion.value;
+          if (!controller.isSubtopicMode) {
+            return const SizedBox.shrink();
+          }
+          return IconButton(
+            tooltip: 'Back to topics',
+            onPressed: controller.exitSubtopics,
+            icon: const Icon(Icons.arrow_back_rounded),
+          );
+        }),
+        title: Obx(() {
+          final _ = controller.listVersion.value;
+          final title = controller.screenTitle;
+          if (!controller.isSubtopicMode) {
+            return Center(child: Text(title));
+          }
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  '${controller.subject.name} · Subtopics',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textMuted(d),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
         actions: [
           Container(
             height: 44,
             width: 44,
+            margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(12),
@@ -44,7 +78,6 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
       body: Column(
         children: [
           SubjectFilterChips(controller: controller, d: d),
-          // Case-sensitive live search — Obx list below rebuilds on each keystroke.
           Padding(
             padding: EdgeInsets.fromLTRB(S.base, 0, S.base, S.sm),
             child: TextField(
@@ -54,7 +87,9 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
               ),
               cursorColor: AppConstants.primaryColor,
               decoration: InputDecoration(
-                hintText: 'Search topics…',
+                hintText: controller.isSubtopicMode
+                    ? 'Search subtopics…'
+                    : 'Search topics…',
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: AppColors.textMuted(d),
@@ -101,6 +136,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           ),
           Expanded(
             child: Obx(() {
+              final _ = controller.listVersion.value;
               if (controller.isLoading.value) {
                 return const Center(child: CircularProgressIndicator());
               }
@@ -108,7 +144,9 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
                 return EmptyState(
                   icon: Icons.topic_rounded,
                   title: 'noTopicsYet'.tr,
-                  subtitle: 'Add topics to "${controller.subject.name}"',
+                  subtitle: controller.isSubtopicMode
+                      ? 'Add subtopics under "${controller.screenTitle}"'
+                      : 'Add topics to "${controller.subject.name}"',
                   actionLabel: 'addTopic'.tr,
                   onAction: controller.showAddSheet,
                 );
@@ -135,8 +173,6 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
   }
 
   Widget _list(bool d, List topics) {
-    // Cap width on desktop/tablet so cards stay compact and actions
-    // (Complete / bin / reorder) stay grouped instead of spanning a huge pane.
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -145,11 +181,7 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
         child: ReorderableListView.builder(
           padding: EdgeInsets.fromLTRB(S.base, S.sm, S.base, 96),
           itemCount: topics.length,
-          // Flutter 3.44+: onReorderItem supplies an already-adjusted newIndex.
-          // Children MUST carry keys — ReorderableListView does child.key! and
-          // unkeyed items crash the list into a grey ErrorWidget in release.
           onReorderItem: controller.reorderTopics,
-          // Explicit handle only — no default trailing grips overlapping the bin.
           buildDefaultDragHandles: false,
           proxyDecorator: (child, index, animation) {
             return AnimatedBuilder(
@@ -164,45 +196,80 @@ class SubjectDetailScreen extends GetView<SubjectDetailController> {
           },
           itemBuilder: (_, i) {
             final t = topics[i];
-            final isFirstRead = !t.firstReadCompleted;
-            final isCompleted = t.totalRevisions >= 6;
+            Widget wrapDrag(Widget child) => ReorderableDelayedDragStartListener(
+                  index: i,
+                  child: child,
+                );
 
-            if (isFirstRead) {
-              return TopicFirstReadCard(
-                key: ValueKey('fr_${t.id}'),
-                d: d,
-                t: t,
-                index: i,
-                onComplete: () => _confirmFirstRead(d, t),
-                onDelete: () {
-                  controller.deleteTopic(t.id);
-                  Get.back();
-                },
-              );
-            } else {
-              return TopicRevisionCard(
-                key: ValueKey('rev_${t.id}'),
-                d: d,
-                t: t,
-                isCompleted: isCompleted,
-                index: i,
-                schedules: controller.getSchedules(t.id),
-                onConfirmRevision: (dayLabel) => _confirmRevision(d, t, dayLabel),
-                onDelete: () {
-                  controller.deleteTopic(t.id);
-                  Get.back();
-                },
+            if (t.hasSubtopics && !controller.isSubtopicMode) {
+              final progress = controller.parentRingFor(t);
+              final done = controller.parentIsDoneFor(t);
+              return KeyedSubtree(
+                key: ValueKey('parent_${t.id}'),
+                child: wrapDrag(
+                  TopicParentCard(
+                    d: d,
+                    topic: t,
+                    ringProgress: progress,
+                    isDone: done,
+                    onOpen: () => controller.openSubtopics(t),
+                  ),
+                ),
               );
             }
+
+            final isFirstRead = !t.firstReadCompleted;
+            final isCompleted = t.firstReadCompleted && t.totalRevisions >= 6;
+            // ONLY first-read, top-level topics can open the subtopic screen
+            // (to add subtopics). Once a topic is in revision / done — expand only.
+            final VoidCallback? openSubs = (!controller.isSubtopicMode && isFirstRead)
+                ? () => controller.openSubtopics(t)
+                : null;
+
+            if (isFirstRead) {
+              return KeyedSubtree(
+                key: ValueKey('fr_${t.id}'),
+                child: wrapDrag(
+                  TopicFirstReadCard(
+                    d: d,
+                    t: t,
+                    index: i,
+                    onTap: openSubs,
+                    showOpenChevron: openSubs != null,
+                    onComplete: () => _confirmFirstRead(d, t),
+                    onDelete: () {
+                      controller.deleteTopic(t.id);
+                      Get.back();
+                    },
+                  ),
+                ),
+              );
+            }
+            return KeyedSubtree(
+              key: ValueKey('rev_${t.id}'),
+              child: wrapDrag(
+                TopicRevisionCard(
+                  d: d,
+                  t: t,
+                  isCompleted: isCompleted,
+                  index: i,
+                  schedules: controller.getSchedules(t.id),
+                  // Body tap → subtopics (top-level only); expand arrow stays.
+                  onOpenSubtopics: openSubs,
+                  onConfirmRevision: (dayLabel) => _confirmRevision(d, t, dayLabel),
+                  onDelete: () {
+                    controller.deleteTopic(t.id);
+                    Get.back();
+                  },
+                ),
+              ),
+            );
           },
         ),
       ),
     );
   }
 
-  // ══════════════════════════════════════════════════════════════
-  //  DIALOGS
-  // ══════════════════════════════════════════════════════════════
   void _confirmFirstRead(bool d, dynamic t) {
     Get.defaultDialog(
       title: 'firstRead'.tr,

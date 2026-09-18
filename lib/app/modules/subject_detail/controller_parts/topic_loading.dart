@@ -6,7 +6,20 @@ extension SubjectDetailLoading on SubjectDetailController {
     try {
       isLoading.value = true;
       final raw = await _topicRepo.getBySubject(subject.id);
-      topics.assignAll(await _applySavedOrder(raw));
+      final decorated = await _applySavedOrder(raw);
+      allSubjectTopics.assignAll(decorated);
+      if (isSubtopicMode) {
+        final pid = _parentTopic!.id;
+        topics.assignAll(decorated.where((t) =>
+            t.parentTopicId != null &&
+            t.parentTopicId!.isNotEmpty &&
+            t.parentTopicId == pid));
+        debugPrint(
+            '[SubjectDetail] subtopic mode pid=$pid loaded=${topics.length} all=${decorated.length}');
+      } else {
+        topics.assignAll(decorated.where((t) =>
+            t.parentTopicId == null || t.parentTopicId!.isEmpty));
+      }
       await _loadSchedules();
     } catch (e) {
       Get.snackbar('error'.tr, 'error'.tr);
@@ -43,7 +56,6 @@ extension SubjectDetailLoading on SubjectDetailController {
 
   Future<void> _loadSchedules() async {
     if (topics.isEmpty) return;
-    // Parallel fetch instead of sequential per-topic queries.
     final results = await Future.wait(
       topics.map((topic) async {
         try {

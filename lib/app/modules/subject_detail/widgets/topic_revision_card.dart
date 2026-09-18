@@ -13,6 +13,9 @@ class TopicRevisionCard extends StatelessWidget {
   final List<dynamic> schedules;
   final void Function(String dayLabel) onConfirmRevision;
   final VoidCallback onDelete;
+  /// Top-level topic without subtopics: card body opens subtopic screen.
+  /// Expand trail stays on the ⌄ arrow.
+  final VoidCallback? onOpenSubtopics;
   const TopicRevisionCard({
     super.key,
     required this.d,
@@ -22,6 +25,7 @@ class TopicRevisionCard extends StatelessWidget {
     required this.schedules,
     required this.onConfirmRevision,
     required this.onDelete,
+    this.onOpenSubtopics,
   });
 
   @override
@@ -64,19 +68,19 @@ class TopicRevisionCard extends StatelessWidget {
                       ),
           child: Column(
             children: [
-              // ── COLLAPSED HEADER (always visible) ──
+              // Body: open subtopics when provided; expand arrow still expands.
               GestureDetector(
-                onTap: toggleExpand,
+                onTap: onOpenSubtopics ?? toggleExpand,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       ReorderableDragStartListener(
                         index: index,
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 4, top: 12),
+                          padding: const EdgeInsets.only(right: 4),
                           child: Icon(
                             Icons.drag_indicator_rounded,
                             color: AppColors.textMuted(d),
@@ -84,10 +88,7 @@ class TopicRevisionCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: CollapsedIndicator(d: d, t: t, isCompleted: isCompleted),
-                      ),
+                      CollapsedIndicator(d: d, t: t, isCompleted: isCompleted),
                       SizedBox(width: S.md),
                       Expanded(
                         child: Column(
@@ -107,10 +108,23 @@ class TopicRevisionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
+                      if (onOpenSubtopics != null) ...[
+                        SizedBox(width: S.xs),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textMuted(d),
+                          size: 22,
+                        ),
+                      ],
+                      // Expand control — always expands/collapses the trail.
+                      SizedBox(width: S.xs),
+                      GestureDetector(
+                        onTap: toggleExpand,
+                        behavior: HitTestBehavior.opaque,
                         child: Icon(
-                          Icons.keyboard_arrow_down_rounded,
+                          isExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
                           color: AppColors.textMuted(d),
                           size: 22,
                         ),

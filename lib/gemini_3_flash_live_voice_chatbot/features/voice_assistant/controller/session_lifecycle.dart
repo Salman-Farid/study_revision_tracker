@@ -283,7 +283,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
           : '';
 
       final subjectsModeInfo = toolMode == 'subjects'
-          ? '\nSCREEN: User is on the Subjects tab. Questions about "my subjects", "topics under X", "fast read topics", progress → call getAllData and/or getSubjectDetail then ANSWER in their language. Do NOT stall after tools — you MUST speak/type the subject+topic list. Routine create/delete is blocked here; say they should open the Routine tab for that.\n'
+          ? '\nSCREEN: User is on the Subjects tab. Questions about "my subjects", "topics under X", "fast read topics", progress → call getAllData and/or getSubjectDetail then ANSWER in their language. Do NOT stall after tools — you MUST speak/type the subject+topic list. After adding a TOP-level topic → ASK ONCE about subtopics (addSubtopics). Parent topics with children are Done only when ALL subtopics finish first-read + all 6 revisions — NEVER put parents in revision blocks. Routine create/delete is blocked here; say they should open the Routine tab for that.\n'
           : '';
 
       final systemPrompt = '''
@@ -343,6 +343,9 @@ DATA:
 SUBJECT / TOPIC MODE (when NOT on the routine screen):
 - ONLY add subjects/topics, mark first-read/revision, or read status. NEVER create class/daily routine here.
 - If user says "create routine" here → tell them (in their language) to open the Routine tab.
+- SUBTOPICS: After addTopic for a NEW top-level topic → ASK ONCE "Add subtopics under X?" WAIT. Names → addSubtopics. Never invent names.
+- Parent topic with subtopics: NO own revision schedule; Done only when ALL subtopics finish first-read + all 6 revisions (then under Done directly, not In Revision). Card shows progress ring %.
+- getSubjectDetail includes nested subtopics[] — use those real names.
 
 FIRST READ & REVISION WORKFLOW:
 - Revisions Day 1,3,7,14,30,90 only after first-read completed.

@@ -147,8 +147,14 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
       final schedules = await _revRepo.getSchedules(topicId: null);
       final subSchedules = schedules.where((s) => s.subjectId == subject.id).toList();
 
-      final topicList = <Map<String, dynamic>>[];
+      final childrenOf = <String, List<dynamic>>{};
       for (final t in topics) {
+        final p = t.parentTopicId as String?;
+        if (p == null || p.isEmpty) continue;
+        childrenOf.putIfAbsent(p, () => []).add(t);
+      }
+
+      Map<String, dynamic> topicRow(dynamic t) {
         final topicSchedules = subSchedules.where((s) => s.topicId == t.id).toList();
         final pending = topicSchedules.where((s) => s.status == 'pending').length;
         final completed = topicSchedules.where((s) => s.status == 'completed').length;
@@ -156,20 +162,45 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
             .where((s) => s.status == 'pending')
             .map((s) => s.scheduledDate)
             .fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
-
-        topicList.add({
+        final done = t.isFullyDone == true;
+        return {
           'name': t.name,
-          'first_read_done': t.firstReadCompleted,
+          'first_read_done': t.firstReadCompleted == true,
+          'revisions_done': t.totalRevisions ?? 0,
+          'fully_done': done,
           'pending': pending,
           'completed': completed,
           'next': nextDate != null ? '${nextDate.day}/${nextDate.month}/${nextDate.year}' : 'none',
-        });
+        };
+      }
+
+      final topicList = <Map<String, dynamic>>[];
+      for (final t in topics) {
+        final isSub = t.parentTopicId != null && (t.parentTopicId as String).isNotEmpty;
+        if (isSub) continue; // nested under parent below
+        final kids = childrenOf[t.id] ?? <dynamic>[];
+        final row = topicRow(t);
+        if (kids.isEmpty) {
+          row['has_subtopics'] = false;
+        } else {
+          final doneKids = kids.where((k) => k.isFullyDone).length;
+          final ring = kids.fold<double>(0, (a, k) => a + k.subtopicCompletion) /
+              kids.length;
+          row['has_subtopics'] = true;
+          row['subtopics'] = kids.map(topicRow).toList();
+          row['subtopic_count'] = kids.length;
+          row['subtopics_fully_done'] = doneKids;
+          row['parent_done'] = doneKids == kids.length;
+          row['parent_ring_percent'] = (ring * 100).round();
+        }
+        topicList.add(row);
       }
 
       _respondToFunction(callId, 'getSubjectDetail', {
         'success': true,
         'subject': subject.name,
         'topics': topicList,
+        'note': 'Hierarchy: topic.has_subtopics + topic.subtopics[]. Parent Done only when parent_done=true (all subtopics first-read + 6 revisions). Parent is NEVER a revision block.',
       }, params: args);
     } catch (e) {
       Get.snackbar('getSubjectDetail Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));

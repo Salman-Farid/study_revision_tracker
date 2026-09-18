@@ -233,10 +233,10 @@ extension VoiceAssistantSubjectCrudTools on VoiceAssistantController {
       return;
     }
     var subjectName = args['subjectName'] as String?;
+    final parentTopicName = (args['parentTopicName'] as String?)?.trim();
 
     if ((subjectName == null || subjectName.trim().isEmpty) && currentSubjectName != null) {
       subjectName = currentSubjectName;
-      debugPrint('[Gemini] Using context subject: $subjectName');
     }
 
     if (subjectName == null || subjectName.trim().isEmpty) {
@@ -251,19 +251,120 @@ extension VoiceAssistantSubjectCrudTools on VoiceAssistantController {
       var subject = await _findSubjectByName(subjectName, retry: true);
       subject ??= await _findOrCreateSubjectByName(subjectName);
 
-      await _topicRepo.create(subjectId: subject.id, name: name);
-      // Schedules are created only after first-read completion.
+      String? parentId;
+      if (parentTopicName != null && parentTopicName.isNotEmpty) {
+        final parents = await _topicRepo.getBySubject(subject.id);
+        final parent = parents.firstWhereOrNull(
+          (t) =>
+              (t.parentTopicId == null || t.parentTopicId!.isEmpty) &&
+              t.name.toLowerCase() == parentTopicName.toLowerCase(),
+        );
+        parentId = parent?.id;
+      }
+
+      await _topicRepo.create(
+        subjectId: subject.id,
+        name: name,
+        parentTopicId: parentId,
+      );
       _subjectRepo.refresh();
       _topicRepo.refresh();
       _summaryCache = null;
 
-      _respondToFunction(callId, 'addTopic', {
-        'success': true,
-        'message': 'Topic "$name" added to "${subject.name}" in first read. Revision dates are set only after you mark the first read complete.',
-      }, params: args);
+      if (parentId != null) {
+        _respondToFunction(callId, 'addTopic', {
+          'success': true,
+          'message': 'Subtopic "$name" added under "$parentTopicName" (${subject.name}). Reply ONE language. Ask nothing else unless the user wants more subtopics.',
+        }, params: args);
+      } else {
+        _respondToFunction(callId, 'addTopic', {
+          'success': true,
+          'message': 'Topic "$name" added to "${subject.name}" in first read. ASK ONCE in the USER\'S language: do they want subtopics under "$name"? WAIT. Only use addSubtopics if they list names. Never invent names.',
+        }, params: args);
+      }
     } catch (e) {
       Get.snackbar('addTopic Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
       _respondToFunction(callId, 'addTopic', {'success': false, 'error': e.toString()}, params: args);
+    }
+  }
+
+  /// Batch-create subtopics under an existing topic (must not invent names).
+  Future<void> _addSubtopics(String callId, Map<String, dynamic> args) async {
+    final names = ((args['names'] as List?) ?? [])
+        .map((e) => _sanitizeName(e.toString()))
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (names.isEmpty) {
+      _respondToFunction(callId, 'addSubtopics', {
+        'success': false,
+        'error': 'Provide at least one subtopic name.',
+      }, params: args);
+      return;
+    }
+    var subjectName = (args['subjectName'] as String?)?.trim();
+    final topicName = (args['topicName'] as String?)?.trim();
+    if ((subjectName == null || subjectName.isEmpty) && currentSubjectName != null) {
+      subjectName = currentSubjectName;
+    }
+    if (subjectName == null || subjectName.isEmpty || topicName == null || topicName.isEmpty) {
+      _respondToFunction(callId, 'addSubtopics', {
+        'success': false,
+        'error': 'subjectName and topicName are required.',
+      }, params: args);
+      return;
+    }
+    try {
+      final subject = await _findSubjectByName(subjectName, retry: true);
+      if (subject == null) {
+        _respondToFunction(callId, 'addSubtopics', {
+          'success': false,
+          'error': 'Subject "$subjectName" not found.',
+        }, params: args);
+        return;
+      }
+      final all = await _topicRepo.getBySubject(subject.id);
+      final parent = all.firstWhereOrNull((t) =>
+          (t.parentTopicId == null || t.parentTopicId!.isEmpty) &&
+          t.name.toLowerCase() == topicName.toLowerCase());
+      if (parent == null) {
+        _respondToFunction(callId, 'addSubtopics', {
+          'success': false,
+          'error': 'Topic "$topicName" not found under "$subjectName".',
+        }, params: args);
+        return;
+      }
+      final existing = all
+          .where((t) => t.parentTopicId == parent.id)
+          .map((t) => t.name.toLowerCase())
+          .toSet();
+      final created = <String>[];
+      final skipped = <String>[];
+      for (final n in names) {
+        if (existing.contains(n.toLowerCase())) {
+          skipped.add(n);
+          continue;
+        }
+        await _topicRepo.create(
+          subjectId: subject.id,
+          name: n,
+          parentTopicId: parent.id,
+        );
+        created.add(n);
+      }
+      _topicRepo.refresh();
+      _summaryCache = null;
+      _respondToFunction(callId, 'addSubtopics', {
+        'success': true,
+        'created': created,
+        'skipped': skipped,
+        'message':
+            'Subtopics under "$topicName": ${created.join(', ')}. Parent is Done only when ALL subtopics finish first-read and all 6 revisions — parent itself is never revised. Reply ONE language.',
+      }, params: args);
+    } catch (e) {
+      Get.snackbar('addSubtopics Failed', '$e',
+          snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));
+      _respondToFunction(callId, 'addSubtopics',
+          {'success': false, 'error': e.toString()}, params: args);
     }
   }
 

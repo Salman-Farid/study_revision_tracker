@@ -64,14 +64,32 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addTopic',
-      'description': 'Add a new topic to an EXISTING subject. Accepts subject NAME (not ID). If user is inside a subject (contextSubject is set), subjectName is optional - omit it to add to the current subject. If the subject doesn\'t exist yet, it will be auto-created. Topic starts in first read — revision dates are set only after markFirstReadCompleted.',
+      'description': 'Add a new topic under an EXISTING subject (or a subtopic if parentTopicName is set). After a TOP-level topic is created, ALWAYS ask ONCE in the user\'s language whether they want subtopics under it — WAIT for names; do not invent. Parent topics with subtopics are Done only when ALL subtopics finish first-read + all 6 revisions (never put parent in revision blocks).',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject name (optional if contextSubject is provided)'},
-          'name': {'type': 'string', 'description': 'Topic name'},
+          'name': {'type': 'string', 'description': 'Topic or subtopic name'},
+          'parentTopicName': {'type': 'string', 'description': 'Optional parent topic name — when set, creates a SUBTOPIC under that topic'},
         },
         'required': ['name'],
+      },
+    },
+    {
+      'name': 'addSubtopics',
+      'description': 'Batch-create subtopics under ONE existing topic. Use only with names the user actually said. Never invent names. Parent topic is marked Done automatically when every subtopic completes first-read and all 6 revisions.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'subjectName': {'type': 'string', 'description': 'Subject name'},
+          'topicName': {'type': 'string', 'description': 'Parent topic name'},
+          'names': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'Subtopic names the user listed',
+          },
+        },
+        'required': ['subjectName', 'topicName', 'names'],
       },
     },
     {

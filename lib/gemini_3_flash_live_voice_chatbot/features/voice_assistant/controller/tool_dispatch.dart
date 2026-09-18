@@ -44,6 +44,8 @@ extension VoiceAssistantToolDispatch on VoiceAssistantController {
         await _addSubject(callId, args);
       case 'addTopic':
         await _addTopic(callId, args);
+      case 'addSubtopics':
+        await _addSubtopics(callId, args);
       case 'addMultipleTopics':
         await _addMultipleTopics(callId, args);
       case 'deleteAllSubjects':

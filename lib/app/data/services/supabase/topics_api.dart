@@ -5,12 +5,40 @@ extension SupabaseTopicsApi on SupabaseService {
   Future<List<TopicModel>> fetchTopics(String subjectId) async {
     final r = await client.from('topics').select()
         .eq('subject_id', subjectId).order('created_at', ascending: false);
+    final all = (r as List).map((j) => TopicModel.fromJson(j)).toList();
+    return _decorateParents(all);
+  }
+
+  /// Children of a single topic (subtopics).
+  Future<List<TopicModel>> fetchSubtopics(String parentTopicId) async {
+    final r = await client.from('topics').select()
+        .eq('parent_topic_id', parentTopicId)
+        .order('created_at', ascending: false);
     return (r as List).map((j) => TopicModel.fromJson(j)).toList();
+  }
+
+  /// Attach subtopicCount / subtopicsFullyDone onto parent rows.
+  List<TopicModel> _decorateParents(List<TopicModel> all) {
+    final childrenOf = <String, List<TopicModel>>{};
+    for (final t in all) {
+      final p = t.parentTopicId;
+      if (p == null || p.isEmpty) continue;
+      childrenOf.putIfAbsent(p, () => []).add(t);
+    }
+    if (childrenOf.isEmpty) return all;
+    return all.map((t) {
+      if (t.isSubtopic) return t;
+      final kids = childrenOf[t.id];
+      if (kids == null || kids.isEmpty) return t;
+      final done = kids.where((k) => k.isFullyDone).length;
+      return t.copyWith(subtopicCount: kids.length, subtopicsFullyDone: done);
+    }).toList();
   }
 
   Future<TopicModel> createTopic({
     required String subjectId,
     required String name,
+    String? parentTopicId,
     String? notes,
     String? referenceAnswer,
     DateTime? firstReadDate,
@@ -19,25 +47,29 @@ extension SupabaseTopicsApi on SupabaseService {
       'id': _uuid.v4(),
       'user_id': userId,
       'subject_id': subjectId,
+      if (parentTopicId != null && parentTopicId.isNotEmpty)
+        'parent_topic_id': parentTopicId,
       'name': name,
       'notes': notes,
       'reference_answer': referenceAnswer,
       'first_read_date': (firstReadDate ?? DateTime.now()).toIso8601String(),
     };
     final r = await client.from('topics').insert(data).select().single();
-    // Increment subject topic count without blocking the returned topic.
-    unawaited(() async {
-      try {
-        final sub = await client
-            .from('subjects')
-            .select('total_topics')
-            .eq('id', subjectId)
-            .single();
-        await client.from('subjects').update({
-          'total_topics': ((sub['total_topics'] as int?) ?? 0) + 1,
-        }).eq('id', subjectId);
-      } catch (_) {}
-    }());
+    // Only count top-level topics in subjects.total_topics (legacy column).
+    if (parentTopicId == null || parentTopicId.isEmpty) {
+      unawaited(() async {
+        try {
+          final sub = await client
+              .from('subjects')
+              .select('total_topics')
+              .eq('id', subjectId)
+              .single();
+          await client.from('subjects').update({
+            'total_topics': ((sub['total_topics'] as int?) ?? 0) + 1,
+          }).eq('id', subjectId);
+        } catch (_) {}
+      }());
+    }
     return TopicModel.fromJson(r);
   }
 
@@ -117,8 +149,12 @@ extension SupabaseTopicsApi on SupabaseService {
   }
 
   Future<void> deleteTopic(String id, {String? subjectId}) async {
+    final row = await client.from('topics').select('parent_topic_id')
+        .eq('id', id).maybeSingle();
     await client.from('topics').delete().eq('id', id);
-    if (subjectId != null) {
+    final isSub = row != null &&
+        (row['parent_topic_id'] as String?)?.isNotEmpty == true;
+    if (subjectId != null && !isSub) {
       try {
         final sub = await client
             .from('subjects')
