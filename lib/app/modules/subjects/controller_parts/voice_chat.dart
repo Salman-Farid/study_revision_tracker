@@ -36,7 +36,10 @@ extension SubjectsVoiceChat on SubjectsController {
   /// Navigate to Gemini Live voice assistant
   void openVoiceAssistant() {
     try {
-      Get.find<VoiceAssistantController>().toolMode = 'subjects';
+      final vc = Get.find<VoiceAssistantController>();
+      vc.toolMode = 'subjects';
+      vc.currentSubjectName = null;
+      vc.currentTopicName = null;
     } catch (_) {}
     Get.to(() => const VoiceAssistantScreen());
   }
@@ -49,6 +52,8 @@ extension SubjectsVoiceChat on SubjectsController {
     }
     final vc = Get.find<VoiceAssistantController>();
     vc.toolMode = 'subjects'; // no class/daily routine tools on Subjects tab
+    vc.currentSubjectName = null;
+    vc.currentTopicName = null;
     vc.showDialogue.value = true;
 
     showGeneralDialog(

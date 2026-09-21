@@ -71,6 +71,8 @@ extension SubjectDetailUi on SubjectDetailController {
   void openVoiceAssistant() {
     final vc = Get.find<VoiceAssistantController>();
     vc.currentSubjectName = subject.name;
+    // On subtopic screen: voice must nest writes under THIS parent topic.
+    vc.currentTopicName = isSubtopicMode ? _parentTopic?.name : null;
     vc.toolMode = 'subjects'; // isolate: no class/daily routine tools
     Get.bottomSheet(
       const VoiceAssistantSheet(),

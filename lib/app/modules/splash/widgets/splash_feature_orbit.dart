@@ -79,21 +79,19 @@ class _SplashFeatureOrbitState extends State<SplashFeatureOrbit>
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Soft "table" glow at the center.
+                      // Same center mark as HTML boot (📚) — one loader, not two looks.
                       Container(
                         width: 72,
                         height: 72,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(alpha: 0.12),
+                          color: AppColors.primary.withValues(alpha: 0.16),
                           border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.25),
+                            color: AppColors.primary.withValues(alpha: 0.35),
                           ),
                         ),
-                        child: Icon(
-                          Icons.menu_book_rounded,
-                          color: AppColors.primary,
-                          size: 30,
+                        child: const Center(
+                          child: Text('📚', style: TextStyle(fontSize: 28)),
                         ),
                       ),
                       for (var i = 0; i < SplashFeatureOrbit.featureAssets.length; i++)

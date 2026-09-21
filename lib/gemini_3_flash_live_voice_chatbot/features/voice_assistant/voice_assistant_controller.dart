@@ -73,6 +73,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   }
 
   String? currentSubjectName;
+
+  /// Parent TOPIC the user is viewing (subtopic screen / topic detail).
+  /// Voice writes without an explicit parent must nest under this topic.
+  String? currentTopicName;
   String? currentRoutineMode; // 'daily' or 'class' — set by RoutineController
   String toolMode = 'full'; // 'full' or 'routine' — filters available tools
 
@@ -331,10 +335,92 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
 
   // Tools blocked in routine mode — routine can only fetch data, never modify subjects/topics
   static const _routineBlockedTools = {
-    'addSubjectsBulk', 'addSubject', 'addTopic', 'addMultipleTopics',
-    'deleteAllSubjects', 'deleteSubjectByName', 'deleteTopicByName',
-    'markFirstReadCompleted', 'markRevisionCompleted',
+    'addSubjectsBulk', 'addSubject', 'addTopic', 'addSubtopics',
+    'addMultipleTopics', 'deleteAllSubjects', 'deleteSubjectByName',
+    'deleteTopicByName', 'markFirstReadCompleted', 'markRevisionCompleted',
   };
+
+  /// Topics just created that still need "want subtopics under X?" asked.
+  /// Gate blocks further subject-level topic writes until answered / confirmed.
+  final List<Map<String, String>> pendingSubtopicAsks = [];
+
+  void _noteTopicCreated(String subjectName, String topicName) {
+    pendingSubtopicAsks.removeWhere((e) =>
+        e['subject']!.toLowerCase() == subjectName.toLowerCase() &&
+        e['topic']!.toLowerCase() == topicName.toLowerCase());
+    pendingSubtopicAsks.add({'subject': subjectName, 'topic': topicName});
+  }
+
+  void _clearPendingSubtopicAsk(String subjectName, String topicName) {
+    pendingSubtopicAsks.removeWhere((e) =>
+        e['subject']!.toLowerCase() == subjectName.toLowerCase() &&
+        e['topic']!.toLowerCase() == topicName.toLowerCase());
+  }
+
+  void _clearPendingSubtopicAsksForSubject(String subjectName) {
+    pendingSubtopicAsks.removeWhere(
+        (e) => e['subject']!.toLowerCase() == subjectName.toLowerCase());
+  }
+
+  String? _pendingAskForSubject(String subjectName) {
+    final names = pendingSubtopicAsks
+        .where((e) => e['subject']!.toLowerCase() == subjectName.toLowerCase())
+        .map((e) => e['topic']!)
+        .toList();
+    if (names.isEmpty) return null;
+    return names.join(', ');
+  }
+
+  bool _confirmNewTopicsArg(Map<String, dynamic> args) =>
+      args['confirmNewTopics'] == true;
+
+  String _mustAskSubtopicsMessage(String subjectName, List<String> topicNames) {
+    final list = topicNames.join(', ');
+    final pronoun = topicNames.length == 1 ? 'it' : 'them';
+    return 'MANDATORY NEXT STEP — do not skip. '
+        'In the USER\'S language ask once: "Do you want any subtopics under $list?" then WAIT. '
+        'If they name subtopics under a topic → call ONLY '
+        'addSubtopics(subjectName: "$subjectName", topicName: "<that topic>", names: [user-said names]). '
+        'SUBTOPIC ≠ TOPIC. Subtopics go UNDER a topic, never as new subject-level topics. '
+        'Do NOT call addTopic/addMultipleTopics/addSubjectsBulk for those subtopic names. '
+        'If they want NEW subject-level topics instead, call the write tool again with confirmNewTopics: true. '
+        'Parent $pronoun Done only when ALL subtopics finish first-read + all 6 revisions.';
+  }
+
+  /// Returns true when the call was blocked (pending subtopic question).
+  bool _gatePendingSubtopicAsk(
+    String callId,
+    String toolName,
+    String subjectName,
+    Map<String, dynamic> args,
+    List<String> names,
+  ) {
+    if (_confirmNewTopicsArg(args)) return false;
+    final pending = _pendingAskForSubject(subjectName);
+    if (pending == null || pending.isEmpty) return false;
+    final pendingLower =
+        pending.split(', ').map((n) => n.toLowerCase()).toSet();
+    final newLower = names.map((n) => n.toLowerCase()).toSet();
+    if (newLower.isNotEmpty && newLower.every(pendingLower.contains)) {
+      return false;
+    }
+    _respondToFunction(callId, toolName, {
+      'success': false,
+      'blocked': 'hierarchy_pending_subtopic_question',
+      'error':
+          'HIERARCHY GATE: Topic(s) "$pending" under subject "$subjectName" were just created. '
+          'You MUST ask the user first (their language): '
+          '"Do you want any subtopics under $pending?" WAIT. '
+          'If the user listed subtopics under one of those topics → call '
+          'addSubtopics(subjectName: "$subjectName", topicName: "<parent topic>", names: [...]). '
+          'Subtopic goes UNDER the topic, NOT as a new subject-level topic. '
+          'If the user explicitly wants NEW subject-level topics → call $toolName again with confirmNewTopics: true. '
+          'Names you attempted now: ${names.join(', ')}.',
+      'pending_subtopic_question_for': pending,
+      'must_use_tool_if_subtopics': 'addSubtopics',
+    }, params: args);
+    return true;
+  }
 
   // Tools blocked on subject/topic screens — never create class/daily routines here
   static const _subjectBlockedTools = {
@@ -382,19 +468,28 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   }
 
   /// User-visible recovery when the model goes silent (empty turn / timeout).
-  void _noteSilentTurn({String reason = ''}) {
-    if (!_awaitingAssistantReply) return;
-    if (_assistantRepliedSinceUser()) {
-      _awaitingAssistantReply = false;
-      _removeSilentNotices();
+  /// [force] unsticks Thinking even if a tool batch looks "in progress".
+  void _noteSilentTurn({String reason = '', bool force = false}) {
+    if (force) {
+      _pendingCallIds.clear();
+      _batchInProgress = false;
+      _batchJustCompleted = false;
+    } else {
+      if (_pendingCallIds.isNotEmpty || _batchInProgress) return;
+    }
+    if (!_awaitingAssistantReply && _thinkingMessage == null && !isLoading.value) {
       return;
     }
-    if (_streamingMessage != null && _streamingMessage!.text.trim().isNotEmpty) {
+    if (_assistantRepliedSinceUser() ||
+        (_streamingMessage != null &&
+            _streamingMessage!.text.trim().isNotEmpty)) {
       _awaitingAssistantReply = false;
       _removeSilentNotices();
+      _clearThinking();
+      isProcessing.value = false;
+      _exitLoading('reply-seen');
       return;
     }
-    if (_pendingCallIds.isNotEmpty || _batchInProgress) return;
     _awaitingAssistantReply = false;
     _clearThinking();
     isProcessing.value = false;

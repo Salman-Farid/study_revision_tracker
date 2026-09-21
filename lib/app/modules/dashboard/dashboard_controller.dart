@@ -54,7 +54,7 @@ class DashboardController extends GetxController {
       }
     });
     _clock = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 1),
       (_) => _recomputeRoutineTimeline(),
     );
   }
@@ -135,15 +135,12 @@ class DashboardController extends GetxController {
   }
 
   void _recomputeStreak() {
-    final completed = _allSchedules
-        .where((s) => s.status == 'completed')
-        .map((s) => DateTime(
-              s.updatedAt.year,
-              s.updatedAt.month,
-              s.updatedAt.day,
-            ))
-        .toSet();
-    streakDays.value = RoutineTimeline.streakDays(completed, DateTime.now());
+    final days = <DateTime>{};
+    for (final s in _allSchedules) {
+      if (s.status != 'completed') continue;
+      days.add(DateTime(s.updatedAt.year, s.updatedAt.month, s.updatedAt.day));
+    }
+    streakDays.value = RoutineTimeline.activityStreak(days, DateTime.now());
   }
 
   void _recomputeRoutineTimeline() {
@@ -170,8 +167,10 @@ class DashboardController extends GetxController {
     items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     todayRoutineItems.assignAll(items);
     hasDailyRoutineToday.value = items.isNotEmpty;
-    currentRoutine.value = RoutineTimeline.currentOf(items, now);
-    upcomingRoutines.assignAll(RoutineTimeline.upcomingOf(items, now));
+    currentRoutine.value = RoutineTimeline.activeOrNext(items, now);
+    upcomingRoutines.assignAll(
+      items.where((it) => it.start.isAfter(now)).toList(),
+    );
   }
 
   void openRoutineTab() {

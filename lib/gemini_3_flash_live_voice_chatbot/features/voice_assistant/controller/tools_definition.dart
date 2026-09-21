@@ -25,7 +25,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addSubjectsBulk',
-      'description': 'Add one or more subjects, each optionally with its own topics, in ONE call. Use this for ANY request that adds subjects — a single subject or many (e.g. "add Physics with these 5 topics" -> one item in the array; "add 30 subjects with 10 topics each" -> 30 items, still ONE call). NEVER split this into multiple calls or loop it yourself, no matter how many subjects are requested. Creates each subject if it doesn\'t exist yet, or reuses it if it does. Topics stay in first read — revision dates are NOT set until markFirstReadCompleted.',
+      'description': 'Add one or more subjects, each optionally with topics (and optional nested SUBTOPICS under a topic), in ONE call. Use for ANY subject-add request. topics[] entries may be strings OR objects {name, subtopics:[...]}. HIERARCHY: Subject → Topic → Subtopic. A subtopic is NEVER a subject-level topic. After topics are created you MUST ask the user if they want subtopics under them (unless already provided in the same call). If blocked for hierarchy, ask the subtopic question or retry with confirmNewTopics: true only when the user wants new subject-level topics. Topics stay in first read until markFirstReadCompleted.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -38,13 +38,33 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
                 'name': {'type': 'string', 'description': 'Subject name'},
                 'topics': {
                   'type': 'array',
-                  'items': {'type': 'string'},
-                  'description': 'Optional list of topic names for this subject',
+                  'description':
+                      'Topic names as strings, or objects {"name": "...", "subtopics": ["...", "..."]} when the user already listed subtopics UNDER a topic.',
+                  'items': {
+                    'type': 'object',
+                    'properties': {
+                      'name': {'type': 'string', 'description': 'TOP-LEVEL topic name under this subject'},
+                      'subtopics': {
+                        'type': 'array',
+                        'items': {'type': 'string'},
+                        'description': 'SUBTOPIC names UNDER this topic — not under the subject',
+                      },
+                    },
+                    'required': ['name'],
+                  },
                 },
                 'color': {'type': 'string', 'description': 'Optional hex color code like #87CEEB'},
+                'confirmNewTopics': {
+                  'type': 'boolean',
+                  'description': 'Set true ONLY when the user confirmed they want NEW subject-level topics while a subtopic question is still pending',
+                },
               },
               'required': ['name'],
             },
+          },
+          'confirmNewTopics': {
+            'type': 'boolean',
+            'description': 'Top-level escape hatch: true only after the user wants new subject-level topics despite a pending "want subtopics?" question',
           },
         },
         'required': ['subjects'],
@@ -64,29 +84,36 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addTopic',
-      'description': 'Add a new topic under an EXISTING subject (or a subtopic if parentTopicName is set). After a TOP-level topic is created, ALWAYS ask ONCE in the user\'s language whether they want subtopics under it — WAIT for names; do not invent. Parent topics with subtopics are Done only when ALL subtopics finish first-read + all 6 revisions (never put parent in revision blocks).',
+      'description': 'Creates ONE topic. WITHOUT parentTopicName → TOP-LEVEL topic under a SUBJECT. WITH parentTopicName → SUBTOPIC under that existing TOPIC (preferred path is still addSubtopics for multiple names). HIERARCHY: Subject → Topic → Subtopic. After EVERY successful TOP-LEVEL addTopic you MUST ask (ONE language): "Do you want any subtopics under <topic>?" then WAIT. Never skip. If user asked for subtopics under an existing topic → addSubtopics (or parentTopicName here) — never a subject-level topic. If the call is blocked as hierarchy_pending_subtopic_question, ask that question first or use confirmNewTopics: true only for genuine new topics. Parent with children is Done only when ALL subtopics finish first-read + all 6 revisions.',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject name (optional if contextSubject is provided)'},
-          'name': {'type': 'string', 'description': 'Topic or subtopic name'},
-          'parentTopicName': {'type': 'string', 'description': 'Optional parent topic name — when set, creates a SUBTOPIC under that topic'},
+          'name': {'type': 'string', 'description': 'Topic name, or subtopic name when parentTopicName is set'},
+          'parentTopicName': {
+            'type': 'string',
+            'description': 'EXISTING parent TOPIC name — when set, creates a SUBTOPIC under that topic, NOT a subject-level topic',
+          },
+          'confirmNewTopics': {
+            'type': 'boolean',
+            'description': 'true ONLY when the user confirmed a new subject-level topic while a subtopic question is pending',
+          },
         },
         'required': ['name'],
       },
     },
     {
       'name': 'addSubtopics',
-      'description': 'Batch-create subtopics under ONE existing topic. Use only with names the user actually said. Never invent names. Parent topic is marked Done automatically when every subtopic completes first-read and all 6 revisions.',
+      'description': 'THE tool for subtopics. MUST USE when user wants subtopics UNDER a topic (e.g. "AI er niche subtopic add koro", "add subtopics under Artificial Intelligence", "topic er bhitore subtopic", "X under Y"). Creates children UNDER one existing TOPIC — NOT subject-level topics. Subtopic ≠ Topic. topicName is the PARENT topic; names are user-provided subtopic names only. If topic missing, call getSubjectDetail — never fall back to addTopic/addMultipleTopics for those names. Parent stays first-read until all subtopics complete the full revision process. After success confirm in ONE language; ask once if more subtopics are wanted under that parent.',
       'parameters': {
         'type': 'object',
         'properties': {
-          'subjectName': {'type': 'string', 'description': 'Subject name'},
-          'topicName': {'type': 'string', 'description': 'Parent topic name'},
+          'subjectName': {'type': 'string', 'description': 'Subject that owns the parent topic'},
+          'topicName': {'type': 'string', 'description': 'EXISTING parent TOPIC name — subtopics go under THIS topic'},
           'names': {
             'type': 'array',
             'items': {'type': 'string'},
-            'description': 'Subtopic names the user listed',
+            'description': 'Subtopic names the user listed (must be user-provided)',
           },
         },
         'required': ['subjectName', 'topicName', 'names'],
@@ -94,15 +121,35 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addMultipleTopics',
-      'description': 'Add multiple topics to an EXISTING subject. Accepts subject NAME. If the subject and topics are being added together for the first time, prefer addSubjectsBulk instead. If this subject doesn\'t exist yet, it will be auto-created. Topics start in first read — no revision dates until markFirstReadCompleted.',
+      'description': 'Multiple TOPICS under a SUBJECT. topics[] may include nested subtopics as {name, subtopics:[...]}. If the user said subtopics under a topic, call addSubtopics (or set parentTopicName) — do NOT create subject-level topics for those names. After successful top-level creates you MUST ask "Do you want any subtopics under <names>?" and WAIT. Blocked hierarchy_pending_subtopic_question → ask first, or confirmNewTopics: true only for genuine new topics.',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject name'},
           'topics': {
             'type': 'array',
-            'items': {'type': 'string'},
-            'description': 'List of topic names to add',
+            'description':
+                'Topic names as strings, or objects {"name":"...","subtopics":["..."]} when subtopics under a topic are already known',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string', 'description': 'TOP-LEVEL topic name'},
+                'subtopics': {
+                  'type': 'array',
+                  'items': {'type': 'string'},
+                  'description': 'SUBTOPICS under this topic — not under the subject',
+                },
+              },
+              'required': ['name'],
+            },
+          },
+          'parentTopicName': {
+            'type': 'string',
+            'description': 'If set, these names are SUBTOPICS under this existing topic — routed to addSubtopics',
+          },
+          'confirmNewTopics': {
+            'type': 'boolean',
+            'description': 'true ONLY when user confirmed new subject-level topics while a subtopic question is pending',
           },
         },
         'required': ['subjectName', 'topics'],

@@ -8,6 +8,7 @@ import '../../data/repositories/revision_repository.dart';
 import '../../data/repositories/subject_repository.dart';
 import '../../data/repositories/topic_repository.dart';
 import '../../data/services/supabase_service.dart';
+import '../../domain/routine/routine_timeline.dart';
 
 class HistoryController extends GetxController {
   final _repo = Get.find<RevisionRepository>();
@@ -122,24 +123,34 @@ class HistoryController extends GetxController {
       weeklyActivity.value = _computeWeeklyActivity(allSchedules);
 
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final completedDates = allSchedules
-          .where((s) => s.status == 'completed')
-          .map((s) => DateTime(s.updatedAt.year, s.updatedAt.month, s.updatedAt.day))
-          .toSet();
-      int streak = 0;
-      var checkDate = today;
-      while (completedDates.contains(checkDate)) {
-        streak++;
-        checkDate = checkDate.subtract(const Duration(days: 1));
-      }
-      streakDays.value = streak;
+      streakDays.value = _computeStreak(allSchedules, topics, now);
     } catch (e) {
       // silent
     } finally {
       isLoading.value = false;
       _loading = false;
     }
+  }
+
+  /// Days with ANY study activity:
+  /// completed revisions + topics that finished first-read.
+  /// Streak continues from yesterday if nothing yet today.
+  int _computeStreak(
+    List<RevisionScheduleModel> allSchedules,
+    List<TopicModel> topics,
+    DateTime now,
+  ) {
+    final days = <DateTime>{};
+    for (final s in allSchedules) {
+      if (s.status != 'completed') continue;
+      days.add(DateTime(s.updatedAt.year, s.updatedAt.month, s.updatedAt.day));
+    }
+    for (final t in topics) {
+      if (!t.firstReadCompleted) continue;
+      final d = t.firstReadDate ?? t.updatedAt;
+      days.add(DateTime(d.year, d.month, d.day));
+    }
+    return RoutineTimeline.activityStreak(days, now);
   }
 
   /// Completed revisions grouped by weekday (Mon..Sun) of the current week,

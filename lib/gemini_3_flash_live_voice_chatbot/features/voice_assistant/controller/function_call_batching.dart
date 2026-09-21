@@ -192,7 +192,7 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
         _flushBatch(gen);
       } else {
         _pendingCallsSafetyTimer?.cancel();
-        _pendingCallsSafetyTimer = Timer(const Duration(seconds: 30), () {
+        _pendingCallsSafetyTimer = Timer(const Duration(seconds: 12), () {
           if (gen != _generation) return;
           debugPrint('[Gemini] ⏰ Safety timeout: ${_pendingCallIds.length} calls stuck — forcing flush');
           _pendingCallIds.clear();
@@ -235,6 +235,12 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
     if (forcedByTimeout) {
       _unmuteAfterFunctionCall();
       _finishBatchUi();
+      // Recover Thinking even if Gemini never streams a follow-up.
+      _clearThinking();
+      isProcessing.value = false;
+      _exitLoading('batch-timeout');
+      _updateFloorStatus();
+      _triggerUiUpdate();
       return;
     }
 

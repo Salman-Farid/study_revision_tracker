@@ -119,7 +119,16 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
         'daily_routines_today_empty': dailyToday.isEmpty,
         'topics_for_fast_read': fastReadTopics,
         'today': todayStr,
-        'note': 'subjects: s=name,t=topics,c=completed,p=pending,fr=first_read_done,fast_read_left=topics not yet first-read. topics_for_fast_read = exact subject+topic names still in first read — answer "which subjects/topics for fast read" from THIS list in the user\'s language. daily_routines_today is the live plan (empty = none).',
+        if (pendingSubtopicAsks.isNotEmpty)
+          'pending_subtopic_question': {
+            'topics': pendingSubtopicAsks,
+            'instruction':
+                'FIRST ask in the user\'s language: "Do you want any subtopics under <topic names>?" WAIT. '
+                'Yes → addSubtopics(subjectName, topicName, names) ONLY. '
+                'Subtopic ≠ Topic — never create subject-level topics for those names. '
+                'Genuine new topics → write tool with confirmNewTopics: true.',
+          },
+        'note': 'subjects: s=name,t=topics,c=completed,p=pending,fr=first_read_done,fast_read_left=topics not yet first-read. topics_for_fast_read = exact subject+topic names still in first read — answer "which subjects/topics for fast read" from THIS list in the user\'s language. daily_routines_today is the live plan (empty = none). HIERARCHY: Subject→Topic→Subtopic; after creating topics you MUST ask about subtopics; subtopics use addSubtopics under a topic.',
       };
       _summaryCache = result;
       _summaryCachedAt = DateTime.now();
@@ -196,11 +205,26 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
         topicList.add(row);
       }
 
+      final pendingHere = pendingSubtopicAsks
+          .where((e) =>
+              e['subject']!.toLowerCase() == subject.name.toLowerCase())
+          .toList();
+
       _respondToFunction(callId, 'getSubjectDetail', {
         'success': true,
         'subject': subject.name,
         'topics': topicList,
-        'note': 'Hierarchy: topic.has_subtopics + topic.subtopics[]. Parent Done only when parent_done=true (all subtopics first-read + 6 revisions). Parent is NEVER a revision block.',
+        if (pendingHere.isNotEmpty)
+          'pending_subtopic_question': {
+            'topics': pendingHere,
+            'instruction':
+                'Ask first: "Do you want any subtopics under ${pendingHere.map((e) => e['topic']).join(', ')}?" '
+                'Yes → addSubtopics(subjectName: "${subject.name}", topicName, names). Never subject-level addTopic for those names.',
+          },
+        'note': 'Hierarchy: Subject → Topic → Subtopic. topic.has_subtopics + topic.subtopics[]. '
+            'Subtopics attach under a TOPIC via addSubtopics — not under the subject. '
+            'Parent Done only when parent_done=true (all subtopics first-read + 6 revisions). Parent is NEVER a revision block. '
+            'After creating a TOP-LEVEL topic you MUST ask if the user wants subtopics under it.',
       }, params: args);
     } catch (e) {
       Get.snackbar('getSubjectDetail Failed', '$e', snackPosition: SnackPosition.BOTTOM, duration: const Duration(seconds: 4));

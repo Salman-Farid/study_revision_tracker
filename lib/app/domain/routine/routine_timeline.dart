@@ -107,6 +107,21 @@ class RoutineTimeline {
     return null;
   }
 
+  /// Active block at [now], or the next block that still has time left.
+  /// Never returns an already-finished block — avoids "+mm:ss" count-up.
+  static RoutineTimelineItem? activeOrNext(
+    List<RoutineTimelineItem> items,
+    DateTime now,
+  ) {
+    for (final it in items) {
+      if (it.contains(now)) return it;
+    }
+    for (final it in items) {
+      if (it.end.isAfter(now)) return it;
+    }
+    return null;
+  }
+
   /// Blocks starting after [now].
   static List<RoutineTimelineItem> upcomingOf(
     List<RoutineTimelineItem> items,
@@ -116,13 +131,32 @@ class RoutineTimeline {
 
   /// Consecutive-day streak ending at [today] given completed-day set.
   static int streakDays(Set<DateTime> completedDays, DateTime today) {
+    return activityStreak(completedDays, today);
+  }
+
+  /// Study streak: consecutive days with activity.
+  /// - Counts days ending **today**, or **yesterday** if the user has not
+  ///   studied yet today (so the streak does not collapse to 0 every morning).
+  /// - [activityDays] = any local calendar day with completed work.
+  static int activityStreak(Set<DateTime> activityDays, DateTime today) {
+    if (activityDays.isEmpty) return 0;
     final t = startOfDay(today);
+    var anchor = t;
+    if (!activityDays.contains(anchor)) {
+      final yesterday = t.subtract(const Duration(days: 1));
+      if (!activityDays.contains(yesterday)) return 0;
+      anchor = yesterday;
+    }
     int streak = 0;
-    var checkDate = t;
-    while (completedDays.contains(checkDate)) {
+    var check = anchor;
+    while (activityDays.contains(check)) {
       streak++;
-      checkDate = checkDate.subtract(const Duration(days: 1));
+      check = check.subtract(const Duration(days: 1));
     }
     return streak;
   }
+
+  /// Local calendar day for streak counting (avoids UTC day-shift bugs).
+  static DateTime activityDay(DateTime localOrUtc) =>
+      DateTime(localOrUtc.year, localOrUtc.month, localOrUtc.day);
 }

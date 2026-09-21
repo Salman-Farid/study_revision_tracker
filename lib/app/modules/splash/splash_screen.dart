@@ -53,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Phone keeps the cinematic logo; desktop / tablet / web use the orbit.
     _useOrbitLoader = kIsWeb || Responsive.useNavRail;
     if (_useOrbitLoader) {
-      // Resolve auth/home in the background; orbit stays up for ≥10 seconds.
+      // Same orbit UI as HTML boot — no second logo flash.
       unawaited(_go(fast: true));
     } else {
       _c.forward();
@@ -85,8 +85,8 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       if (_useOrbitLoader) {
-        // Hold the orbital feature loader ≥10s so it is clearly visible.
-        unawaited(Future<void>.delayed(const Duration(seconds: 10), land));
+        // Single orbit experience — short hold (~3s) after Flutter paints.
+        unawaited(Future<void>.delayed(const Duration(seconds: 3), land));
       } else {
         land();
       }

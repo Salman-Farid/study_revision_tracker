@@ -155,26 +155,34 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       _triggerUiUpdate();
     }
     _thinkingSafetyTimer?.cancel();
-    _thinkingSafetyTimer = Timer(const Duration(seconds: 45), () {
-      if (_pendingCallIds.isNotEmpty || _batchInProgress) return;
-      if (_streamingMessage != null && _streamingMessage!.text.trim().isNotEmpty) {
+    _thinkingSafetyTimer = Timer(const Duration(seconds: 18), () {
+      // Stuck tool calls were the main "Thinking forever" bug — force flush.
+      if (_pendingCallIds.isNotEmpty || _batchInProgress) {
+        debugPrint('[Gemini] ⏰ Thinking safety — force-flush stuck tools');
+        final gen = _generation;
+        _pendingCallIds.clear();
+        _flushBatch(gen, forcedByTimeout: true);
+      }
+      if (_streamingMessage != null &&
+          _streamingMessage!.text.trim().isNotEmpty) {
         _awaitingAssistantReply = false;
-        _removeSilentNotices();
+        _clearThinking();
+        isProcessing.value = false;
+        _exitLoading('thinking-reply-ok');
         return;
       }
       if (_assistantRepliedSinceUser()) {
         _awaitingAssistantReply = false;
-        _removeSilentNotices();
+        _clearThinking();
+        isProcessing.value = false;
+        _exitLoading('thinking-reply-ok');
         return;
       }
-      if (_awaitingAssistantReply || _thinkingMessage != null || isLoading.value) {
-        debugPrint('[Gemini] ⏰ Thinking safety timeout — visible recovery');
-        _scheduleSilentRecover(
-          Duration.zero,
-          reason:
-              'Still waiting for Pootu… Tap mic or send again if it stays quiet.',
-        );
-      }
+      _noteSilentTurn(
+        reason:
+            'Still waiting for Pootu… Tap mic or send again if it stays quiet.',
+        force: true,
+      );
     });
   }
 
@@ -272,6 +280,28 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
           ? ' IMPORTANT: User is currently viewing subject "$currentSubjectName". For ALL operations (add topic, mark revision, get status, get dates), ALWAYS use this subject automatically. NEVER ask the user to name the subject — it is already known. Only ask if multiple subjects match.'
           : '';
 
+      final topicContextInfo = (currentTopicName != null &&
+              currentTopicName!.trim().isNotEmpty)
+          ? ' TOPIC CONTEXT: User is on the SUBTOPIC screen for topic "${currentTopicName}"'
+              '${currentSubjectName != null ? ' in subject "$currentSubjectName"' : ''}. '
+              'Any request to add a subtopic / add something under this topic / "add X here" → '
+              'call addSubtopics(subjectName: "${currentSubjectName ?? ''}", topicName: "${currentTopicName}", names: [user names]). '
+              'NEVER addTopic/addMultipleTopics/addSubjectsBulk without parentTopicName while on this screen — '
+              'that wrongly puts names on the SUBJECT instead of under the TOPIC. '
+              'Subtopic ≠ Topic.\n'
+          : '';
+
+      final pendingAskInfo = pendingSubtopicAsks.isEmpty
+          ? ''
+          : '\nUNFINISHED DUTY (FIRST PRIORITY): You already created '
+              '${pendingSubtopicAsks.map((e) => 'topic "${e['topic']}" under subject "${e['subject']}"').join('; ')} '
+              'and have NOT yet asked about SUBTOPICS. '
+              'Before any other topic write: ask in the user\'s language '
+              '"Do you want any subtopics under <those topics>?" and WAIT. '
+              'Yes + names → addSubtopics ONLY (topicName = parent). '
+              'New unrelated topics → write tool with confirmNewTopics: true. '
+              'Subtopic ≠ Topic — never put a subtopic on a subject.\n';
+
       final routineContextInfo = currentRoutineMode != null
           ? 'SCREEN CONTEXT: User is on the "$currentRoutineMode" routine screen right now.\n'
               '- If user says "add class", "I have class", "register class", "set class schedule" → call registerClassRoutine. NEVER ask "daily or class?"\n'
@@ -283,7 +313,15 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
           : '';
 
       final subjectsModeInfo = toolMode == 'subjects'
-          ? '\nSCREEN: User is on the Subjects tab. Questions about "my subjects", "topics under X", "fast read topics", progress → call getAllData and/or getSubjectDetail then ANSWER in their language. Do NOT stall after tools — you MUST speak/type the subject+topic list. After adding a TOP-level topic → ASK ONCE about subtopics (addSubtopics). Parent topics with children are Done only when ALL subtopics finish first-read + all 6 revisions — NEVER put parents in revision blocks. Routine create/delete is blocked here; say they should open the Routine tab for that.\n'
+          ? '\nSCREEN: Subjects tab.\n'
+              'HIERARCHY (ABSOLUTE): Subject → Topic → Subtopic.\n'
+              '- TOPIC = under SUBJECT (addTopic / addMultipleTopics / addSubjectsBulk topics).\n'
+              '- SUBTOPIC = under TOPIC (addSubtopics). They are NOT the same thing.\n'
+              '- After EVERY topic create you MUST ask (user language): "Do you want any subtopics under <topic>?" WAIT. Never skip. Never jump to another task first.\n'
+              '- "subtopic under Y" / "Y er bhitore" / "topic er niche" → addSubtopics(subjectName, topicName: Y, names: [...]). NEVER subject-level addTopic for those names.\n'
+              '- If write returns blocked=hierarchy_pending_subtopic_question → ask the question, or addSubtopics, or confirmNewTopics: true only for real new topics.\n'
+              '- getAllData / getSubjectDetail for lists; answer in ONE language. Parent Done only when ALL subtopics finish first-read + 6 revisions.\n'
+              '- Routine create/delete blocked here — open Routine tab.\n'
           : '';
 
       final systemPrompt = '''
@@ -324,6 +362,7 @@ Device clock is always correct. "now" / "ekhuni" / "akhon" → $currentTimeSpeak
 PERSONALITY — BE DECISIVE:
 $routineContextInfo- DO NOT ask unnecessary questions. Auto-understand what the user wants.
 - LISTEN TO THE USER — NEVER ADD EXTRA STUDY SUBJECTS/TOPICS.
+- TOPIC vs SUBTOPIC: topic is under a subject; subtopic is under a topic. After creating a topic, you MUST ask if they want subtopics under it. If they say add subtopics under X → addSubtopics only.
 - REVISIONS: ONLY if revisions_due_today has items that day — ALL of them, each EXACTLY 30 minutes, ALL at the BEGINNING. If nothing due → no revision blocks. Never invent review.
 - STUDY SESSIONS are required after due revisions (or at the start if no revisions).
 - question_practice: maximum ONE block per day.
@@ -336,16 +375,21 @@ $routineContextInfo- DO NOT ask unnecessary questions. Auto-understand what the 
 
 DATA:
 - "what subjects/overview/counts" → getAllData.
-- "topics in X" → getSubjectDetail(subjectName: X).$contextInfo
+- "topics in X" → getSubjectDetail(subjectName: X).$contextInfo$topicContextInfo
 - "topic status" → getTopicStatus(subjectName, topicName).
 - Never say "I don't know" — use names; tools resolve them.
 
 SUBJECT / TOPIC MODE (when NOT on the routine screen):
 - ONLY add subjects/topics, mark first-read/revision, or read status. NEVER create class/daily routine here.
-- If user says "create routine" here → tell them (in their language) to open the Routine tab.
-- SUBTOPICS: After addTopic for a NEW top-level topic → ASK ONCE "Add subtopics under X?" WAIT. Names → addSubtopics. Never invent names.
-- Parent topic with subtopics: NO own revision schedule; Done only when ALL subtopics finish first-read + all 6 revisions (then under Done directly, not In Revision). Card shows progress ring %.
-- getSubjectDetail includes nested subtopics[] — use those real names.
+- HIERARCHY LOCK: Subject → Topic → Subtopic. Subtopic lives UNDER a topic, never directly under a subject.
+- After EVERY successful topic create (addTopic / addMultipleTopics / addSubjectsBulk topics) you MUST ask:
+  "Do you want any subtopics under <topic names>?" in the user's language, then WAIT. Never skip. Never answer something else first.
+- User: "subtopic under X" / "X er bhitore" / "topic er niche subtopic" → addSubtopics(subjectName, topicName: X, names: [...]).
+  NEVER addTopic/addMultipleTopics/addSubjectsBulk for those names — that wrongly creates subject-level topics.
+- If a write is blocked with hierarchy_pending_subtopic_question → ask the subtopic question, or use addSubtopics, or confirmNewTopics: true.
+- Parent topic with subtopics: no own revision; Done when ALL subtopics complete first-read + all 6 revisions; ring % on the card.
+- getSubjectDetail includes nested subtopics[].
+$pendingAskInfo
 
 FIRST READ & REVISION WORKFLOW:
 - Revisions Day 1,3,7,14,30,90 only after first-read completed.
@@ -429,6 +473,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
     _unmuteDebounceTimer?.cancel();
     _uiRefreshDebounce?.cancel();
     _subjectCreationCompleters.clear();
+    pendingSubtopicAsks.clear();
     try {
       await _service.stopSession();
     } catch (e) {
@@ -442,6 +487,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
     _micMuted.value = false;
     _mutedByFunctionCall = false;
     currentSubjectName = null;
+    currentTopicName = null;
     _processedCallIds.clear();
     _recentCalls.clear();
     _pendingCallIds.clear();

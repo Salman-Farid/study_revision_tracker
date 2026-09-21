@@ -203,6 +203,8 @@ class RoutineController extends GetxController {
   void openAssistant() {
     voice.currentRoutineMode = mode.value == RoutineMode.daily ? 'daily' : 'class';
     voice.toolMode = 'routine';
+    voice.currentSubjectName = null;
+    voice.currentTopicName = null;
     voice.showDialogue.value = true;
     // Restart session so filtered tools take effect
     if (voice.connectionState.value != ws.ConnectionState.disconnected) {

@@ -180,15 +180,15 @@
       if (cards.length) requestAnimationFrame(frame);
     })();
 
-    // HTML orbit shows during engine download; Flutter SplashFeatureOrbit
-    // continues it and holds ≥10s before auth/home.
+    // HTML orbit = same UI as Flutter SplashFeatureOrbit (📚 in center).
+    // Flutter continues it; hold in-app is ~3s then auth/home.
     window.addEventListener('flutter-first-frame', function () {
       var el = document.getElementById('boot');
       if (!el) return;
       el.classList.add('hide');
       setTimeout(function () {
         if (el && el.parentNode) el.parentNode.removeChild(el);
-      }, 500);
+      }, 280);
     });
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-err');
