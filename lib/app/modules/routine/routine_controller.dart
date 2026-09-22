@@ -10,6 +10,7 @@ import '../../data/models/daily_routine_model.dart';
 import '../../data/repositories/routine_repository.dart';
 import '../../domain/routine/routine_time_utils.dart';
 import 'widgets/routine_break_taglines.dart';
+import 'widgets/routine_meal_taglines.dart';
 
 enum RoutineMode { daily, class$ }
 
@@ -46,6 +47,8 @@ class RoutineDisplayItem {
         return subjectName.isNotEmpty ? subjectName : 'Meal';
       case 'nap':
         return 'Power Nap';
+      case 'freshen_up':
+        return subjectName.isNotEmpty ? subjectName : 'Freshen Up';
       case 'recall':
         return 'Active Recall';
       case 'question_practice':
@@ -78,8 +81,20 @@ class RoutineDisplayItem {
         return RoutineBreakTaglines.pickFor('$sortKey|$subjectName|$type|$timeText');
       case 'nap':
         return 'Power nap for memory consolidation';
+      case 'freshen_up':
+        return notes?.trim().isNotEmpty == true ? notes!.trim() : 'Wash up, brush your teeth, get ready for the day.';
       case 'meal':
-        return 'Fuel your brain';
+        // Always show a food/brain tip — never blank.
+        final fromNotes = notes?.trim();
+        if (fromNotes != null &&
+            fromNotes.isNotEmpty &&
+            fromNotes != 'Fuel your brain') {
+          return fromNotes;
+        }
+        return RoutineMealTaglines.pickFor(
+          '$sortKey|$subjectName|$type|$timeText',
+          subjectName,
+        );
       case 'recall':
         final recallLines = [
           'Test yourself without looking',
@@ -152,6 +167,7 @@ class RoutineController extends GetxController {
     final today = DateTime(now.year, now.month, now.day);
     final items = <RoutineDisplayItem>[];
     final usedBreakLines = <String>{};
+    final usedMealLines = <String>{};
     var breakSlot = 0;
 
     for (final dr in dailyRoutines) {
@@ -181,6 +197,17 @@ class RoutineController extends GetxController {
             breakSlot++;
           }
 
+          String? mealNote;
+          if (item.type == 'meal') {
+            // Always a food/brain tip — stored notes may be the time range.
+            final line = RoutineMealTaglines.uniqueForDay(
+              item.subject.isEmpty ? 'Meal' : item.subject,
+              avoid: usedMealLines,
+            );
+            usedMealLines.add(line);
+            mealNote = line;
+          }
+
           items.add(RoutineDisplayItem(
             subjectName: item.subject,
             timeText: formatTime12Hour(item.time),
@@ -190,7 +217,9 @@ class RoutineController extends GetxController {
             durationText: '${item.durationMinutes}m',
             type: item.type,
             topicName: item.topic,
-            notes: item.type == 'break' ? breakNote : item.notes,
+            notes: item.type == 'break' || item.type == 'meal'
+                ? (breakNote ?? mealNote ?? item.notes)
+                : item.notes,
           ));
         }
       }

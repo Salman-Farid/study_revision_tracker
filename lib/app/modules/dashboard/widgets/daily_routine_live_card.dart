@@ -230,6 +230,28 @@ class _NowBlock extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                Builder(builder: (_) {
+                  final tip = item.tagline;
+                  if (tip == null || tip.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      tip,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textMuted(d),
+                        fontStyle: (type == 'break' ||
+                                type == 'meal' ||
+                                type == 'nap')
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -315,6 +337,27 @@ class _UpNextCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+          Builder(builder: (_) {
+            final tip = item.tagline;
+            if (tip == null || tip.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                tip,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textMuted(d),
+                  fontSize: 10,
+                  fontStyle: (type == 'break' || type == 'meal' || type == 'nap')
+                      ? FontStyle.italic
+                      : FontStyle.normal,
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

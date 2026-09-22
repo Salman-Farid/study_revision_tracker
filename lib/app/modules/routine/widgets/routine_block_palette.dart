@@ -22,6 +22,8 @@ class RoutineBlockPalette {
         return const Color(0xFFFEF8FA); // barely-there pink
       case 'nap':
         return const Color(0xFFFBF8FE); // barely-there purple
+      case 'freshen_up':
+        return const Color(0xFFF3FBFA); // barely-there teal
       case 'recall':
         return const Color(0xFFF6FDFE); // barely-there cyan
       case 'question_practice':
@@ -48,6 +50,8 @@ class RoutineBlockPalette {
         return const Color(0xFFEC407A); // pink
       case 'nap':
         return const Color(0xFFAB7EFF); // purple
+      case 'freshen_up':
+        return const Color(0xFF26A69A); // teal
       case 'recall':
         return const Color(0xFF26C6DA); // cyan
       case 'question_practice':
@@ -69,6 +73,8 @@ class RoutineBlockPalette {
         return Icons.restaurant_rounded;
       case 'nap':
         return Icons.bedtime_rounded;
+      case 'freshen_up':
+        return Icons.shower_rounded;
       case 'recall':
         return Icons.psychology_rounded;
       case 'question_practice':

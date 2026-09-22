@@ -26,7 +26,7 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
       final todayEnd = todayStart.add(const Duration(days: 1));
-      final classRoutines = await _routineRepo.getClassRoutines(fromDate: todayStart, toDate: todayEnd);
+      final classRoutines = await _routineRepo.getClassRoutines(); // all — recurring start_time is not today
       final todayClasses = <Map<String, dynamic>>[];
       for (final cr in classRoutines) {
         final crDay = cr.startTime;

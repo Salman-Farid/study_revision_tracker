@@ -264,22 +264,22 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine. REVISIONS: only if revisions_due_today has items — ALL of them, each 30 min, at the BEGINNING. NEVER type review. After revisions: study 50 on user topics. BREAK RULE: after EACH study add break 10 ONLY if next block is not meal/nap/class; no daily break cap; never break without study; app auto-inserts study breaks. question_practice MAX 1/day 50 min. END EXACTLY 23:30 (11:30 PM to user). JSON time=HH:mm; speech=12h AM/PM.',
+      'description': 'Register a daily study routine. WINDOW: ALWAYS from the EXACT create minute (7:20 → starts 7:20, never 8:00) until EXACTLY 23:30. HARD END: last block MUST end at 23:30 (11:30 PM) — app extends the last block so the day always finishes then. Freshen Up 30 min is auto-inserted at the start when create time is before 8:00 AM — do not send it yourself. NEVER invent subjects (e.g. "Study Gap Filler") — only real subjects from getAllData; empty gaps are filled by the app. REVISIONS: only if revisions_due_today has items — ALL of them, 30 min, at the BEGINNING. NEVER type review. After revisions: study 50 on user topics. BREAK RULE: after EACH study add break 10 ONLY if next block is not meal/nap/class; no daily break cap; never break without study. question_practice MAX 1/day 50 min. MEALS: do NOT invent times — app inserts fixed 20-min slots (Breakfast 8:00, Lunch 13:30, Snack 17:00, Dinner 20:00) when still upcoming. JSON time=HH:mm. AFTER SUCCESS: ONE short confirmation only (e.g. "Your routine is ready") — NEVER read out/list the routine. Classes from class_routines_today MUST be included at their times.',
       'parameters': {
         'type': 'object',
         'properties': {
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
             'type': 'array',
-            'description': 'Ordered blocks. REVISION first if due (30 min each, all at start). Then study 50. Break 10 after study when next is not meal/nap/class (no daily cap). question_practice max 1. NEVER review. End last block 23:30.',
+            'description': 'Ordered work blocks only (meals are auto-inserted at fixed times). REVISION first if due (30 min each, all at start). Then study 50. Break 10 after study when next is not meal/nap/class (no daily cap). question_practice max 1. NEVER review. Pack from now until 23:30.',
             'items': {
               'type': 'object',
               'properties': {
-                'time': {'type': 'string', 'description': 'Start time 24h HH:mm for tools, e.g. "14:30". Tell user "2:30 PM" in chat.'},
+                'time': {'type': 'string', 'description': 'Start time 24h HH:mm for tools, e.g. "14:30".'},
                 'subject': {'type': 'string', 'description': 'Subject name'},
                 'topic': {'type': 'string', 'description': 'Topic name within the subject'},
-                'type': {'type': 'string', 'description': 'revision (due only, 30 min, all first) | study | first_read | question_practice (max 1) | break (after study only) | meal | nap | class. NEVER review.'},
-                'durationMinutes': {'type': 'integer', 'description': 'revision=30, study/first_read=50, question_practice=50 (max 1), break=10 (after study; skip if meal/nap/class next), meal=20-25, nap=20-25'},
+                'type': {'type': 'string', 'description': 'revision (due only, 30 min, all first) | study | first_read | question_practice (max 1) | break (after study only) | nap | class. Meals are auto-placed. NEVER review.'},
+                'durationMinutes': {'type': 'integer', 'description': 'revision=30, study/first_read=50, question_practice=50 (max 1), break=10 (after study; skip if meal/nap/class next), nap=20-25'},
                 'notes': {'type': 'string', 'description': 'Optional notes'},
               },
               'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],

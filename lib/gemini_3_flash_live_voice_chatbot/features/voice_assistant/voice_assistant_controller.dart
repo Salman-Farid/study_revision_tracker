@@ -18,6 +18,7 @@ import '../../../app/core/services/notification_service.dart';
 import '../../../app/core/services/connectivity_service.dart';
 import '../../../app/domain/routine/routine_time_utils.dart';
 import '../../../app/modules/routine/widgets/routine_break_taglines.dart';
+import '../../../app/modules/routine/widgets/routine_meal_taglines.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/websocket/gemini_socket.dart' as ws;
 import '../../services/gemini_live_service.dart';

@@ -1,6 +1,7 @@
 /// Pure timeline helpers for daily-routine blocks.
 /// No Flutter / Supabase / GetX — fully unit-testable.
 import 'routine_time_utils.dart';
+import '../../modules/routine/widgets/routine_meal_taglines.dart';
 
 class RoutineTimelineItem {
   final String subject;
@@ -11,6 +12,7 @@ class RoutineTimelineItem {
   final String sortKey;
   final DateTime start;
   final DateTime end;
+  final String? notes;
 
   const RoutineTimelineItem({
     required this.subject,
@@ -21,6 +23,7 @@ class RoutineTimelineItem {
     required this.sortKey,
     required this.start,
     required this.end,
+    this.notes,
   });
 
   bool contains(DateTime now) => !now.isBefore(start) && now.isBefore(end);
@@ -35,6 +38,8 @@ class RoutineTimelineItem {
         return subject.isNotEmpty ? subject : 'Meal';
       case 'nap':
         return 'Power Nap';
+      case 'freshen_up':
+        return subject.isNotEmpty ? subject : 'Freshen Up';
       case 'recall':
         return 'Active Recall';
       case 'question_practice':
@@ -43,6 +48,31 @@ class RoutineTimelineItem {
         return 'Quick Review';
       default:
         return subject;
+    }
+  }
+
+  /// Short tip under the title (meal food tips, break lines, nap note).
+  String? get tagline {
+    switch (type) {
+      case 'break':
+        final n = notes?.trim();
+        if (n != null && n.isNotEmpty && n != 'After study session') return n;
+        return null;
+      case 'meal':
+        // Never treat a time-range note as a tagline — always a food/brain tip.
+        return RoutineMealTaglines.pickFor(
+          '$sortKey|$subject|$type|$timeText',
+          subject.isEmpty ? 'Meal' : subject,
+        );
+      case 'nap':
+        return 'Power nap for memory consolidation';
+      case 'freshen_up':
+        final n = notes?.trim();
+        return (n != null && n.isNotEmpty) ? n : 'Wash up, brush your teeth, get ready for the day.';
+      case 'question_practice':
+        return 'Solve problems, don\'t just read';
+      default:
+        return null;
     }
   }
 }
@@ -90,6 +120,9 @@ class RoutineTimeline {
         sortKey: time,
         start: start,
         end: end,
+        notes: (item['notes'] as String?)?.trim().isEmpty == false
+            ? (item['notes'] as String).trim()
+            : null,
       ));
     }
     items.sort((a, b) => a.sortKey.compareTo(b.sortKey));

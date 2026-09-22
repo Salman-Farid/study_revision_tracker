@@ -118,9 +118,8 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
 
     try {
       final now = DateTime.now();
-      final date = dateStr != null && dateStr.isNotEmpty
-          ? DateTime.parse(dateStr)
-          : DateTime(now.year, now.month, now.day);
+      // Calendar day = actual create day (hard rule: now → 23:30, even at 2 AM).
+      final DateTime date = DateTime(now.year, now.month, now.day);
 
       // ── Validate: every study/revision/first_read/review block must reference
       //    a subject that actually exists in the DB ──
@@ -133,8 +132,12 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         final type = (m['type'] as String?) ?? 'study';
         final subject = (m['subject'] as String?) ?? '';
 
-        // Allowed non-database subject names for non-study blocks
-        const allowedNonDb = {'break', 'breakfast', 'lunch', 'dinner', 'power nap'};
+        // Allowed non-database labels (app fills study gaps with these too).
+        const allowedNonDb = {
+          'break', 'breakfast', 'lunch', 'dinner', 'snack', 'power nap',
+          'self study', 'study gap filler', 'final study gap filler',
+          'gap filler', 'focus time', 'wrap up', 'catch up',
+        };
 
         // Only validate study-related blocks — breaks, meals, naps, recall don't need real subjects
         if (type == 'study' || type == 'first_read' || type == 'revision' ||
@@ -147,21 +150,52 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         }
       }
 
+      // HARD RULE: never fail the first save on invented labels like
+      // "Study Gap Filler". Heal them to a real subject instead.
+      String? fallbackSubject;
+      for (final raw in itemsRaw) {
+        final m = raw as Map<String, dynamic>;
+        final t = (m['type'] as String?) ?? 'study';
+        final sn = (m['subject'] as String?) ?? '';
+        if ((t == 'study' ||
+                t == 'first_read' ||
+                t == 'revision' ||
+                t == 'question_practice') &&
+            validNames.contains(sn.toLowerCase())) {
+          fallbackSubject = sn;
+          break;
+        }
+      }
+      fallbackSubject ??=
+          allSubjects.isNotEmpty ? allSubjects.first.name : 'Self Study';
+
       if (invalidSubjects.isNotEmpty) {
-        final validList = allSubjects.map((s) => s.name).join(', ');
-        Get.snackbar('Error', 'Subjects not found: ${invalidSubjects.join(", ")}. Valid: $validList',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.red.shade700,
-            colorText: Colors.white,
-            margin: const EdgeInsets.all(12),
-            duration: const Duration(seconds: 5));
-        _respondToFunction(callId, 'registerDailyRoutine', {
-          'success': false,
-          'error': 'Subjects not found in database: ${invalidSubjects.join(", ")}. '
-              'Valid subjects: $validList. '
-              'Use getAllData first to see available subjects and topics.',
-        }, params: args);
-        return;
+        for (final raw in itemsRaw) {
+          final m = raw as Map<String, dynamic>;
+          final t = (m['type'] as String?) ?? 'study';
+          final sn = (m['subject'] as String?) ?? '';
+          if (t == 'study' ||
+              t == 'first_read' ||
+              t == 'revision' ||
+              t == 'review' ||
+              t == 'question_practice') {
+            if (sn.isNotEmpty &&
+                !validNames.contains(sn.toLowerCase()) &&
+                !const {
+                  'self study',
+                  'study gap filler',
+                  'final study gap filler',
+                  'gap filler',
+                  'focus time',
+                  'wrap up',
+                  'catch up',
+                }.contains(sn.toLowerCase())) {
+              m['subject'] = fallbackSubject;
+            }
+          }
+        }
+        debugPrint(
+            '[Gemini] healed invented subjects ${invalidSubjects.join(', ')} → $fallbackSubject');
       }
 
       final items = itemsRaw.map((raw) {
@@ -184,7 +218,11 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
       }).toList();
 
       // Policy: no review spam, max 1 QP, break rules, study-first reorder.
-      final policyItems = _enforceRoutinePolicy(items, maxBreaks: 6);
+      // Meals are injected at FIXED times below — drop any client-sent meals.
+      final policyItems = _enforceRoutinePolicy(
+        items.where((e) => e.type != 'meal').toList(),
+        maxBreaks: 6,
+      );
 
       if (!policyItems.any((e) => _isStudy(e.type) || e.type == 'revision')) {
         _respondToFunction(callId, 'registerDailyRoutine', {
@@ -194,8 +232,14 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         return;
       }
 
-      // HARD RULE: day ends at exactly 23:30 (11:30 PM). Times stay continuous.
-      final dayEnd = DateTime(date.year, date.month, date.day, 23, 30);
+      // HARD RULE (EXACT MINUTE): window is ALWAYS create-time → 23:30.
+      // User says "create at 2 AM" → first block starts 2:00, never 00:00/earlier.
+      final createMoment = DateTime.now();
+      final dayEnd =
+          DateTime(createMoment.year, createMoment.month, createMoment.day, 23, 30);
+      final startOfWindow = DateTime(createMoment.year, createMoment.month,
+          createMoment.day, createMoment.hour, createMoment.minute);
+
       DateTime parseStart(String time) {
         final parts = time.split(':');
         final h = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
@@ -206,74 +250,355 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
       String fmt(DateTime t) =>
           '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-      // Keep class slots fixed; pack other blocks continuously from the first start.
-      final sorted = [...policyItems]
+      // Fixed meal slots (20 min). Included ONLY if still upcoming at create time.
+      // 9 PM create → no dinner. 3 AM create → all four meals.
+      final mealBlocks = <DailyRoutineItem>[];
+      final usedMealLines = <String>{};
+      for (final slot in _fixedMealSlots) {
+        final mStart =
+            DateTime(date.year, date.month, date.day, slot.hour, slot.minute);
+        if (mStart.isBefore(startOfWindow)) continue; // already passed
+        if (!mStart.isBefore(dayEnd)) continue;
+        final tip = RoutineMealTaglines.uniqueForDay(slot.name,
+            avoid: usedMealLines);
+        usedMealLines.add(tip);
+        mealBlocks.add(DailyRoutineItem(
+          time: fmt(mStart),
+          subject: slot.name,
+          topic: '',
+          type: 'meal',
+          durationMinutes: 20,
+          notes: tip,
+        ));
+      }
+
+      final classes = policyItems
+          .where((e) => e.type == 'class')
+          .toList()
         ..sort((a, b) => parseStart(a.time).compareTo(parseStart(b.time)));
-      final firstStart = sorted.isEmpty
-          ? DateTime.now()
-          : parseStart(sorted.first.time);
-      var cursor = firstStart.isAfter(dayEnd.subtract(const Duration(minutes: 10)))
-          ? dayEnd.subtract(const Duration(minutes: 50))
-          : firstStart;
+      final work = policyItems
+          .where((e) => e.type != 'class' && e.type != 'freshen_up')
+          .toList(); // policy order (freshen_up is auto-inserted below)
+
+      // HARD RULE: today's registered classes MUST appear at their times.
+      {
+        try {
+          // Fetch ALL classes (recurring rows are not on "today" in start_time).
+          final crs = await _routineRepo.getClassRoutines();
+          final weekday = date.weekday;
+          final dayKey =
+              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+          for (final cr in crs) {
+            final hits = (cr.recurring && cr.recurringDays.contains(weekday)) ||
+                cr.dates.any((d) => d.toString().startsWith(dayKey));
+            if (!hits) continue;
+            final cs = cr.startTime;
+            final cStart = DateTime(date.year, date.month, date.day, cs.hour, cs.minute);
+            if (!cStart.isAfter(startOfWindow) && !cStart.isAtSameMomentAs(startOfWindow)) {
+              // class already started before the window — skip if fully past
+              if (cStart.add(Duration(minutes: cr.durationMinutes)).isBefore(startOfWindow)) continue;
+            }
+            if (!cStart.isBefore(dayEnd)) continue;
+            // skip duplicates already in items
+            final already = classes.any((e) =>
+                e.subject.toLowerCase() == cr.subjectName.toLowerCase() &&
+                e.durationMinutes == cr.durationMinutes &&
+                e.time == fmt(cStart));
+            if (already) continue;
+            classes.add(DailyRoutineItem(
+              time: fmt(cStart),
+              subject: cr.subjectName,
+              topic: '',
+              type: 'class',
+              durationMinutes: cr.durationMinutes,
+              notes: cr.locationText,
+            ));
+          }
+          classes.sort((a, b) => parseStart(a.time).compareTo(parseStart(b.time)));
+        } catch (e) {
+          debugPrint('[Gemini] class inject failed: $e');
+        }
+      }
+
+      // FRESHEN UP — 30 min at create minute if before 8:00 AM (else omit).
+      final freshenBlocks = <DailyRoutineItem>[];
+      final eightAm = DateTime(date.year, date.month, date.day, 8, 0);
+      if (startOfWindow.isBefore(eightAm)) {
+        final limits = <DateTime>[
+          eightAm,
+          ...mealBlocks.map((e) => parseStart(e.time)),
+          ...classes.map((e) => parseStart(e.time)),
+        ]..sort();
+        final room = limits.first.difference(startOfWindow).inMinutes;
+        var fDur = room >= 30 ? 30 : room;
+        if (fDur >= 5) {
+          freshenBlocks.add(DailyRoutineItem(
+            time: fmt(startOfWindow),
+            subject: 'Freshen Up',
+            topic: '',
+            type: 'freshen_up',
+            durationMinutes: fDur,
+            notes: 'Wash up, brush your teeth, get ready for the day.',
+          ));
+        }
+      }
+
+      // Anchored = fixed-time blocks (freshen + meals + classes), chronological.
+      final anchored = <DailyRoutineItem>[
+        ...freshenBlocks,
+        ...mealBlocks,
+        ...classes,
+      ]..sort((a, b) => parseStart(a.time).compareTo(parseStart(b.time)));
 
       final clamped = <DailyRoutineItem>[];
-      for (final it in sorted) {
-        if (cursor.isAfter(dayEnd) || cursor.isAtSameMomentAs(dayEnd)) break;
-        var start = parseStart(it.time);
-        var duration = it.durationMinutes;
+      var cursor = startOfWindow;
+      var workIdx = 0;
 
-        if (it.type == 'class') {
-          // Keep registered class time; resume after it if we're behind.
-          if (!start.isBefore(dayEnd)) continue;
-          final maxMin = dayEnd.difference(start).inMinutes;
-          duration = duration.clamp(1, maxMin);
-          final classEnd = start.add(Duration(minutes: duration));
-          if (classEnd.isAfter(cursor)) cursor = classEnd;
-        } else {
-          if (start.isBefore(cursor)) start = cursor;
-          if (!start.isBefore(dayEnd)) break;
-          final maxMin = dayEnd.difference(start).inMinutes;
-          // Don't start a long study block that cannot fit meaningfully.
-          if ((it.type == 'study' || it.type == 'first_read') && maxMin < 20) {
-            break;
-          }
-          duration = duration.clamp(1, maxMin);
-          cursor = start.add(Duration(minutes: duration));
+      void packWorkUntil(DateTime limit) {
+        // GAP RULE:
+        //  - gap < 20 min  → BREAK only (never 2/8-min study).
+        //  - gap >= 20 min → 50-min STUDY sessions.
+        // STUDY RULE (fixed): every study session gets a 10-min Break after it —
+        // unless the next block is meal / nap / class / freshen (those cover the break).
+
+        bool coversBreak(String t) =>
+            t == 'meal' || t == 'nap' || t == 'class' || t == 'freshen_up';
+
+        final studyFallbackSubject = work
+                .where((e) =>
+                    e.type == 'study' ||
+                    e.type == 'first_read' ||
+                    e.type == 'revision')
+                .map((e) => e.subject)
+                .firstWhere((e) => e.isNotEmpty,
+                    orElse: () => 'Self Study');
+        final studyFallbackTopic = work
+                .where((e) =>
+                    e.type == 'study' ||
+                    e.type == 'first_read' ||
+                    e.type == 'revision')
+                .map((e) => e.topic)
+                .firstWhere((e) => e.isNotEmpty, orElse: () => '');
+
+        void addBlock(DailyRoutineItem it, int minutes) {
+          if (minutes <= 0) return;
+          clamped.add(DailyRoutineItem(
+            time: fmt(cursor),
+            subject: it.subject,
+            topic: it.topic,
+            type: it.type,
+            durationMinutes: minutes,
+            notes: it.notes,
+          ));
+          cursor = cursor.add(Duration(minutes: minutes));
         }
 
-        clamped.add(DailyRoutineItem(
-          time: fmt(start),
-          subject: it.subject,
-          topic: it.topic,
-          type: it.type,
-          durationMinutes: duration,
-          notes: it.notes,
-        ));
+        void addBreak(int minutes) {
+          if (minutes <= 0) return;
+          clamped.add(DailyRoutineItem(
+            time: fmt(cursor),
+            subject: 'Break',
+            topic: '',
+            type: 'break',
+            durationMinutes: minutes,
+            notes: RoutineBreakTaglines.unique(),
+          ));
+          cursor = cursor.add(Duration(minutes: minutes));
+        }
+
+        void addStudy(String subject, String topic, int minutes, String type) {
+          if (minutes <= 0) return;
+          clamped.add(DailyRoutineItem(
+            time: fmt(cursor),
+            subject: subject,
+            topic: topic,
+            type: type,
+            durationMinutes: minutes,
+            notes: null,
+          ));
+          cursor = cursor.add(Duration(minutes: minutes));
+        }
+
+        bool isStudyType(String t) => t == 'study' || t == 'first_read';
+
+        void maybeBreakAfterStudy() {
+          // 10-min break after EVERY study. Skip ONLY if the IMMEDIATE next
+          // block is meal/nap/class/freshen (that block covers the break).
+          if (workIdx < work.length) {
+            if (coversBreak(work[workIdx].type)) return;
+            addBreak(10);
+            return;
+          }
+          for (final b in anchored) {
+            final st = parseStart(b.time);
+            if (st.isAfter(cursor) || st.isAtSameMomentAs(cursor)) {
+              final immediate = st.difference(cursor).inMinutes <= 1;
+              if (immediate && coversBreak(b.type)) return;
+              break;
+            }
+          }
+          final toEnd = dayEnd.difference(cursor).inMinutes;
+          if (toEnd >= 10) {
+            addBreak(10);
+          } else if (toEnd > 0) {
+            addBreak(toEnd);
+          }
+        }
+
+        // 1) Queued work — study is NEVER split into 2/8-minute slices.
+        while (workIdx < work.length) {
+          final it = work[workIdx];
+          final remaining = it.durationMinutes;
+          if (remaining <= 0) {
+            workIdx++;
+            continue;
+          }
+          final gapMin = limit.difference(cursor).inMinutes;
+
+          if (isStudyType(it.type)) {
+            if (gapMin < 20) {
+              addBreak(gapMin);
+              break;
+            }
+            addStudy(it.subject, it.topic, remaining, it.type);
+            workIdx++;
+            // Mandatory 10-min break after this study (policy may already
+            // have queued one — skip if the next work item IS a break).
+            final nextIsBreak = workIdx < work.length &&
+                work[workIdx].type == 'break';
+            if (!nextIsBreak) maybeBreakAfterStudy();
+            continue;
+          }
+
+          if (remaining <= gapMin) {
+            addBlock(it, remaining);
+            workIdx++;
+          } else if (gapMin < 20) {
+            addBreak(gapMin);
+            break;
+          } else {
+            addBlock(it, remaining);
+            workIdx++;
+          }
+        }
+
+        // 2) Empty gap (no queued work) — same rules.
+        while (cursor.isBefore(limit) && cursor.isBefore(dayEnd)) {
+          final room = limit.difference(cursor).inMinutes;
+          if (room < 20) {
+            addBreak(room);
+            break;
+          }
+          final leftToEnd = dayEnd.difference(cursor).inMinutes;
+          final studyMin = 50 <= leftToEnd ? 50 : leftToEnd;
+          addStudy(studyFallbackSubject, studyFallbackTopic, studyMin, 'study');
+          if (!cursor.isBefore(dayEnd)) break;
+          // ALWAYS try the 10-min break after this study session.
+          maybeBreakAfterStudy();
+          if (!cursor.isBefore(limit) || !cursor.isBefore(dayEnd)) break;
+        }
+      }
+
+      for (final block in anchored) {
+        if (!cursor.isBefore(dayEnd)) break;
+        final aStart = parseStart(block.time);
+        // Fill free time before this fixed block.
+        if (aStart.isAfter(cursor)) {
+          packWorkUntil(aStart);
+        }
+        // Place fixed block at its locked start (or cursor if we somehow passed it).
+        var start = aStart.isBefore(cursor) ? cursor : aStart;
+        if (!start.isBefore(startOfWindow) && start.isBefore(dayEnd)) {
+          final maxMin = dayEnd.difference(start).inMinutes;
+          final duration = block.durationMinutes.clamp(1, maxMin);
+          clamped.add(DailyRoutineItem(
+            time: fmt(start),
+            subject: block.subject,
+            topic: block.topic,
+            type: block.type,
+            durationMinutes: duration,
+            notes: block.notes,
+          ));
+          cursor = start.add(Duration(minutes: duration));
+        }
+      }
+      // Remaining work after last fixed block → 11:30 PM.
+      packWorkUntil(dayEnd);
+
+      // HARD END RULE: the day ALWAYS finishes at exactly 11:30 PM (23:30).
+      // Never earlier. Extend the last block so its end time is 23:30.
+      if (clamped.isNotEmpty && cursor.isBefore(dayEnd)) {
+        final extra = dayEnd.difference(cursor).inMinutes;
+        if (extra > 0) {
+          final i = clamped.length - 1;
+          final last = clamped[i];
+          clamped[i] = DailyRoutineItem(
+            time: last.time,
+            subject: last.subject,
+            topic: last.topic,
+            type: last.type,
+            durationMinutes: last.durationMinutes + extra,
+            notes: last.notes,
+          );
+          cursor = dayEnd;
+        }
       }
 
       if (clamped.isEmpty) {
         _respondToFunction(callId, 'registerDailyRoutine', {
           'success': false,
-          'error': 'All blocks fall outside the day. Routine must run until exactly 11:30 PM — start from the current time.',
+          'error': 'All blocks fall outside the day. Routine must run from the current time until exactly 11:30 PM.',
         }, params: args);
         return;
+      }
+
+      // HARD GUARANTEE: never two study blocks back-to-back.
+      // Insert Break 10 between them and push the next study to after the break.
+      for (var i = 0; i < clamped.length - 1; i++) {
+        final a = clamped[i];
+        final b = clamped[i + 1];
+        final aStudy = a.type == 'study' || a.type == 'first_read';
+        final bStudy = b.type == 'study' || b.type == 'first_read';
+        if (!(aStudy && bStudy)) continue;
+        final aStart = parseStart(a.time);
+        final aEnd = aStart.add(Duration(minutes: a.durationMinutes));
+        final brkEnd = aEnd.add(const Duration(minutes: 10));
+        clamped.insert(
+          i + 1,
+          DailyRoutineItem(
+            time: fmt(aEnd),
+            subject: 'Break',
+            topic: '',
+            type: 'break',
+            durationMinutes: 10,
+            notes: RoutineBreakTaglines.unique(),
+          ),
+        );
+        // Delay the second study (and any flexible block after it) past the break.
+        for (var j = i + 2; j < clamped.length; j++) {
+          final t = clamped[j].type;
+          if (t == 'meal' || t == 'class' || t == 'freshen_up') break;
+          final st = parseStart(clamped[j].time);
+          if (st.isBefore(brkEnd)) {
+            final it = clamped[j];
+            clamped[j] = DailyRoutineItem(
+              time: fmt(brkEnd),
+              subject: it.subject,
+              topic: it.topic,
+              type: it.type,
+              durationMinutes: it.durationMinutes,
+              notes: it.notes,
+            );
+          }
+          if (t == 'study' || t == 'first_read') break;
+        }
+        i++; // skip inserted break
       }
 
       final routine = await _routineRepo.createDailyRoutine(
         date: date,
         items: clamped,
       );
-
-      // Always report times to the user in 12-hour AM/PM.
-      final summary = clamped.map((it) {
-        final startText = formatTime12Hour(it.time);
-        final startDt = parseStart(it.time);
-        final endText = formatHm12(
-          startDt.add(Duration(minutes: it.durationMinutes)).hour,
-          startDt.add(Duration(minutes: it.durationMinutes)).minute,
-        );
-        return '$startText–$endText ${it.subject}${it.topic.isNotEmpty ? ' / ${it.topic}' : ''} (${it.durationMinutes}m)';
-      }).join('; ');
 
       Get.snackbar('Success', 'Daily routine saved: ${clamped.length} blocks until 11:30 PM',
           snackPosition: SnackPosition.BOTTOM,
@@ -287,11 +612,16 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'routine_id': routine.id,
         'date': date.toIso8601String().substring(0, 10),
         'blocks_count': clamped.length,
+        'starts_at': fmt(startOfWindow),
         'ends_at': '11:30 PM',
-        'time_format_reply': '12-hour AM/PM',
-        'language_rule': 'Reply in EXACTLY ONE language — the language the user last used (any: Hindi, Bengali, English, Chinese, …). Never two languages in one reply. Never translate after answering.',
-        'message': 'Daily routine saved for ${date.toIso8601String().substring(0, 10)} — ${clamped.length} blocks, ends at 11:30 PM. '
-            'Tell the user ONLY in 12-hour format AND in THEIR language. Blocks: $summary',
+        'meals_included': mealBlocks.map((e) => e.subject).toList(),
+        'language_rule': 'Reply in EXACTLY ONE language — the language the user last used. Never two languages. Never translate after answering.',
+        'reply_style': 'SHORT_CONFIRMATION_ONLY',
+        'message': 'Daily routine saved (${clamped.length} blocks). '
+            'REPLY RULE: short success confirmation ONLY in the user\'s language '
+            '(e.g. "Your routine is ready" / "রুটিন বানানো হয়েছে"). '
+            'NEVER list or recite the routine/times. One short line only (e.g. "Your routine is ready" / "রুটিন বানানো হয়েছে"). UI shows the plan. '
+            'If the user later asks to see it, then you may summarize.',
       }, params: args);
 
       // Schedule a local notification for every future block right away.
@@ -340,11 +670,10 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         // Due-revision blocks are always 30 minutes (user rule).
         return 30;
       case 'meal':
-        final s = subject.toLowerCase();
-        if (s.contains('breakfast')) return 20;
-        if (s.contains('lunch')) return 25;
-        if (s.contains('dinner')) return 20;
-        return (sent <= 0 ? 20 : sent).clamp(15, 30);
+        // User rule: every meal is exactly 20 minutes.
+        return 20;
+      case 'freshen_up':
+        return 30;
       case 'class':
         return sent <= 0 ? 60 : sent;
       // review/quick review are forbidden — duration irrelevant (dropped later).
@@ -354,6 +683,14 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         return (sent <= 0 ? 30 : sent).clamp(5, 90);
     }
   }
+
+  /// Locked meal windows — not model-invented.
+  static const _fixedMealSlots = <({String name, int hour, int minute, String notes})>[
+    (name: 'Breakfast', hour: 8, minute: 0, notes: '8:00–8:20 AM'),
+    (name: 'Lunch', hour: 13, minute: 30, notes: '1:30–1:50 PM'),
+    (name: 'Snack', hour: 17, minute: 0, notes: '5:00–5:20 PM'),
+    (name: 'Dinner', hour: 20, minute: 0, notes: '8:00–8:20 PM'),
+  ];
 
   bool _isStudy(String type) => type == 'study' || type == 'first_read';
 
@@ -408,7 +745,11 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
       final next = i + 1 < body.length ? body[i + 1] : null;
       if (next == null) continue; // end of day — no trailing break
       // Meal / nap / class already rest the student → skip break.
-      if (next.type == 'meal' || next.type == 'nap' || next.type == 'class') {
+      // Meal / nap / class / freshen cover the break — no extra Break block.
+      if (next.type == 'meal' ||
+          next.type == 'nap' ||
+          next.type == 'class' ||
+          next.type == 'freshen_up') {
         continue;
       }
       out.add(DailyRoutineItem(
