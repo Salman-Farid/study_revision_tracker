@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import android.content.Context
 import android.content.Intent

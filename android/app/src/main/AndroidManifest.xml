@@ -51,8 +51,8 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.study_revision_tracker.UPDATE_WIDGETS" />
-                <action android:name="com.example.study_revision_tracker.DAILY_TICK" />
+                <action android:name="com.pootustudycompanion.app.UPDATE_WIDGETS" />
+                <action android:name="com.pootustudycompanion.app.DAILY_TICK" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -65,9 +65,9 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.study_revision_tracker.UPDATE_WIDGETS" />
-                <action android:name="com.example.study_revision_tracker.TOGGLE_MODE" />
-                <action android:name="com.example.study_revision_tracker.REFRESH_REVISION" />
+                <action android:name="com.pootustudycompanion.app.UPDATE_WIDGETS" />
+                <action android:name="com.pootustudycompanion.app.TOGGLE_MODE" />
+                <action android:name="com.pootustudycompanion.app.REFRESH_REVISION" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -80,7 +80,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.study_revision_tracker.UPDATE_WIDGETS" />
+                <action android:name="com.pootustudycompanion.app.UPDATE_WIDGETS" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -92,7 +92,7 @@
             android:name=".WidgetTickReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.example.study_revision_tracker.WIDGET_TICK" />
+                <action android:name="com.pootustudycompanion.app.WIDGET_TICK" />
             </intent-filter>
         </receiver>
 

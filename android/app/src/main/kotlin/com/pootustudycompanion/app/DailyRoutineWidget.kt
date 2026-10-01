@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -27,7 +27,7 @@ class DailyRoutineWidget : AppWidgetProvider() {
         val action = intent.action
         if (action == ACTION_REFRESH ||
             action == ACTION_DAILY_TICK ||
-            action == "com.example.study_revision_tracker.UPDATE_WIDGETS" ||
+            action == "com.pootustudycompanion.app.UPDATE_WIDGETS" ||
             action == AppWidgetManager.ACTION_APPWIDGET_UPDATE
         ) {
             val mgr = AppWidgetManager.getInstance(context)
@@ -45,8 +45,8 @@ class DailyRoutineWidget : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_DAILY"
-        const val ACTION_DAILY_TICK = "com.example.study_revision_tracker.DAILY_TICK"
+        const val ACTION_REFRESH = "com.pootustudycompanion.app.REFRESH_DAILY"
+        const val ACTION_DAILY_TICK = "com.pootustudycompanion.app.DAILY_TICK"
         private const val MAX_BLOCK_MS = 4L * 60L * 60L * 1000L // 4h safety cap
 
         data class ActiveBlock(

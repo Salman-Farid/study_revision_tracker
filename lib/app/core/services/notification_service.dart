@@ -15,6 +15,7 @@ import '../../data/models/daily_routine_model.dart';
 import '../../data/models/revision_schedule_model.dart';
 import '../../domain/routine/class_day_matcher.dart';
 import '../../domain/routine/routine_time_utils.dart';
+import 'web_push_service.dart';
 
 part 'notifications/format_clock.dart';
 part 'notifications/ids.dart';
@@ -68,9 +69,17 @@ class NotificationService extends GetxService {
   Future<void> _init() async {
     if (_initialized) return;
     if (kIsWeb) {
-      // flutter_local_notifications has no web implementation — stay a no-op
-      // so Get.find<NotificationService>() never throws in the browser.
+      // Web: Web Push + in-tab Notification API (works on any device/browser).
       _initialized = true;
+      try {
+        if (!Get.isRegistered<WebPushService>()) {
+          await Get.putAsync(() async => await WebPushService().init());
+        } else {
+          await WebPushService.to.init();
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] web push init failed: $e');
+      }
       return;
     }
     _initialized = true;

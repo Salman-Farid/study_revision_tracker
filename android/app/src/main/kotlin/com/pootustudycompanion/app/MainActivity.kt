@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

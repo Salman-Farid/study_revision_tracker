@@ -20,6 +20,31 @@ extension NotificationDailySchedule on NotificationService {
     final rawDate = routine.date;
     final baseDate = DateTime(rawDate.year, rawDate.month, rawDate.day);
 
+    if (kIsWeb) {
+      try {
+        if (Get.isRegistered<WebPushService>()) {
+          final n = WebPushService.to.scheduleDailyRoutineBlocks(
+            routineId: routine.id,
+            date: baseDate,
+            items: routine.items
+                .map((e) => {
+                      'time': e.time,
+                      'subject': e.subject,
+                      'topic': e.topic,
+                      'type': e.type,
+                      'duration_minutes': e.durationMinutes,
+                    })
+                .toList(),
+          );
+          debugPrint('[WebPush] scheduled $n local block reminders');
+          return n;
+        }
+      } catch (e) {
+        debugPrint('[WebPush] schedule failed: $e');
+      }
+      return 0;
+    }
+
     int scheduled = 0;
     for (int d = 0; d < daysAhead; d++) {
       final day = baseDate.add(Duration(days: d));

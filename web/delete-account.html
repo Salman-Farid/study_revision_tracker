@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delete Account &amp; Data — Pootu Study Companion</title>
+  <meta name="description" content="Request deletion of your Pootu Study Companion account and associated data." />
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 20px 64px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fc;
+      color: #1a1d26;
+      line-height: 1.55;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #12141a; color: #e8ecf4; }
+      .card { background: #1a1d26; border-color: rgba(255,255,255,0.08); }
+      input[type="email"] {
+        background: #12141a;
+        border-color: rgba(255,255,255,0.14);
+        color: #e8ecf4;
+      }
+      .muted { color: #9ca3af; }
+    }
+    .wrap {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 8px 28px rgba(16,24,40,0.06);
+      margin-bottom: 16px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.45rem;
+    }
+    h2 {
+      margin: 1.6rem 0 0.5rem;
+      font-size: 1.1rem;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 0.92rem;
+    }
+    p, li { font-size: 0.95rem; }
+    ul, ol { padding-left: 1.2rem; }
+    li { margin: 0.35rem 0; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin: 18px 0 8px;
+    }
+    input[type="email"] {
+      width: 100%;
+      height: 46px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0 12px;
+      font-size: 1rem;
+      outline: none;
+    }
+    input[type="email"]:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.18);
+    }
+    button {
+      width: 100%;
+      height: 46px;
+      margin-top: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #d93025;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #b3261e; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ok {
+      display: none;
+      text-align: center;
+      padding: 10px 0 6px;
+    }
+    .ok h2 { margin: 0 0 8px; }
+    .ok p { margin: 0; color: #6b7280; }
+    .err {
+      display: none;
+      margin: 10px 0 0;
+      color: #d93025;
+      font-size: 0.88rem;
+    }
+    .note {
+      border-left: 3px solid #1a73e8;
+      background: rgba(26,115,232,0.08);
+      padding: 12px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+      font-size: 0.92rem;
+    }
+    a { color: #1a73e8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Delete account &amp; data</h1>
+      <p class="muted">
+        <strong>Pootu Study Companion</strong> (Pootu: StudyCompanion)<br />
+        Last updated: 28 September 2026
+      </p>
+
+      <div id="formWrap">
+        <p>
+          Enter the email address registered to your account to request permanent deletion
+          of your account and associated personal data.
+        </p>
+
+        <form id="delForm" novalidate>
+          <label for="email">Account email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          <button id="submitBtn" type="submit">Delete my account</button>
+          <p class="err" id="err">Please enter a valid email.</p>
+        </form>
+      </div>
+
+      <div class="ok" id="ok">
+        <h2>Request received</h2>
+        <p>
+          Your account deletion request was submitted.<br />
+          We will verify the request and complete deletion within <strong>30 days</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>How to request deletion</h2>
+      <ol>
+        <li>Enter the <strong>email address used for your account</strong> in the form above.</li>
+        <li>Select <strong>Delete my account</strong>.</li>
+        <li>We receive your request and begin verification.</li>
+      </ol>
+      <div class="note">
+        Deletion requests are only processed for the account owner. If we cannot verify the request,
+        we may ask you to confirm from the registered email address before deleting anything.
+      </div>
+
+      <h2>What is deleted</h2>
+      <ul>
+        <li>Your account and login credentials</li>
+        <li>Profile information (email, display name)</li>
+        <li>Study content you created — subjects, topics, revision schedules and progress, class routines, daily routines</li>
+        <li>Notification and push-notification records linked to your account</li>
+        <li>Other personal data tied to your account</li>
+      </ul>
+
+      <h2>What may be kept</h2>
+      <ul>
+        <li>Limited records required by law, or for security, fraud, and abuse prevention</li>
+        <li>Aggregated or de-identified data that no longer identifies you</li>
+        <li>Encrypted backups for a short period until overwritten in the normal course (typically up to <strong>90 days</strong>)</li>
+      </ul>
+
+      <h2>Retention period</h2>
+      <p>
+        After we verify your request, deletion is completed within <strong>30 days</strong>
+        (often sooner). Backup copies are purged on the normal backup rotation, typically within
+        <strong>90 days</strong>.
+      </p>
+
+      <h2>Delete data without deleting your account</h2>
+      <p>
+        You can also request deletion or correction of specific data (for example one subject or routine)
+        without closing your account. Use the same form and mention what you want removed in a follow-up
+        email to the contact below. Those requests are handled within <strong>30 days</strong>.
+      </p>
+
+      <h2>Before you continue</h2>
+      <ul>
+        <li>Account deletion is <strong>permanent</strong>. Your study history cannot be restored.</li>
+        <li>If you only want to stop using the app, sign out in Settings instead.</li>
+        <li>If you only want to stop reminders, turn off notifications in device or browser settings.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this request or about privacy:
+        <a href="mailto:salmanfarid43@gmail.com">salmanfarid43@gmail.com</a>
+      </p>
+      <p>
+        Also see the
+        <a href="/privacy">Privacy Policy</a>.
+      </p>
+      <p class="muted" style="margin-top:1.5rem">
+        <a href="/">Open Pootu Study Companion</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('delForm');
+    const err = document.getElementById('err');
+    const ok = document.getElementById('ok');
+    const formWrap = document.getElementById('formWrap');
+    const btn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.style.display = 'none';
+      const email = document.getElementById('email').value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        err.style.display = 'block';
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      try {
+        const res = await fetch('/api/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        if (!res.ok) throw new Error('bad response');
+        formWrap.style.display = 'none';
+        ok.style.display = 'block';
+      } catch (_) {
+        window.location.href = 'mailto:salmanfarid43@gmail.com'
+          + '?subject=' + encodeURIComponent('Delete Pootu account')
+          + '&body=' + encodeURIComponent('Account email: ' + email);
+        formWrap.style.display = 'none';
+        ok.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

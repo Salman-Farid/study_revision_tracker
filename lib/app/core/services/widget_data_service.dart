@@ -118,13 +118,13 @@ class WidgetDataProvider {
       // Notify native widgets to update
       await Future.wait([
         HomeWidget.updateWidget(
-          qualifiedAndroidName: 'com.example.study_revision_tracker.DailyRoutineWidget',
+          qualifiedAndroidName: 'com.pootustudycompanion.app.DailyRoutineWidget',
         ),
         HomeWidget.updateWidget(
-          qualifiedAndroidName: 'com.example.study_revision_tracker.RevisionWidget',
+          qualifiedAndroidName: 'com.pootustudycompanion.app.RevisionWidget',
         ),
         HomeWidget.updateWidget(
-          qualifiedAndroidName: 'com.example.study_revision_tracker.ClassRoutineWidget',
+          qualifiedAndroidName: 'com.pootustudycompanion.app.ClassRoutineWidget',
         ),
       ]);
     } catch (e, stack) {

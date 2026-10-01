@@ -53,43 +53,44 @@ class SignInPane extends StatelessWidget {
                     .copyWith(color: AppColors.textMuted(d)),
               )),
           SizedBox(height: compact ? S.xl : S.xxxl),
-          SizedBox(
-            width: double.infinity,
-            height: S.buttonHeight,
-            child: Obx(() => OutlinedButton.icon(
-                  onPressed: c.isGoogleLoading.value ? null : c.signInWithGoogle,
-                  icon: c.isGoogleLoading.value
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.g_mobiledata_rounded, size: 24),
-                  label: Text('continueWithGoogle'.tr,
-                      style: AppTextStyles.labelLarge),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.border(d)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(S.radiusMd),
-                    ),
-                  ),
-                )),
-          ),
-          SizedBox(height: S.base),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AppColors.border(d))),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: S.base),
-                child: Text(
-                  'or'.tr,
-                  style:
-                      AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(d)),
-                ),
-              ),
-              Expanded(child: Divider(color: AppColors.border(d))),
-            ],
-          ),
-          SizedBox(height: S.base),
+          // Google login temporarily disabled (desktop + Android).
+          // SizedBox(
+          //   width: double.infinity,
+          //   height: S.buttonHeight,
+          //   child: Obx(() => OutlinedButton.icon(
+          //         onPressed: c.isGoogleLoading.value ? null : c.signInWithGoogle,
+          //         icon: c.isGoogleLoading.value
+          //             ? const SizedBox(
+          //                 height: 20,
+          //                 width: 20,
+          //                 child: CircularProgressIndicator(strokeWidth: 2))
+          //             : const Icon(Icons.g_mobiledata_rounded, size: 24),
+          //         label: Text('continueWithGoogle'.tr,
+          //             style: AppTextStyles.labelLarge),
+          //         style: OutlinedButton.styleFrom(
+          //           side: BorderSide(color: AppColors.border(d)),
+          //           shape: RoundedRectangleBorder(
+          //             borderRadius: BorderRadius.circular(S.radiusMd),
+          //           ),
+          //         ),
+          //       )),
+          // ),
+          // SizedBox(height: S.base),
+          // Row(
+          //   children: [
+          //     Expanded(child: Divider(color: AppColors.border(d))),
+          //     Padding(
+          //       padding: EdgeInsets.symmetric(horizontal: S.base),
+          //       child: Text(
+          //         'or'.tr,
+          //         style: AppTextStyles.bodySmall
+          //             .copyWith(color: AppColors.textMuted(d)),
+          //       ),
+          //     ),
+          //     Expanded(child: Divider(color: AppColors.border(d))),
+          //   ],
+          // ),
+          // SizedBox(height: S.base),
           TextFormField(
             controller: c.emailCtrl,
             keyboardType: TextInputType.emailAddress,

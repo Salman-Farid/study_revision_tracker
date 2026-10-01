@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -36,7 +36,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
         val action = intent?.action
         if (action == ACTION_REFRESH ||
             action == AppWidgetManager.ACTION_APPWIDGET_UPDATE ||
-            action == "com.example.study_revision_tracker.UPDATE_WIDGETS"
+            action == "com.pootustudycompanion.app.UPDATE_WIDGETS"
         ) {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, ClassRoutineWidget::class.java))
@@ -48,7 +48,7 @@ class ClassRoutineWidget : AppWidgetProvider() {
 
     companion object {
         private const val TAG = "ClassRoutineWidget"
-        const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_CLASS"
+        const val ACTION_REFRESH = "com.pootustudycompanion.app.REFRESH_CLASS"
         private const val MIN_WIDTH_FOR_DURATION = 250
 
         private val PALETTE = intArrayOf(

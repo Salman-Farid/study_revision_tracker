@@ -14,4 +14,4 @@
 -keep class com.dexterous.flutterlocalnotifications.** { *; }
 
 # Home widget
--keep class com.example.study_revision_tracker.** { *; }
+-keep class com.pootustudycompanion.app.** { *; }

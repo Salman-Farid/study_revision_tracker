@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -45,7 +45,7 @@ class RevisionWidget : AppWidgetProvider() {
                 }
             }
             ACTION_REFRESH,
-            "com.example.study_revision_tracker.UPDATE_WIDGETS",
+            "com.pootustudycompanion.app.UPDATE_WIDGETS",
             AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
                 val mgr = AppWidgetManager.getInstance(context)
                 val ids = mgr.getAppWidgetIds(ComponentName(context, RevisionWidget::class.java))
@@ -57,8 +57,8 @@ class RevisionWidget : AppWidgetProvider() {
     companion object {
         private const val TAG = "RevisionWidget"
         private const val PREFS = "HomeWidgetPreferences"
-        const val ACTION_TOGGLE_MODE = "com.example.study_revision_tracker.TOGGLE_MODE"
-        const val ACTION_REFRESH = "com.example.study_revision_tracker.REFRESH_REVISION"
+        const val ACTION_TOGGLE_MODE = "com.pootustudycompanion.app.TOGGLE_MODE"
+        const val ACTION_REFRESH = "com.pootustudycompanion.app.REFRESH_REVISION"
         const val EXTRA_TARGET_MODE = "target_mode"
         const val KEY_TOGGLE_MODE = "widget_revision_toggle_mode"
         const val MODE_TODAY = "today"

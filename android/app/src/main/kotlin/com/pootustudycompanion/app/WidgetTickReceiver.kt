@@ -1,4 +1,4 @@
-package com.example.study_revision_tracker
+package com.pootustudycompanion.app
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -56,7 +56,7 @@ class WidgetTickReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "WidgetTickReceiver"
-        const val ACTION_TICK = "com.example.study_revision_tracker.WIDGET_TICK"
+        const val ACTION_TICK = "com.pootustudycompanion.app.WIDGET_TICK"
         private const val REQ_CODE = 77001
         private const val PERIOD_MS = 10L * 60L * 1000L // 10 minutes
 

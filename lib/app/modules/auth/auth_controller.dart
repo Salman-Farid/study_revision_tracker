@@ -1,9 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+// Google Sign-In temporarily disabled (was used for kIsWeb in sign-in error path).
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+// Google Sign-In temporarily disabled (desktop + Android).
+// import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +27,8 @@ class AuthController extends GetxController {
 
   final isLogin = true.obs;
   final isLoading = false.obs;
-  final isGoogleLoading = false.obs;
+  // Google Sign-In temporarily disabled (desktop + Android).
+  // final isGoogleLoading = false.obs;
 
   @override
   void onClose() {

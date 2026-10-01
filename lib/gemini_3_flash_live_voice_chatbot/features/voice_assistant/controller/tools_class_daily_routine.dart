@@ -355,11 +355,13 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
       var workIdx = 0;
 
       void packWorkUntil(DateTime limit) {
-        // GAP RULE:
-        //  - gap < 20 min  → BREAK only (never 2/8-min study).
-        //  - gap >= 20 min → 50-min STUDY sessions.
-        // STUDY RULE (fixed): every study session gets a 10-min Break after it —
-        // unless the next block is meal / nap / class / freshen (those cover the break).
+        // GAP RULE (prefer study, then recall, then break):
+        //  - gap >= 20 min → STUDY session (maximize study; not Active Recall).
+        //  - gap  > 10 min → ACTIVE RECALL filling that gap.
+        //  - gap <= 10 min → single BREAK (adjacent breaks merge).
+        // STUDY RULE: 10-min break after every study — SKIP if the next block
+        // is meal / nap / class / freshen (that block covers the break).
+        // MERGE RULE: never "Break 10" then "Break 6" — one Break 16.
 
         bool coversBreak(String t) =>
             t == 'meal' || t == 'nap' || t == 'class' || t == 'freshen_up';
@@ -395,6 +397,20 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
 
         void addBreak(int minutes) {
           if (minutes <= 0) return;
+          // MERGE RULE: never stack Break 10 then Break 6 — one Break 16.
+          if (clamped.isNotEmpty && clamped.last.type == 'break') {
+            final last = clamped.removeLast();
+            clamped.add(DailyRoutineItem(
+              time: last.time,
+              subject: 'Break',
+              topic: '',
+              type: 'break',
+              durationMinutes: last.durationMinutes + minutes,
+              notes: last.notes,
+            ));
+            cursor = cursor.add(Duration(minutes: minutes));
+            return;
+          }
           clamped.add(DailyRoutineItem(
             time: fmt(cursor),
             subject: 'Break',
@@ -402,6 +418,19 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
             type: 'break',
             durationMinutes: minutes,
             notes: RoutineBreakTaglines.unique(),
+          ));
+          cursor = cursor.add(Duration(minutes: minutes));
+        }
+
+        void addRecall(int minutes) {
+          if (minutes <= 0) return;
+          clamped.add(DailyRoutineItem(
+            time: fmt(cursor),
+            subject: 'Active Recall',
+            topic: '',
+            type: 'recall',
+            durationMinutes: minutes,
+            notes: 'Active recall strengthens memory',
           ));
           cursor = cursor.add(Duration(minutes: minutes));
         }
@@ -419,23 +448,42 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
           cursor = cursor.add(Duration(minutes: minutes));
         }
 
+        /// True when the next fixed block (meal/nap/class/freshen) covers the
+        /// break — NEVER place a Break right before Breakfast/Lunch/Snack/Dinner.
+        bool nextFixedCoversBreak() {
+          for (final b in anchored) {
+            final st = parseStart(b.time);
+            if (st.isAfter(cursor) || st.isAtSameMomentAs(cursor)) {
+              return coversBreak(b.type);
+            }
+          }
+          return false;
+        }
+
+        /// Gap fill: >= 20 → STUDY; > 10 → Active Recall; ≤ 10 → Break.
+        /// Never a Break when a meal/class is next (it already covers the break).
+        void fillGapMinutes(int gapMin) {
+          if (gapMin <= 0) return;
+          if (gapMin >= 20) {
+            addStudy(studyFallbackSubject, studyFallbackTopic, gapMin, 'study');
+          } else if (gapMin > 10) {
+            addRecall(gapMin);
+          } else if (!nextFixedCoversBreak()) {
+            addBreak(gapMin);
+          }
+          // else: leave the short gap open — meal/class is about to start.
+        }
+
         bool isStudyType(String t) => t == 'study' || t == 'first_read';
 
         void maybeBreakAfterStudy() {
-          // 10-min break after EVERY study. Skip ONLY if the IMMEDIATE next
-          // block is meal/nap/class/freshen (that block covers the break).
+          // 10-min break after EVERY study. Skip if the next block is
+          // meal/nap/class/freshen (Breakfast/Lunch/Snack/Dinner covers the break).
+          if (nextFixedCoversBreak()) return;
           if (workIdx < work.length) {
             if (coversBreak(work[workIdx].type)) return;
             addBreak(10);
             return;
-          }
-          for (final b in anchored) {
-            final st = parseStart(b.time);
-            if (st.isAfter(cursor) || st.isAtSameMomentAs(cursor)) {
-              final immediate = st.difference(cursor).inMinutes <= 1;
-              if (immediate && coversBreak(b.type)) return;
-              break;
-            }
           }
           final toEnd = dayEnd.difference(cursor).inMinutes;
           if (toEnd >= 10) {
@@ -445,7 +493,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
           }
         }
 
-        // 1) Queued work — study is NEVER split into 2/8-minute slices.
+        // 1) Queued work — study is NEVER split into tiny slices.
         while (workIdx < work.length) {
           final it = work[workIdx];
           final remaining = it.durationMinutes;
@@ -453,49 +501,60 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
             workIdx++;
             continue;
           }
+          // Queued Breaks are policy noise — packing inserts breaks itself
+          // (and skips them when meal/nap/class/freshen covers the break).
+          if (it.type == 'break') {
+            workIdx++;
+            continue;
+          }
           final gapMin = limit.difference(cursor).inMinutes;
+          if (gapMin <= 0) break;
 
           if (isStudyType(it.type)) {
-            if (gapMin < 20) {
-              addBreak(gapMin);
+            // Only place a study when it fits the gap; otherwise fill per rules.
+            if (remaining > gapMin) {
+              fillGapMinutes(gapMin);
               break;
             }
             addStudy(it.subject, it.topic, remaining, it.type);
             workIdx++;
-            // Mandatory 10-min break after this study (policy may already
-            // have queued one — skip if the next work item IS a break).
-            final nextIsBreak = workIdx < work.length &&
-                work[workIdx].type == 'break';
-            if (!nextIsBreak) maybeBreakAfterStudy();
+            // Mandatory 10-min break after this study — skipped when
+            // meal/nap/class/freshen is next (covers the break).
+            maybeBreakAfterStudy();
             continue;
           }
 
           if (remaining <= gapMin) {
             addBlock(it, remaining);
             workIdx++;
-          } else if (gapMin < 20) {
-            addBreak(gapMin);
-            break;
           } else {
-            addBlock(it, remaining);
-            workIdx++;
+            fillGapMinutes(gapMin);
+            break;
           }
         }
 
-        // 2) Empty gap (no queued work) — same rules.
+        // 2) Empty gap (no queued work) — prefer STUDY over recall/break.
         while (cursor.isBefore(limit) && cursor.isBefore(dayEnd)) {
           final room = limit.difference(cursor).inMinutes;
-          if (room < 20) {
+          if (room <= 0) break;
+          if (room >= 50) {
+            addStudy(studyFallbackSubject, studyFallbackTopic, 50, 'study');
+            if (!cursor.isBefore(dayEnd)) break;
+            maybeBreakAfterStudy();
+            if (!cursor.isBefore(limit) || !cursor.isBefore(dayEnd)) break;
+          } else if (room >= 20) {
+            // Not enough for 50, but >= 20 → still a study session (maximize study).
+            addStudy(studyFallbackSubject, studyFallbackTopic, room, 'study');
+            break;
+          } else if (room > 10) {
+            addRecall(room);
+            break;
+          } else if (!nextFixedCoversBreak()) {
             addBreak(room);
             break;
+          } else {
+            break; // meal/class is next — no Break before it.
           }
-          final leftToEnd = dayEnd.difference(cursor).inMinutes;
-          final studyMin = 50 <= leftToEnd ? 50 : leftToEnd;
-          addStudy(studyFallbackSubject, studyFallbackTopic, studyMin, 'study');
-          if (!cursor.isBefore(dayEnd)) break;
-          // ALWAYS try the 10-min break after this study session.
-          maybeBreakAfterStudy();
-          if (!cursor.isBefore(limit) || !cursor.isBefore(dayEnd)) break;
         }
       }
 
@@ -595,6 +654,33 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         i++; // skip inserted break
       }
 
+      // HARD STRIP: never a Break immediately before meal/nap/class/freshen.
+      // Those blocks already cover the rest — fold any stray break into the
+      // previous study (or drop it).
+      for (var i = clamped.length - 2; i >= 0; i--) {
+        if (clamped[i].type != 'break') continue;
+        final next = clamped[i + 1];
+        final nextCovers = next.type == 'meal' ||
+            next.type == 'nap' ||
+            next.type == 'class' ||
+            next.type == 'freshen_up';
+        if (!nextCovers) continue;
+        final brk = clamped.removeAt(i);
+        if (i > 0 &&
+            (clamped[i - 1].type == 'study' ||
+                clamped[i - 1].type == 'first_read')) {
+          final prev = clamped[i - 1];
+          clamped[i - 1] = DailyRoutineItem(
+            time: prev.time,
+            subject: prev.subject,
+            topic: prev.topic,
+            type: prev.type,
+            durationMinutes: prev.durationMinutes + brk.durationMinutes,
+            notes: prev.notes,
+          );
+        }
+      }
+
       final routine = await _routineRepo.createDailyRoutine(
         date: date,
         items: clamped,
@@ -615,13 +701,12 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'starts_at': fmt(startOfWindow),
         'ends_at': '11:30 PM',
         'meals_included': mealBlocks.map((e) => e.subject).toList(),
-        'language_rule': 'Reply in EXACTLY ONE language — the language the user last used. Never two languages. Never translate after answering.',
-        'reply_style': 'SHORT_CONFIRMATION_ONLY',
-        'message': 'Daily routine saved (${clamped.length} blocks). '
-            'REPLY RULE: short success confirmation ONLY in the user\'s language '
-            '(e.g. "Your routine is ready" / "রুটিন বানানো হয়েছে"). '
-            'NEVER list or recite the routine/times. One short line only (e.g. "Your routine is ready" / "রুটিন বানানো হয়েছে"). UI shows the plan. '
-            'If the user later asks to see it, then you may summarize.',
+        'language_rule': 'Reply in EXACTLY ONE language — the user\'s last language.',
+        'reply_style': 'CONFIRM_WITH_FEEDBACK',
+        'message': 'Daily routine saved (${clamped.length} blocks) until 11:30 PM.',
+        'reply_rule': 'YOU MUST give feedback in the user\'s language. '
+            'Say the routine is ready and the block count (e.g. "Done — your routine is ready, ${clamped.length} blocks until 11:30 PM"). '
+            'Do NOT stay silent. Do NOT dump every time slot. One clear confirmation sentence.',
       }, params: args);
 
       // Schedule a local notification for every future block right away.
