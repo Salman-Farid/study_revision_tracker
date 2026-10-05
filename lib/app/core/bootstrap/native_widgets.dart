@@ -28,10 +28,14 @@ Future<void> initNativeWidgets() async {
 }
 
 /// Called once after the first frame: alarms, widgets, WorkManager.
-/// No-op on web.
 Future<void> postFrameBoot() async {
-  if (kIsWeb) return;
   if (Get.find<SupabaseService>().currentUser == null) return;
+  if (kIsWeb) {
+    // Arm in-tab timers for today's/tomorrow's routine blocks. Closed-tab
+    // delivery is done by the server cron + push edge function.
+    unawaited(Get.find<NotificationService>().rescheduleAll(force: true));
+    return;
+  }
   try {
     final granted =
         await Get.find<NotificationService>().requestExactAlarmPermission();

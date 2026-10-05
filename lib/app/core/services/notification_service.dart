@@ -47,6 +47,10 @@ class NotificationService extends GetxService {
   DateTime? _lastReschedule;
   bool _rescheduleRunning = false;
 
+  /// In-memory dedupe keys for blocks we already announced as "started"
+  /// while the user was away (web catch-up notification).
+  final Set<String> _shownCatchUpKeys = <String>{};
+
   static const _channelRevision = 'revision_channel';
   static const _channelRevisionName = 'Revision Reminders';
   static const _channelClass = 'class_channel';
@@ -71,6 +75,12 @@ class NotificationService extends GetxService {
     if (kIsWeb) {
       // Web: Web Push + in-tab Notification API (works on any device/browser).
       _initialized = true;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+      } catch (e) {
+        debugPrint('[NotificationService] web pref load failed: $e');
+      }
       try {
         if (!Get.isRegistered<WebPushService>()) {
           await Get.putAsync(() async => await WebPushService().init());
@@ -165,13 +175,26 @@ class NotificationService extends GetxService {
   Future<void> refreshNotificationPreference() async {
     final prefs = await SharedPreferences.getInstance();
     final newValue = prefs.getBool('notifications_enabled') ?? true;
-    if (newValue != _notificationsEnabled) {
-      _notificationsEnabled = newValue;
-      if (!newValue) {
-        await cancelAll();
-      } else {
-        await rescheduleAll();
+    final changed = newValue != _notificationsEnabled;
+    _notificationsEnabled = newValue;
+
+    if (!newValue) {
+      await cancelAll();
+      return;
+    }
+
+    if (kIsWeb) {
+      // Enabling must run inside a user gesture so the browser will show
+      // the permission prompt at all.
+      if (Get.isRegistered<WebPushService>()) {
+        await WebPushService.to.requestPermissionAndSubscribe();
       }
+      await rescheduleAll(force: true);
+      return;
+    }
+
+    if (changed) {
+      await rescheduleAll();
     }
   }
 

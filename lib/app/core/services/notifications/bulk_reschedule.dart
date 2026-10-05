@@ -6,8 +6,11 @@ extension NotificationBulkReschedule on NotificationService {
   /// [force] skips the long debounce when the user just changed data
   /// (complete revision, create class/daily routine, first-read).
   Future<void> rescheduleAll({bool force = false}) async {
-    if (kIsWeb) return;
     if (!_notificationsEnabled) return;
+    if (kIsWeb) {
+      await _rescheduleWebBlocks(force: force);
+      return;
+    }
     if (_rescheduleRunning) return;
     final now = DateTime.now();
     if (!force &&
@@ -204,7 +207,111 @@ extension NotificationBulkReschedule on NotificationService {
   }
 
   Future<void> cancelAll() async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      if (Get.isRegistered<WebPushService>()) {
+        WebPushService.to.resetTimers();
+      }
+      return;
+    }
     await _plugin.cancelAll();
+  }
+
+  // ── Web path ───────────────────────────────────────────────────────────
+
+  /// Rebuild the in-tab timers for every daily-routine block in the next
+  /// 7 days. Closed-tab delivery is handled entirely by the server cron +
+  /// `send-web-push` edge function, so this only arms local timers.
+  Future<void> _rescheduleWebBlocks({required bool force}) async {
+    if (!Get.isRegistered<WebPushService>()) return;
+    final now = DateTime.now();
+    if (!force &&
+        _lastReschedule != null &&
+        now.difference(_lastReschedule!).inSeconds < 30) {
+      return;
+    }
+    _lastReschedule = now;
+
+    final service = WebPushService.to;
+    await service.ensureReady();
+    service.resetTimers();
+
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) return;
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+      final routines =
+          await _fetchActiveDailyRoutines(client, user.id, todayStart);
+
+      int total = 0;
+      for (final routine in routines) {
+        try {
+          final d = routine.date;
+          total += service.scheduleDailyRoutineBlocks(
+            routineId: routine.id,
+            date: DateTime(d.year, d.month, d.day),
+            items: routine.items
+                .map((e) => {
+                      'time': e.time,
+                      'subject': e.subject,
+                      'topic': e.topic,
+                      'type': e.type,
+                      'duration_minutes': e.durationMinutes,
+                    })
+                .toList(),
+            cancelExisting: false,
+          );
+        } catch (e) {
+          debugPrint('[NotificationService] web routine ${routine.id} failed: $e');
+        }
+      }
+
+      debugPrint('[NotificationService] web reschedule force=$force: '
+          '${routines.length} routines, $total timers armed');
+
+      await _showWebCatchUp(routines, todayStart);
+    } catch (e) {
+      debugPrint('[NotificationService] web reschedule error: $e');
+    }
+  }
+
+  /// A block that started while the tab was closed should still surface
+  /// once the app loads (within a 10-minute grace window).
+  Future<void> _showWebCatchUp(
+    List<DailyRoutineModel> routines,
+    DateTime todayStart,
+  ) async {
+    if (!Get.isRegistered<WebPushService>()) return;
+    final service = WebPushService.to;
+    final now = DateTime.now();
+    final dayKey = todayStart.toIso8601String().substring(0, 10);
+
+    for (final routine in routines) {
+      final d = routine.date;
+      if (!isSameCalendarDay(DateTime(d.year, d.month, d.day), todayStart)) {
+        continue;
+      }
+      for (var i = 0; i < routine.items.length; i++) {
+        final item = routine.items[i];
+        final hm = parseClock(item.time);
+        if (hm == null) continue;
+        final start =
+            DateTime(todayStart.year, todayStart.month, todayStart.day, hm[0], hm[1]);
+        final late = now.difference(start);
+        if (late.isNegative || late.inMinutes > 10) continue;
+        final key = '${routine.id}:$dayKey:$i';
+        if (!_shownCatchUpKeys.add(key)) continue;
+        final label = item.subject.isNotEmpty
+            ? item.subject
+            : (item.type.isNotEmpty ? item.type : 'Study');
+        final topic = item.topic.isEmpty ? '' : ': ${item.topic}';
+        service.showNow(
+          '📋 $label$topic',
+          'Started ${late.inMinutes} min ago — ${item.durationMinutes} min block',
+          tag: key,
+        );
+      }
+    }
   }
 }

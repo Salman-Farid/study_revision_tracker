@@ -20,33 +20,103 @@ class WebPushService extends GetxService {
 
   final List<Timer> _timers = [];
   bool _ready = false;
+  Future<WebPushService>? _initFuture;
+  bool _authHooked = false;
 
-  Future<WebPushService> init() async {
-    if (!kIsWeb) return this;
+  /// Number of armed in-tab block timers.
+  int get pendingTimerCount => _timers.length;
+
+  /// Whether boot has finished (permission prompt included).
+  bool get isReady => _ready;
+
+  /// Boot exactly once. Returns immediately for callers that just need the
+  /// service to exist; use [ensureReady] when the result matters.
+  Future<WebPushService> init() => _initFuture ??= _doInit();
+
+  Future<WebPushService> _doInit() async {
+    if (!kIsWeb) {
+      _ready = true;
+      return this;
+    }
+    _hookAuth();
     try {
-      final perm = await requestNotifPermission();
+      final perm = await requestNotifPermission()
+          .timeout(const Duration(seconds: 8), onTimeout: () => 'default');
       debugPrint('[WebPush] permission=$perm');
       if (perm == 'granted') {
         await _subscribeAndSave();
       }
     } catch (e) {
       debugPrint('[WebPush] init failed: $e');
+    } finally {
+      _ready = true;
     }
-    _ready = true;
     return this;
   }
 
-  Future<void> _subscribeAndSave() async {
+  /// Await boot without re-entering it. Safe to call from anywhere.
+  Future<void> ensureReady() async {
+    if (!kIsWeb) return;
+    try {
+      await init();
+    } catch (e) {
+      debugPrint('[WebPush] ensureReady failed: $e');
+    }
+  }
+
+  void _hookAuth() {
+    if (_authHooked) return;
+    _authHooked = true;
+    try {
+      Supabase.instance.client.auth.onAuthStateChange.listen((state) {
+        if (state.event == AuthChangeEvent.signedIn ||
+            state.event == AuthChangeEvent.tokenRefreshed) {
+          unawaited(_afterAuth());
+        }
+      });
+    } catch (e) {
+      debugPrint('[WebPush] auth hook failed: $e');
+    }
+  }
+
+  Future<void> _afterAuth() async {
+    try {
+      final perm = await requestNotifPermission();
+      if (perm == 'granted') await _subscribeAndSave();
+    } catch (e) {
+      debugPrint('[WebPush] post-auth subscribe failed: $e');
+    }
+  }
+
+  /// Ask for permission (must run from a user gesture) and subscribe.
+  /// Returns true when a subscription row was written.
+  Future<bool> requestPermissionAndSubscribe() async {
+    if (!kIsWeb) return false;
+    try {
+      final perm = await requestNotifPermission();
+      debugPrint('[WebPush] permission=$perm');
+      if (perm != 'granted') return false;
+      final ok = await _subscribeAndSave();
+      _ready = true;
+      return ok;
+    } catch (e) {
+      debugPrint('[WebPush] subscribe failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _subscribeAndSave() async {
     final client = Supabase.instance.client;
     final uid = client.auth.currentUser?.id;
-    if (uid == null) return;
+    if (uid == null) return false;
     final sub = await subscribeWebPush();
-    if (sub == null) return;
+    if (sub == null) return false;
     final endpoint = sub['endpoint'] as String? ?? '';
     final p256dh = sub['p256dh'] as String? ?? '';
     final auth = sub['auth'] as String? ?? '';
-    final tzOff = (sub['timezone_offset_minutes'] as num?)?.toInt() ?? deviceTimezoneOffsetMinutes();
-    if (endpoint.isEmpty || p256dh.isEmpty || auth.isEmpty) return;
+    final tzOff =
+        (sub['timezone_offset_minutes'] as num?)?.toInt() ?? deviceTimezoneOffsetMinutes();
+    if (endpoint.isEmpty || p256dh.isEmpty || auth.isEmpty) return false;
     await client.from('push_subscriptions').upsert({
       'user_id': uid,
       'endpoint': endpoint,
@@ -55,16 +125,21 @@ class WebPushService extends GetxService {
       'timezone_offset_minutes': tzOff,
     }, onConflict: 'endpoint');
     debugPrint('[WebPush] subscription saved offset=$tzOff');
+    return true;
   }
 
   /// Schedule in-tab Notification + rely on edge Web Push for closed tab.
+  ///
+  /// Pass `cancelExisting: false` when batching several routines so each
+  /// call adds to the same timer list instead of wiping it.
   int scheduleDailyRoutineBlocks({
     required String routineId,
     required DateTime date,
     required List<Map<String, dynamic>> items,
+    bool cancelExisting = true,
   }) {
-    if (!kIsWeb || !_ready) return 0;
-    _cancelTimers();
+    if (!kIsWeb) return 0;
+    if (cancelExisting) _cancelTimers();
     final now = DateTime.now();
     int n = 0;
     final dayKey = date.toIso8601String().substring(0, 10);
@@ -94,6 +169,16 @@ class WebPushService extends GetxService {
       n++;
     }
     return n;
+  }
+
+  /// Drop every armed in-tab timer (disable toggle / full rebuild).
+  void resetTimers() => _cancelTimers();
+
+  /// Fire a notification immediately (web catch-up / "block started now").
+  /// No-op on non-web platforms.
+  void showNow(String title, String body, {String tag = 'routine'}) {
+    if (!kIsWeb) return;
+    showLocalNotification(title, body, tag: tag);
   }
 
   void _cancelTimers() {

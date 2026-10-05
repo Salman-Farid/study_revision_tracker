@@ -14,36 +14,23 @@ extension NotificationDailySchedule on NotificationService {
       return 0;
     }
 
+    if (kIsWeb) {
+      // Web has no per-alarm scheduler: rebuild every in-tab timer from
+      // the DB so routines created/edited via the voice tool, settings or
+      // realtime sync all converge on the same state.
+      // Must run BEFORE any tz.* call — timezones are never initialised on web.
+      await rescheduleAll(force: true);
+      final n =
+          Get.isRegistered<WebPushService>() ? WebPushService.to.pendingTimerCount : 0;
+      debugPrint('[WebPush] rebuild complete, $n timers armed');
+      return n;
+    }
+
     final now = tz.TZDateTime.now(tz.local);
     // Normalize the routine's calendar day in LOCAL time (date-only DB
     // strings parse as UTC midnight and would shift the day).
     final rawDate = routine.date;
     final baseDate = DateTime(rawDate.year, rawDate.month, rawDate.day);
-
-    if (kIsWeb) {
-      try {
-        if (Get.isRegistered<WebPushService>()) {
-          final n = WebPushService.to.scheduleDailyRoutineBlocks(
-            routineId: routine.id,
-            date: baseDate,
-            items: routine.items
-                .map((e) => {
-                      'time': e.time,
-                      'subject': e.subject,
-                      'topic': e.topic,
-                      'type': e.type,
-                      'duration_minutes': e.durationMinutes,
-                    })
-                .toList(),
-          );
-          debugPrint('[WebPush] scheduled $n local block reminders');
-          return n;
-        }
-      } catch (e) {
-        debugPrint('[WebPush] schedule failed: $e');
-      }
-      return 0;
-    }
 
     int scheduled = 0;
     for (int d = 0; d < daysAhead; d++) {
@@ -113,6 +100,10 @@ extension NotificationDailySchedule on NotificationService {
   }
 
   Future<void> cancelDailyRoutine(String routineId, {int daysAhead = 30}) async {
+    if (kIsWeb) {
+      await rescheduleAll(force: true);
+      return;
+    }
     final now = tz.TZDateTime.now(tz.local);
     final today = DateTime(now.year, now.month, now.day);
     for (int d = 0; d < daysAhead; d++) {

@@ -13,6 +13,9 @@ extension NotificationRevisionSchedule on NotificationService {
   }) async {
     if (!_notificationsEnabled) return;
     if (schedule.status != 'pending') return;
+    // No local alarm scheduler on web — closed-tab delivery comes from the
+    // server cron + push edge function.
+    if (kIsWeb) return;
 
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDay = schedule.scheduledDate;

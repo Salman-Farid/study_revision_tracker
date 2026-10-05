@@ -10,6 +10,9 @@ extension NotificationClassSchedule on NotificationService {
     int daysAhead = 14,
   }) async {
     if (!_notificationsEnabled) return;
+    // No local alarm scheduler on web — closed-tab delivery comes from the
+    // server cron + push edge function.
+    if (kIsWeb) return;
 
     final now = tz.TZDateTime.now(tz.local);
     final today = DateTime(now.year, now.month, now.day);

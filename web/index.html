@@ -205,7 +205,10 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('notification-sw.js').catch(function () {});
+        // Own scope: never register the push worker at the site root, or
+        // Flutter's flutter_service_worker.js will unregister it and the
+        // browser will silently drop the push subscription.
+        navigator.serviceWorker.register('/push/sw.js').catch(function () {});
       });
     }
   </script>

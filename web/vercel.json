@@ -5,6 +5,6 @@
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/delete-account", "destination": "/delete-account.html" },
     { "source": "/delete-account.html", "destination": "/delete-account.html" },
-    { "source": "/((?!api/|assets/|icons/|canvaskit/|flutter_bootstrap\\.js|flutter\\.js|flutter_service_worker\\.js|main\\.dart\\.js|manifest\\.json|favicon\\.png|privacy\\.html|delete-account\\.html|version\\.json).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|icons/|push/|canvaskit/|flutter_bootstrap\\.js|flutter\\.js|flutter_service_worker\\.js|main\\.dart\\.js|manifest\\.json|favicon\\.png|privacy\\.html|delete-account\\.html|version\\.json).*)", "destination": "/index.html" }
   ]
 }

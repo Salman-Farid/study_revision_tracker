@@ -137,14 +137,10 @@ class SettingsController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_notifKey, value);
     } catch (_) {}
-    // Reschedule or cancel all notifications
+    // Reschedule or cancel all notifications (also requests web permission
+    // inside this user gesture, which browsers require).
     try {
-      final notif = Get.find<NotificationService>();
-      if (value) {
-        notif.rescheduleAll();
-      } else {
-        notif.cancelAll();
-      }
+      await Get.find<NotificationService>().refreshNotificationPreference();
     } catch (_) {}
   }
 

@@ -48,3 +48,15 @@ app.*.map.json
 /android/key.properties
 *.jks
 *.keystore
+
+# Supabase CLI local temp state
+supabase/.temp/
+
+# Generated / promo / debug artifacts (not app source)
+/generated-*.png
+/debug-*.png
+/pootu-*.png
+/promo-*
+/brag-output-*/
+/pootustudycompanion/
+/.playwright-mcp/

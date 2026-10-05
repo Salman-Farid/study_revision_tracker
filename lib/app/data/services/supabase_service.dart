@@ -104,6 +104,10 @@ class SupabaseService extends GetxService {
         callback: (_) => _refreshDailyRoutines(),
       )
       ..subscribe();
+
+    // First arm after login / cold start: realtime only fires on *changes*,
+    // so nothing would be scheduled until the user edits something.
+    _debouncedNotificationUpdate(force: true);
   }
 
   Future<void> _refreshSubjects() async {
