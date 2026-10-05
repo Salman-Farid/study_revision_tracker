@@ -4,7 +4,7 @@ class GeminiConfig {
   // Replace with your actual Gemini API key
   static const String apiKey = String.fromEnvironment(
     'GEMINI_API_KEY',
-    defaultValue: 'AQ.Ab8RN6Lr3Or3Nj3e0t5PpXsYvtuSgJxY4fr6_rTeW3J3ASSCLA',
+    defaultValue: 'AQ.Ab8RN6JGHXx2rGlPBqDdfiC9BQsEWu0s7o9AFXZOWD6LuGQcDg',
   );
 
   static const String model = 'gemini-3.1-flash-live-preview';

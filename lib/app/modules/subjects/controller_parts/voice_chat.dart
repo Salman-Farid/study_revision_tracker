@@ -1,38 +1,7 @@
 part of '../subjects_controller.dart';
 
-/// Voice chat, Gemini Live, and Study Assistant dialogue.
+/// Gemini Live voice assistant entry points.
 extension SubjectsVoiceChat on SubjectsController {
-  Future<void> toggleChat() async {
-    showChat.value = !showChat.value;
-    if (showChat.value) chatMessages.add({'t': 'subjectNamesHint'.tr, 'u': false});
-  }
-
-  Future<void> startListening() async {
-    final ok = await _stt.initialize();
-    if (!ok) { Get.snackbar('error'.tr, 'error'.tr); return; }
-    isListening.value = true;
-    await _stt.listen(onResult: (r) { if (r.finalResult) _onVoice(r.recognizedWords); },
-      localeId: 'bn_BD', listenFor: const Duration(seconds: 30), pauseFor: const Duration(seconds: 3));
-  }
-
-  Future<void> stopListening() async { await _stt.stop(); isListening.value = false; }
-
-  Future<void> _onVoice(String text) async {
-    isListening.value = false;
-    chatMessages.add({'t': text, 'u': true});
-    final r = await _gemini.processHomeCommand(text);
-    if (r['action'] == 'create_subjects') {
-      final list = r['subjects'] as List? ?? [];
-      chatMessages.add({'t': r['confirmation'] ?? 'Creating ${list.length} subjects...', 'u': false});
-      for (final s in list) {
-        final n = s['name'] as String? ?? '';
-        if (n.isNotEmpty) await createSubject(name: n, colorHex: s['color'] as String?);
-      }
-    } else {
-      chatMessages.add({'t': r['question'] ?? 'Could not understand. Try again.', 'u': false});
-    }
-  }
-
   /// Navigate to Gemini Live voice assistant
   void openVoiceAssistant() {
     try {

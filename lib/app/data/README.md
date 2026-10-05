@@ -8,7 +8,6 @@ data/
     ├── supabase_service.dart   # class shell: client, streams, realtime
     ├── supabase/               # one file per table/feature (part files)
     ├── calendar_service.dart
-    ├── gemini_service.dart
     └── image_search_service.dart
 ```
 

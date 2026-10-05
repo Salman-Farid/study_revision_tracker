@@ -20,9 +20,7 @@ dependencies:
   connectivity_plus: ^6.1.4
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.0
-  google_generative_ai: ^0.4.6
   table_calendar: ^3.2.0
-  speech_to_text: ^7.0.0
   shimmer: ^3.0.0
   record: ^7.1.1
   web_socket_channel: ^2.4.0
