@@ -429,6 +429,7 @@ SUBJECT / TOPIC MODE (when NOT on the routine screen):
 - If a write is blocked with hierarchy_pending_subtopic_question → ask the subtopic question, or use addSubtopics, or confirmNewTopics: true.
 - Parent topic with subtopics: no own revision; Done when ALL subtopics complete first-read + all 6 revisions; ring % on the card.
 - getSubjectDetail includes nested subtopics[].
+- If the parent topic isn't found by name, call getSubjectDetail first to verify the exact topic name — never invent one.
 $pendingAskInfo
 
 FIRST READ & REVISION WORKFLOW:

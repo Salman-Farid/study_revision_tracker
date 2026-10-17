@@ -6,7 +6,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
   return [
     {
       'name': 'getAllData',
-      'description': 'Get a compact SUMMARY of all subjects: name, topic count, pending revision count. Call this first for "what subjects/how many/overview" questions. For topic-level detail of ONE subject, call getSubjectDetail instead.',
+      'description': 'Compact summary of all subjects: name, topic counts, pending revisions, today\'s classes, revisions due today, and today\'s daily routine. Call first for overview questions; use getSubjectDetail for one subject\'s full topic list.',
       'parameters': {
         'type': 'object',
         'properties': {},
@@ -25,7 +25,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addSubjectsBulk',
-      'description': 'Add one or more subjects, each optionally with topics (and optional nested SUBTOPICS under a topic), in ONE call. Use for ANY subject-add request. topics[] entries may be strings OR objects {name, subtopics:[...]}. HIERARCHY: Subject → Topic → Subtopic. A subtopic is NEVER a subject-level topic. After topics are created you MUST ask the user if they want subtopics under them (unless already provided in the same call). If blocked for hierarchy, ask the subtopic question or retry with confirmNewTopics: true only when the user wants new subject-level topics. Topics stay in first read until markFirstReadCompleted.',
+      'description': 'Add one or more subjects, each optionally with topics and nested subtopics, in ONE call. Use for any subject-add request. topics[] entries may be strings or {"name":"...","subtopics":[...]} objects.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -39,15 +39,15 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
                 'topics': {
                   'type': 'array',
                   'description':
-                      'Topic names as strings, or objects {"name": "...", "subtopics": ["...", "..."]} when the user already listed subtopics UNDER a topic.',
+                      'Topic names as strings, or {"name":"...","subtopics":["..."]} objects.',
                   'items': {
                     'type': 'object',
                     'properties': {
-                      'name': {'type': 'string', 'description': 'TOP-LEVEL topic name under this subject'},
+                      'name': {'type': 'string', 'description': 'Topic name'},
                       'subtopics': {
                         'type': 'array',
                         'items': {'type': 'string'},
-                        'description': 'SUBTOPIC names UNDER this topic — not under the subject',
+                        'description': 'Subtopic names under this topic',
                       },
                     },
                     'required': ['name'],
@@ -56,7 +56,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
                 'color': {'type': 'string', 'description': 'Optional hex color code like #87CEEB'},
                 'confirmNewTopics': {
                   'type': 'boolean',
-                  'description': 'Set true ONLY when the user confirmed they want NEW subject-level topics while a subtopic question is still pending',
+                  'description': 'Escape hatch: true only when the user confirmed new subject-level topics despite a pending subtopic question.',
                 },
               },
               'required': ['name'],
@@ -64,7 +64,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
           },
           'confirmNewTopics': {
             'type': 'boolean',
-            'description': 'Top-level escape hatch: true only after the user wants new subject-level topics despite a pending "want subtopics?" question',
+            'description': 'Escape hatch: true only when the user confirmed new subject-level topics despite a pending subtopic question.',
           },
         },
         'required': ['subjects'],
@@ -72,7 +72,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addSubject',
-      'description': 'Add a new study subject with NO topics yet. Use only when the user wants just the subject, not topics too — for subject+topics together use addSubjectsBulk instead.',
+      'description': 'Add a new subject with no topics yet. For subject+topics together, use addSubjectsBulk.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -84,19 +84,19 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addTopic',
-      'description': 'Creates ONE topic. WITHOUT parentTopicName → TOP-LEVEL topic under a SUBJECT. WITH parentTopicName → SUBTOPIC under that existing TOPIC (preferred path is still addSubtopics for multiple names). HIERARCHY: Subject → Topic → Subtopic. After EVERY successful TOP-LEVEL addTopic you MUST ask (ONE language): "Do you want any subtopics under <topic>?" then WAIT. Never skip. If user asked for subtopics under an existing topic → addSubtopics (or parentTopicName here) — never a subject-level topic. If the call is blocked as hierarchy_pending_subtopic_question, ask that question first or use confirmNewTopics: true only for genuine new topics. Parent with children is Done only when ALL subtopics finish first-read + all 6 revisions.',
+      'description': 'Create ONE topic under a subject — or, with parentTopicName set, ONE subtopic under an existing topic. For multiple subtopics use addSubtopics.',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject name (optional if contextSubject is provided)'},
-          'name': {'type': 'string', 'description': 'Topic name, or subtopic name when parentTopicName is set'},
+          'name': {'type': 'string', 'description': 'Topic name (or subtopic name when parentTopicName is set)'},
           'parentTopicName': {
             'type': 'string',
-            'description': 'EXISTING parent TOPIC name — when set, creates a SUBTOPIC under that topic, NOT a subject-level topic',
+            'description': 'Existing parent topic name — creates a subtopic under it, not a subject-level topic.',
           },
           'confirmNewTopics': {
             'type': 'boolean',
-            'description': 'true ONLY when the user confirmed a new subject-level topic while a subtopic question is pending',
+            'description': 'Escape hatch: true only when the user confirmed new subject-level topics despite a pending subtopic question.',
           },
         },
         'required': ['name'],
@@ -104,16 +104,16 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addSubtopics',
-      'description': 'THE tool for subtopics. MUST USE when user wants subtopics UNDER a topic (e.g. "AI er niche subtopic add koro", "add subtopics under Artificial Intelligence", "topic er bhitore subtopic", "X under Y"). Creates children UNDER one existing TOPIC — NOT subject-level topics. Subtopic ≠ Topic. topicName is the PARENT topic; names are user-provided subtopic names only. If topic missing, call getSubjectDetail — never fall back to addTopic/addMultipleTopics for those names. Parent stays first-read until all subtopics complete the full revision process. After success confirm in ONE language; ask once if more subtopics are wanted under that parent.',
+      'description': 'Create subtopics under ONE existing topic. topicName is the parent topic; names are the user-provided subtopic names.',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject that owns the parent topic'},
-          'topicName': {'type': 'string', 'description': 'EXISTING parent TOPIC name — subtopics go under THIS topic'},
+          'topicName': {'type': 'string', 'description': 'Existing parent topic name'},
           'names': {
             'type': 'array',
             'items': {'type': 'string'},
-            'description': 'Subtopic names the user listed (must be user-provided)',
+            'description': 'Subtopic names from the user',
           },
         },
         'required': ['subjectName', 'topicName', 'names'],
@@ -121,7 +121,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'addMultipleTopics',
-      'description': 'Multiple TOPICS under a SUBJECT. topics[] may include nested subtopics as {name, subtopics:[...]}. If the user said subtopics under a topic, call addSubtopics (or set parentTopicName) — do NOT create subject-level topics for those names. After successful top-level creates you MUST ask "Do you want any subtopics under <names>?" and WAIT. Blocked hierarchy_pending_subtopic_question → ask first, or confirmNewTopics: true only for genuine new topics.',
+      'description': 'Create multiple top-level topics under a subject. topics[] may be strings or {"name":"...","subtopics":[...]} objects.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -129,15 +129,15 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
           'topics': {
             'type': 'array',
             'description':
-                'Topic names as strings, or objects {"name":"...","subtopics":["..."]} when subtopics under a topic are already known',
+                'Topic names as strings, or {"name":"...","subtopics":[...]} objects.',
             'items': {
               'type': 'object',
               'properties': {
-                'name': {'type': 'string', 'description': 'TOP-LEVEL topic name'},
+                'name': {'type': 'string', 'description': 'Topic name'},
                 'subtopics': {
                   'type': 'array',
                   'items': {'type': 'string'},
-                  'description': 'SUBTOPICS under this topic — not under the subject',
+                  'description': 'Subtopics under this topic',
                 },
               },
               'required': ['name'],
@@ -145,11 +145,11 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
           },
           'parentTopicName': {
             'type': 'string',
-            'description': 'If set, these names are SUBTOPICS under this existing topic — routed to addSubtopics',
+            'description': 'If set, names become subtopics under this topic (routed to addSubtopics).',
           },
           'confirmNewTopics': {
             'type': 'boolean',
-            'description': 'true ONLY when user confirmed new subject-level topics while a subtopic question is pending',
+            'description': 'Escape hatch: true only when the user confirmed new subject-level topics despite a pending subtopic question.',
           },
         },
         'required': ['subjectName', 'topics'],
@@ -235,13 +235,13 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerClassRoutine',
-      'description': 'Register a class routine / timetable entry. Use when user says "I have class", "add my class schedule", "my class is at...", "I have a lecture in room...", or wants to set up their class timetable. Location is optional — user can say it however they want like "UB43A" or "UB20A 3rd floor room 301". If they give a single word like "UB43A", use the "location" field. Do NOT ask separately for building/floor/room.',
+      'description': 'Register a class routine / timetable entry. Location is optional — pass it as one string in "location" (e.g. "UB43A"); do not ask separately for building/floor/room.',
       'parameters': {
         'type': 'object',
         'properties': {
           'subjectName': {'type': 'string', 'description': 'Subject name for the class'},
           'startTime': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "09:00" or "14:30"'},
-          'endTime': {'type': 'string', 'description': 'End time in HH:MM 24h format. Auto-calculate if user gives duration (e.g. 9:00 + 1.5h = 10:30).'},
+          'endTime': {'type': 'string', 'description': 'End time HH:mm 24h. Auto-calculate from duration if the user gives one (e.g. 9:00 + 1.5h = 10:30).'},
           'durationMinutes': {'type': 'integer', 'description': 'Duration of the class in minutes, e.g. 60, 90, 120'},
           'dates': {
             'type': 'array',
@@ -251,10 +251,10 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
           'recurringDays': {
             'type': 'array',
             'items': {'type': 'integer'},
-            'description': 'Recurring days of week (1=Mon...7=Sun). Use this OR dates, not both. e.g. [1,3,5] for Mon/Wed/Fri.',
+            'description': 'Days of week (1=Mon..7=Sun). Use this OR dates, not both.',
           },
-          'location': {'type': 'string', 'description': 'Location as a single string, e.g. "UB43A", "UB20A 3rd floor room 301", "Science Block". Use this instead of separate building/floor/room when user gives a single location string.'},
-          'building': {'type': 'string', 'description': 'Building name/code (optional). Use "location" field instead if user gives a single string.'},
+          'location': {'type': 'string', 'description': 'Single location string, e.g. "UB43A". Prefer this over building/floor/room.'},
+          'building': {'type': 'string', 'description': 'Optional. Prefer "location" when the user gives a single string.'},
           'floor': {'type': 'string', 'description': 'Floor number (optional).'},
           'room': {'type': 'string', 'description': 'Room number (optional).'},
           'notes': {'type': 'string', 'description': 'Optional notes about the class'},
@@ -264,22 +264,22 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine. WINDOW: ALWAYS from the EXACT create minute (7:20 → starts 7:20, never 8:00) until EXACTLY 23:30. HARD END: last block MUST end at 23:30 (11:30 PM) — app extends the last block so the day always finishes then. Freshen Up 30 min is auto-inserted at the start when create time is before 8:00 AM — do not send it yourself. NEVER invent subjects (e.g. "Study Gap Filler") — only real subjects from getAllData; empty gaps are filled by the app. REVISIONS: only if revisions_due_today has items — ALL of them, 30 min, at the BEGINNING. NEVER type review. After revisions: study 50 on user topics. BREAK RULE: after EACH study add break 10 ONLY if next block is not meal/nap/class; no daily break cap; never break without study; NEVER break before meal/class (meal covers it). GAPS filled by the app: >= 20 min → STUDY; > 10 min → Active Recall; ≤ 10 min → Break; adjacent breaks merged. Maximize study. question_practice MAX 1/day 50 min. MEALS: do NOT invent times — app inserts fixed 20-min slots (Breakfast 8:00, Lunch 13:30, Snack 17:00, Dinner 20:00) when still upcoming. JSON time=HH:mm. AFTER SUCCESS: YOU MUST reply with one clear confirmation in the user language (e.g. "Done - your routine is ready, N blocks") - NEVER stay silent. Do NOT list every time slot. Classes from class_routines_today MUST be included at their times.',
+      'description': 'Register a daily study routine for a date. Pass ordered work blocks in items[]; the app auto-inserts meals, freshen-up, and gap fills. Call getAllData first for real subject/topic names, due revisions, and today\'s classes.',
       'parameters': {
         'type': 'object',
         'properties': {
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
             'type': 'array',
-            'description': 'Ordered work blocks only (meals are auto-inserted at fixed times). REVISION first if due (30 min each, all at start). Then study 50. Break 10 after study when next is not meal/nap/class (no daily cap). question_practice max 1. NEVER review. Pack from now until 23:30.',
+            'description': 'Ordered work blocks. The app auto-inserts meals, freshen-up, and gap fills.',
             'items': {
               'type': 'object',
               'properties': {
-                'time': {'type': 'string', 'description': 'Start time 24h HH:mm for tools, e.g. "14:30".'},
+                'time': {'type': 'string', 'description': 'Start time, 24h HH:mm, e.g. "14:30".'},
                 'subject': {'type': 'string', 'description': 'Subject name'},
                 'topic': {'type': 'string', 'description': 'Topic name within the subject'},
-                'type': {'type': 'string', 'description': 'revision (due only, 30 min, all first) | study | first_read | question_practice (max 1) | break (after study only) | nap | class. Meals are auto-placed. NEVER review.'},
-                'durationMinutes': {'type': 'integer', 'description': 'revision=30, study/first_read=50, question_practice=50 (max 1), break=10 (after study; skip if meal/nap/class next), recall=gap fill (app: >10 min), nap=20-25'},
+                'type': {'type': 'string', 'description': 'Block type: revision | study | first_read | question_practice | break | nap | class.'},
+                'durationMinutes': {'type': 'integer', 'description': 'Minutes: revision 30, study/first_read 50, question_practice 50, break 10, nap 20-25.'},
                 'notes': {'type': 'string', 'description': 'Optional notes'},
               },
               'required': ['time', 'subject', 'topic', 'type', 'durationMinutes'],
@@ -291,7 +291,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'deleteClassRoutine',
-      'description': 'Delete a class routine. Use when user says "delete my class routine", "remove this class", "cancel my class schedule". The assistant already knows which screen the user is on from the ROUTINE_CONTEXT in the system prompt. If context is "class", delete from class routines directly. Ask for subject name to identify which one to delete if multiple exist.',
+      'description': 'Delete a class routine by subject name. Ask for the subject name if several exist.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -302,7 +302,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'deleteDailyRoutine',
-      'description': 'Delete ALL daily routine items for a date (default today). ALWAYS tell the user (in THEIR language) that it was deleted and how many blocks were removed. UI refreshes automatically. After success, if the user also asked to create a new routine, call getAllData immediately (fresh) then registerDailyRoutine — never stall on Thinking, never re-delete the same day in a loop.',
+      'description': 'Delete all daily routine items for a date (default today).',
       'parameters': {
         'type': 'object',
         'properties': {
