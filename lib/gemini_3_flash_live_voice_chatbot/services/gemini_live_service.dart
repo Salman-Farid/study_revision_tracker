@@ -1,1 +1,102 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OmRldmVsb3BlcicgYXMgZGV2ZWxvcGVyOwppbXBvcnQgJ2RhcnQ6dHlwZWRfZGF0YSc7CgppbXBvcnQgJy4uL2NvbmZpZy9nZW1pbmlfY29uZmlnLmRhcnQnOwppbXBvcnQgJy4uL2NvcmUvYXVkaW8vYXVkaW9fcGxheWVyLmRhcnQnOwppbXBvcnQgJy4uL2NvcmUvYXVkaW8vYXVkaW9fcmVjb3JkZXIuZGFydCcgYXMgbWljOwppbXBvcnQgJy4uL2NvcmUvd2Vic29ja2V0L2dlbWluaV9zb2NrZXQuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CnBhcnQgJ2dlbWluaV9saXZlL2dlbWluaV9saXZlX3Nlc3Npb25fY29udHJvbC5kYXJ0JzsKCi8vLyBDZW50cmFsIHNlcnZpY2UgZm9yIHRoZSBHZW1pbmkgTGl2ZSB2b2ljZSBzZXNzaW9uLgovLy8KLy8vIFJlc3BvbnNpYmlsaXRpZXM6Ci8vLyAtIE93bnMgdGhlIFdlYlNvY2tldCwgbWljIHJlY29yZGVyLCBhbmQgYXVkaW8gcGxheWVyCi8vLyAtIFN0cmVhbXMgcmVzcG9uc2UgYXVkaW8sIHRyYW5zY3JpcHRzLCBhbmQgZnVuY3Rpb24gY2FsbHMKLy8vIC0gSGFuZGxlcyBtaWMgbXV0ZS91bm11dGUgd2l0aG91dCB0ZWFyaW5nIGRvd24gdGhlIHNlc3Npb24KLy8vIC0gRXhwb3NlcyBbaXNNdXRlZF0gZmxhZyDigJQgbWljIGFsd2F5cyBzdHJlYW1zLCBtdXRlIGp1c3Qgc3VwcHJlc3NlcyBzZW5kaW5nCmNsYXNzIEdlbWluaUxpdmVTZXJ2aWNlIHsKICBHZW1pbmlTb2NrZXQ/IF9zb2NrZXQ7CiAgbWljLk1pY1JlY29yZGVyPyBfcmVjb3JkZXI7CiAgUGNtQXVkaW9QbGF5ZXI/IF9wbGF5ZXI7CgogIFN0cmVhbVN1YnNjcmlwdGlvbj8gX3N0YXRlU3ViOwogIFN0cmVhbVN1YnNjcmlwdGlvbj8gX21pY1N1YjsKICBTdHJlYW1TdWJzY3JpcHRpb24/IF9yZXNwb25zZUF1ZGlvU3ViOwogIFN0cmVhbVN1YnNjcmlwdGlvbj8gX3RyYW5zY3JpcHRTdWI7CiAgU3RyZWFtU3Vic2NyaXB0aW9uPyBfZnVuY3Rpb25DYWxsU3ViOwogIFN0cmVhbVN1YnNjcmlwdGlvbj8gX2F1ZGlvQWN0aXZpdHlTdWI7CiAgU3RyZWFtU3Vic2NyaXB0aW9uPyBfdHVybkNvbXBsZXRlU3ViOwoKICBmaW5hbCBfcmVzcG9uc2VBdWRpb0NvbnRyb2xsZXIgPSBTdHJlYW1Db250cm9sbGVyPFVpbnQ4TGlzdD4uYnJvYWRjYXN0KCk7CiAgZmluYWwgX3RyYW5zY3JpcHRDb250cm9sbGVyID0gU3RyZWFtQ29udHJvbGxlcjxTdHJpbmc+LmJyb2FkY2FzdCgpOwogIGZpbmFsIF9zdGF0ZUNvbnRyb2xsZXIgPSBTdHJlYW1Db250cm9sbGVyPENvbm5lY3Rpb25TdGF0ZT4uYnJvYWRjYXN0KCk7CiAgZmluYWwgX2Z1bmN0aW9uQ2FsbENvbnRyb2xsZXIgPSBTdHJlYW1Db250cm9sbGVyPE1hcDxTdHJpbmcsIGR5bmFtaWM+Pi5icm9hZGNhc3QoKTsKICBmaW5hbCBfdHVybkNvbXBsZXRlQ29udHJvbGxlciA9IFN0cmVhbUNvbnRyb2xsZXI8dm9pZD4uYnJvYWRjYXN0KCk7CgogIFN0cmVhbTxVaW50OExpc3Q+IGdldCByZXNwb25zZUF1ZGlvU3RyZWFtID0+IF9yZXNwb25zZUF1ZGlvQ29udHJvbGxlci5zdHJlYW07CiAgU3RyZWFtPFN0cmluZz4gZ2V0IHRyYW5zY3JpcHRTdHJlYW0gPT4gX3RyYW5zY3JpcHRDb250cm9sbGVyLnN0cmVhbTsKICBTdHJlYW08Q29ubmVjdGlvblN0YXRlPiBnZXQgY29ubmVjdGlvblN0YXRlU3RyZWFtID0+IF9zdGF0ZUNvbnRyb2xsZXIuc3RyZWFtOwogIFN0cmVhbTxNYXA8U3RyaW5nLCBkeW5hbWljPj4gZ2V0IGZ1bmN0aW9uQ2FsbFN0cmVhbSA9PiBfZnVuY3Rpb25DYWxsQ29udHJvbGxlci5zdHJlYW07CiAgU3RyZWFtPHZvaWQ+IGdldCB0dXJuQ29tcGxldGVTdHJlYW0gPT4gX3R1cm5Db21wbGV0ZUNvbnRyb2xsZXIuc3RyZWFtOwoKICBHZW1pbmlTb2NrZXQ/IGdldCBzb2NrZXQgPT4gX3NvY2tldDsKICBib29sIGlzTXV0ZWQgPSBmYWxzZTsKICBib29sIF9hdXRvTXV0ZWRCeUdlbWluaSA9IGZhbHNlOwogIGJvb2wgX3Nlc3Npb25BY3RpdmUgPSBmYWxzZTsKCiAgLy8vIEdlbmVyYXRpb24gY291bnRlciB0byBwcmV2ZW50IHJhY2UgYmV0d2VlbiBzdG9wU2Vzc2lvbi9zdGFydFNlc3Npb24KICBpbnQgX2dlbmVyYXRpb24gPSAwOwoKICAvLy8gTGF0ZXN0IHNlcnZlci1pc3N1ZWQgc2Vzc2lvbiByZXN1bXB0aW9uIGhhbmRsZS4gQ2FycmllZCBhY3Jvc3Mgc29ja2V0CiAgLy8vIGluc3RhbmNlcyBzbyByZWNvbm5lY3RzIHJlc3VtZSB0aGUgc2VydmVyLXNpZGUgc2Vzc2lvbiBpbnN0ZWFkIG9mCiAgLy8vIHN0YXJ0aW5nIGNvbGQuCiAgU3RyaW5nPyBfcmVzdW1wdGlvbkhhbmRsZTsKCiAgLy8vIFNlbmQgYSB0ZXh0IG1lc3NhZ2UgKGFzIGlmIHR5cGVkIGJ5IHVzZXIpCiAgdm9pZCBzZW5kVGV4dChTdHJpbmcgdGV4dCkgewogICAgX3NvY2tldD8uc2VuZFRleHQodGV4dCk7CiAgfQoKICAvLy8gU2VuZCBmdW5jdGlvbiBjYWxsIHJlc3BvbnNlIGJhY2sgdG8gR2VtaW5pCiAgdm9pZCBzZW5kRnVuY3Rpb25SZXNwb25zZShTdHJpbmcgY2FsbElkLCBNYXA8U3RyaW5nLCBkeW5hbWljPiByZXNwb25zZSkgewogICAgX3NvY2tldD8uc2VuZEZ1bmN0aW9uUmVzcG9uc2UoY2FsbElkLCByZXNwb25zZSk7CiAgfQoKICAvLy8gU2VuZCBBTEwgZnVuY3Rpb24gcmVzcG9uc2VzIGluIG9uZSBtZXNzYWdlICsgdHVybkNvbXBsZXRlIChiYXRjaCBtb2RlKQogIHZvaWQgc2VuZEJhdGNoZWRGdW5jdGlvblJlc3BvbnNlcyhMaXN0PE1hcDxTdHJpbmcsIGR5bmFtaWM+PiByZXNwb25zZXMsIHtpbnQgcmV0cnlDb3VudCA9IDB9KSB7CiAgICBfc29ja2V0Py5zZW5kQmF0Y2hlZEZ1bmN0aW9uUmVzcG9uc2VzKHJlc3BvbnNlcywgcmV0cnlDb3VudDogcmV0cnlDb3VudCk7CiAgfQoKICAvLy8gTWFudWFsbHkgc2VuZCBhdWRpbyBieXRlcwogIHZvaWQgc2VuZEF1ZGlvKFVpbnQ4TGlzdCBwY20pIHsKICAgIF9zb2NrZXQ/LnNlbmRBdWRpbyhwY20pOwogIH0KCiAgLy8vIFNpZ25hbCBlbmQgb2YgY3VycmVudCB0dXJuIChHZW1pbmkgd2lsbCByZXNwb25kKQogIHZvaWQgZW5kVHVybigpIHsKICAgIF9zb2NrZXQ/LmVuZFR1cm4oKTsKICB9CgogIC8vLyBTdG9wIG1pYyBzdHJlYW1pbmcgYnV0IGtlZXAgc2Vzc2lvbiBhbGl2ZSAobXV0ZSkKICB2b2lkIG11dGUoKSB7CiAgICBpc011dGVkID0gdHJ1ZTsKICB9CgogIC8vLyBSZXN1bWUgbWljIHN0cmVhbWluZyAodW5tdXRlKQogIHZvaWQgdW5tdXRlKCkgewogICAgaXNNdXRlZCA9IGZhbHNlOwogIH0KCiAgdm9pZCBkaXNwb3NlKCkgewogICAgc3RvcFNlc3Npb24oKTsKICAgIF9yZXNwb25zZUF1ZGlvQ29udHJvbGxlci5jbG9zZSgpOwogICAgX3RyYW5zY3JpcHRDb250cm9sbGVyLmNsb3NlKCk7CiAgICBfc3RhdGVDb250cm9sbGVyLmNsb3NlKCk7CiAgICBfZnVuY3Rpb25DYWxsQ29udHJvbGxlci5jbG9zZSgpOwogICAgX3JlY29yZGVyPy5kaXNwb3NlKCk7CiAgICBfcGxheWVyPy5kaXNwb3NlKCk7CiAgICBfc29ja2V0Py5kaXNwb3NlKCk7CiAgfQp9Cg==
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:typed_data';
+
+import '../config/gemini_config.dart';
+import '../core/audio/audio_player.dart';
+import '../core/audio/audio_recorder.dart' as mic;
+import '../core/websocket/gemini_socket.dart';
+import 'package:flutter/foundation.dart';
+part 'gemini_live/gemini_live_session_control.dart';
+
+/// Central service for the Gemini Live voice session.
+///
+/// Responsibilities:
+/// - Owns the WebSocket, mic recorder, and audio player
+/// - Streams response audio, transcripts, and function calls
+/// - Handles mic mute/unmute without tearing down the session
+/// - Exposes [isMuted] flag — mic always streams, mute just suppresses sending
+class GeminiLiveService {
+  GeminiSocket? _socket;
+  mic.MicRecorder? _recorder;
+  PcmAudioPlayer? _player;
+
+  StreamSubscription? _stateSub;
+  StreamSubscription? _micSub;
+  StreamSubscription? _responseAudioSub;
+  StreamSubscription? _transcriptSub;
+  StreamSubscription? _functionCallSub;
+  StreamSubscription? _audioActivitySub;
+  StreamSubscription? _turnCompleteSub;
+
+  final _responseAudioController = StreamController<Uint8List>.broadcast();
+  final _transcriptController = StreamController<String>.broadcast();
+  final _stateController = StreamController<ConnectionState>.broadcast();
+  final _functionCallController = StreamController<Map<String, dynamic>>.broadcast();
+  final _turnCompleteController = StreamController<void>.broadcast();
+
+  Stream<Uint8List> get responseAudioStream => _responseAudioController.stream;
+  Stream<String> get transcriptStream => _transcriptController.stream;
+  Stream<ConnectionState> get connectionStateStream => _stateController.stream;
+  Stream<Map<String, dynamic>> get functionCallStream => _functionCallController.stream;
+  Stream<void> get turnCompleteStream => _turnCompleteController.stream;
+
+  GeminiSocket? get socket => _socket;
+  bool isMuted = false;
+  bool _autoMutedByGemini = false;
+  bool _sessionActive = false;
+
+  /// Generation counter to prevent race between stopSession/startSession
+  int _generation = 0;
+
+  /// Latest server-issued session resumption handle. Carried across socket
+  /// instances so reconnects resume the server-side session instead of
+  /// starting cold.
+  String? _resumptionHandle;
+
+  /// Send a text message (as if typed by user)
+  void sendText(String text) {
+    _socket?.sendText(text);
+  }
+
+  /// Send function call response back to Gemini
+  void sendFunctionResponse(String callId, Map<String, dynamic> response) {
+    _socket?.sendFunctionResponse(callId, response);
+  }
+
+  /// Send ALL function responses in one message + turnComplete (batch mode)
+  void sendBatchedFunctionResponses(List<Map<String, dynamic>> responses, {int retryCount = 0}) {
+    _socket?.sendBatchedFunctionResponses(responses, retryCount: retryCount);
+  }
+
+  /// Manually send audio bytes
+  void sendAudio(Uint8List pcm) {
+    _socket?.sendAudio(pcm);
+  }
+
+  /// Signal end of current turn (Gemini will respond)
+  void endTurn() {
+    _socket?.endTurn();
+  }
+
+  /// Stop mic streaming but keep session alive (mute)
+  void mute() {
+    isMuted = true;
+  }
+
+  /// Resume mic streaming (unmute)
+  void unmute() {
+    isMuted = false;
+  }
+
+  void dispose() {
+    stopSession();
+    _responseAudioController.close();
+    _transcriptController.close();
+    _stateController.close();
+    _functionCallController.close();
+    _recorder?.dispose();
+    _player?.dispose();
+    _socket?.dispose();
+  }
+}

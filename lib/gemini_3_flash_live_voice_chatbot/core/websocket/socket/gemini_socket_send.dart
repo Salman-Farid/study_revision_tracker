@@ -1,1 +1,87 @@
-cGFydCBvZiAnLi4vZ2VtaW5pX3NvY2tldC5kYXJ0JzsKCmV4dGVuc2lvbiBHZW1pbmlTb2NrZXRTZW5kIG9uIEdlbWluaVNvY2tldCB7CiAgLy8vIFNlcmlhbGl6ZSBldmVyeSBzb2NrZXQgd3JpdGUgdGhyb3VnaCB0aGlzIGd1YXJkOiBuZXZlciB0aHJvdyBvbiBhCiAgLy8vIGNsb3NlZC9jbG9zaW5nIHNvY2tldCwgbmV2ZXIgZm9yY2UtdW53cmFwIHRoZSBjaGFubmVsLiBBIHNlbmQgcmFjaW5nIGEKICAvLy8gZGlzY29ubmVjdCBtdXN0IGJlIGEgc2lsZW50IGRyb3AsIG5vdCBhIFN0YXRlRXJyb3IgY3Jhc2hpbmcgdGhlIGNhbGxlci4KICB2b2lkIF9zYWZlU2VuZChNYXA8U3RyaW5nLCBkeW5hbWljPiBtZXNzYWdlKSB7CiAgICBpZiAoX3N0YXRlICE9IENvbm5lY3Rpb25TdGF0ZS5jb25uZWN0ZWQpIHJldHVybjsKICAgIGZpbmFsIGNoYW5uZWwgPSBfY2hhbm5lbDsKICAgIGlmIChjaGFubmVsID09IG51bGwpIHJldHVybjsKICAgIHRyeSB7CiAgICAgIGNoYW5uZWwuc2luay5hZGQoanNvbkVuY29kZShtZXNzYWdlKSk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIOKaoO+4jyBzZW5kIGZhaWxlZCAoc29ja2V0IGNsb3Npbmc/KTogJGUnKTsKICAgIH0KICB9CgogIHZvaWQgc2VuZEF1ZGlvKFVpbnQ4TGlzdCBwY21EYXRhKSB7CiAgICBfc2FmZVNlbmQoewogICAgICAncmVhbHRpbWVJbnB1dCc6IHsKICAgICAgICAnYXVkaW8nOiB7CiAgICAgICAgICAnZGF0YSc6IGJhc2U2NEVuY29kZShwY21EYXRhKSwKICAgICAgICAgICdtaW1lVHlwZSc6ICdhdWRpby9wY207cmF0ZT0ke0dlbWluaUNvbmZpZy5zYW1wbGVSYXRlfScsCiAgICAgICAgfSwKICAgICAgfSwKICAgIH0pOwogIH0KCiAgdm9pZCBzZW5kVGV4dChTdHJpbmcgdGV4dCkgewogICAgX3NhZmVTZW5kKHsKICAgICAgJ2NsaWVudENvbnRlbnQnOiB7CiAgICAgICAgJ3R1cm5zJzogWwogICAgICAgICAgeydyb2xlJzogJ3VzZXInLCAncGFydHMnOiBbeyd0ZXh0JzogdGV4dH1dfSwKICAgICAgICBdLAogICAgICAgICd0dXJuQ29tcGxldGUnOiB0cnVlLAogICAgICB9LAogICAgfSk7CiAgfQoKICAvLy8gU2VuZCBhIHNpbmdsZSBmdW5jdGlvbiByZXNwb25zZSB2aWEgdGhlIGRlZGljYXRlZCBgdG9vbFJlc3BvbnNlYCBtZXNzYWdlLgogIC8vLyBQZXIgdGhlIExpdmUgQVBJIGNvbnRyYWN0LCBiaWRpIGZ1bmN0aW9uIGNhbGxpbmcgdXNlcyB0aGUgZGVkaWNhdGVkCiAgLy8vIGB0b29sUmVzcG9uc2VgIG1lc3NhZ2Ug4oCUIE5PVCBgY2xpZW50Q29udGVudGAgcGFydHMuIGB0b29sUmVzcG9uc2VgCiAgLy8vIGNhcnJpZXMgbm8gdHVybkNvbXBsZXRlOyB0aGUgbW9kZWwgcmVzdW1lcyBhdXRvbWF0aWNhbGx5LgogIHZvaWQgc2VuZEZ1bmN0aW9uUmVzcG9uc2UoU3RyaW5nIGNhbGxJZCwgTWFwPFN0cmluZywgZHluYW1pYz4gcmVzcG9uc2UpIHsKICAgIF9zYWZlU2VuZCh7CiAgICAgICd0b29sUmVzcG9uc2UnOiB7CiAgICAgICAgJ2Z1bmN0aW9uUmVzcG9uc2VzJzogWwogICAgICAgICAgewogICAgICAgICAgICAnaWQnOiBjYWxsSWQsCiAgICAgICAgICAgICduYW1lJzogcmVzcG9uc2VbJ25hbWUnXSBhcyBTdHJpbmc/ID8/ICcnLAogICAgICAgICAgICAncmVzcG9uc2UnOiByZXNwb25zZVsncmVzdWx0J10gYXMgTWFwPFN0cmluZywgZHluYW1pYz4/ID8/IDxTdHJpbmcsIGR5bmFtaWM+e30sCiAgICAgICAgICB9LAogICAgICAgIF0sCiAgICAgIH0sCiAgICB9KTsKICB9CgogIHZvaWQgZW5kVHVybigpIHsKICAgIF9zYWZlU2VuZCh7CiAgICAgICdjbGllbnRDb250ZW50Jzogeyd0dXJuQ29tcGxldGUnOiB0cnVlfSwKICAgIH0pOwogIH0KCiAgLy8vIFNlbmQgQUxMIGZ1bmN0aW9uIHJlc3BvbnNlcyBpbiBhIFNJTkdMRSBgdG9vbFJlc3BvbnNlYCBtZXNzYWdlLgogIC8vLyBUaGlzIGlzIGNyaXRpY2FsIGZvciBiYXRjaCBvcGVyYXRpb25zIOKAlCBhbmQgcGVyIHRoZSBBUEkgY29udHJhY3QgdGhlCiAgLy8vIG1lc3NhZ2UgbXVzdCBiZSBgdG9vbFJlc3BvbnNlYCwgbm90IGBjbGllbnRDb250ZW50YC4gV3JhcHBpbmcgZnVuY3Rpb24KICAvLy8gcmVzcG9uc2VzIGluIGBjbGllbnRDb250ZW50YCBtYWtlcyB0aGUgc2VydmVyIHRyZWF0IHRoZW0gYXMgYSBuZXcgdXNlcgogIC8vLyB0dXJuIChiYXJnZS1pbiksIHdoaWNoIHRyaWdnZXJzIHRvb2xDYWxsQ2FuY2VsbGF0aW9uICsgaW50ZXJydXB0ZWQgYW5kCiAgLy8vIGNvcnJ1cHRzIHR1cm4gc3RhdGUsIGV2ZW50dWFsbHkgY2F1c2luZyAxMDExIGNsb3Nlcy4KICAvLy8gW3JldHJ5Q291bnRdIOKAlCBob3cgbWFueSB0aW1lcyB0aGlzIGJhdGNoIGhhcyBiZWVuIHJldHJpZWQgKDAgPSBmaXJzdCB0cnkpCiAgdm9pZCBzZW5kQmF0Y2hlZEZ1bmN0aW9uUmVzcG9uc2VzKExpc3Q8TWFwPFN0cmluZywgZHluYW1pYz4+IHJlc3BvbnNlcywge2ludCByZXRyeUNvdW50ID0gMH0pIHsKICAgIGlmIChyZXNwb25zZXMuaXNFbXB0eSkgcmV0dXJuOwoKICAgIGZpbmFsIGZ1bmN0aW9uUmVzcG9uc2VzID0gcmVzcG9uc2VzLm1hcCgocikgPT4gewogICAgICAnaWQnOiByWydpZCddIGFzIFN0cmluZz8gPz8gJycsCiAgICAgICduYW1lJzogclsnbmFtZSddIGFzIFN0cmluZz8gPz8gJycsCiAgICAgICdyZXNwb25zZSc6IHJbJ3Jlc3VsdCddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PyA/PyA8U3RyaW5nLCBkeW5hbWljPnt9LAogICAgfSkudG9MaXN0KCk7CgogICAgX3NhZmVTZW5kKHsKICAgICAgJ3Rvb2xSZXNwb25zZSc6IHsKICAgICAgICAnZnVuY3Rpb25SZXNwb25zZXMnOiBmdW5jdGlvblJlc3BvbnNlcywKICAgICAgfSwKICAgIH0pOwogICAgZGVidWdQcmludCgnW0dlbWluaV0gU2VudCAke3Jlc3BvbnNlcy5sZW5ndGh9IGJhdGNoZWQgdG9vbCByZXNwb25zZXMgKHRvb2xSZXNwb25zZSknKTsKICB9Cn0K
+part of '../gemini_socket.dart';
+
+extension GeminiSocketSend on GeminiSocket {
+  /// Serialize every socket write through this guard: never throw on a
+  /// closed/closing socket, never force-unwrap the channel. A send racing a
+  /// disconnect must be a silent drop, not a StateError crashing the caller.
+  void _safeSend(Map<String, dynamic> message) {
+    if (_state != ConnectionState.connected) return;
+    final channel = _channel;
+    if (channel == null) return;
+    try {
+      channel.sink.add(jsonEncode(message));
+    } catch (e) {
+      debugPrint('[Gemini] ⚠️ send failed (socket closing?): $e');
+    }
+  }
+
+  void sendAudio(Uint8List pcmData) {
+    _safeSend({
+      'realtimeInput': {
+        'audio': {
+          'data': base64Encode(pcmData),
+          'mimeType': 'audio/pcm;rate=${GeminiConfig.sampleRate}',
+        },
+      },
+    });
+  }
+
+  void sendText(String text) {
+    _safeSend({
+      'clientContent': {
+        'turns': [
+          {'role': 'user', 'parts': [{'text': text}]},
+        ],
+        'turnComplete': true,
+      },
+    });
+  }
+
+  /// Send a single function response via the dedicated `toolResponse` message.
+  /// Per the Live API contract, bidi function calling uses the dedicated
+  /// `toolResponse` message — NOT `clientContent` parts. `toolResponse`
+  /// carries no turnComplete; the model resumes automatically.
+  void sendFunctionResponse(String callId, Map<String, dynamic> response) {
+    _safeSend({
+      'toolResponse': {
+        'functionResponses': [
+          {
+            'id': callId,
+            'name': response['name'] as String? ?? '',
+            'response': response['result'] as Map<String, dynamic>? ?? <String, dynamic>{},
+          },
+        ],
+      },
+    });
+  }
+
+  void endTurn() {
+    _safeSend({
+      'clientContent': {'turnComplete': true},
+    });
+  }
+
+  /// Send ALL function responses in a SINGLE `toolResponse` message.
+  /// This is critical for batch operations — and per the API contract the
+  /// message must be `toolResponse`, not `clientContent`. Wrapping function
+  /// responses in `clientContent` makes the server treat them as a new user
+  /// turn (barge-in), which triggers toolCallCancellation + interrupted and
+  /// corrupts turn state, eventually causing 1011 closes.
+  /// [retryCount] — how many times this batch has been retried (0 = first try)
+  void sendBatchedFunctionResponses(List<Map<String, dynamic>> responses, {int retryCount = 0}) {
+    if (responses.isEmpty) return;
+
+    final functionResponses = responses.map((r) => {
+      'id': r['id'] as String? ?? '',
+      'name': r['name'] as String? ?? '',
+      'response': r['result'] as Map<String, dynamic>? ?? <String, dynamic>{},
+    }).toList();
+
+    _safeSend({
+      'toolResponse': {
+        'functionResponses': functionResponses,
+      },
+    });
+    debugPrint('[Gemini] Sent ${responses.length} batched tool responses (toolResponse)');
+  }
+}

@@ -1,1 +1,69 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OmNvbnZlcnQnOwppbXBvcnQgJ2RhcnQ6dHlwZWRfZGF0YSc7CgppbXBvcnQgJ3BhY2thZ2U6d2ViX3NvY2tldF9jaGFubmVsL3dlYl9zb2NrZXRfY2hhbm5lbC5kYXJ0JzsKCmltcG9ydCAnLi4vLi4vY29uZmlnL2dlbWluaV9jb25maWcuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CnBhcnQgJ3NvY2tldC9nZW1pbmlfc29ja2V0X2Nvbm5lY3QuZGFydCc7CnBhcnQgJ3NvY2tldC9nZW1pbmlfc29ja2V0X21lc3NhZ2VfcGFyc2UuZGFydCc7CnBhcnQgJ3NvY2tldC9nZW1pbmlfc29ja2V0X3NlbmQuZGFydCc7CgplbnVtIENvbm5lY3Rpb25TdGF0ZSB7IGRpc2Nvbm5lY3RlZCwgY29ubmVjdGluZywgY29ubmVjdGVkLCBlcnJvciB9CgoKY2xhc3MgR2VtaW5pU29ja2V0IHsKICBHZW1pbmlTb2NrZXQoewogICAgcmVxdWlyZWQgdGhpcy5hcGlLZXksCiAgICB0aGlzLnN5c3RlbVByb21wdCwKICAgIHRoaXMudm9pY2UgPSAnS29yZScsCiAgICB0aGlzLnRvb2xzLAogICAgdGhpcy5yZXN1bXB0aW9uSGFuZGxlLAogIH0pOwoKICBmaW5hbCBTdHJpbmcgYXBpS2V5OwogIGZpbmFsIFN0cmluZz8gc3lzdGVtUHJvbXB0OwogIGZpbmFsIFN0cmluZyB2b2ljZTsKICBmaW5hbCBMaXN0PE1hcDxTdHJpbmcsIGR5bmFtaWM+Pj8gdG9vbHM7CgogIC8vLyBMYXRlc3Qgc2VydmVyLWlzc3VlZCBzZXNzaW9uIHJlc3VtcHRpb24gaGFuZGxlLiBVcGRhdGVkIG9uIGV2ZXJ5CiAgLy8vIGBzZXNzaW9uUmVzdW1wdGlvblVwZGF0ZWA7IHJlYWQgYnkgdGhlIHNlcnZpY2UgdG8gcmVzdW1lIG9uIHJlY29ubmVjdC4KICBTdHJpbmc/IHJlc3VtcHRpb25IYW5kbGU7CgogIFdlYlNvY2tldENoYW5uZWw/IF9jaGFubmVsOwogIGJvb2wgX3NldHVwQ29tcGxldGUgPSBmYWxzZTsKICBDb25uZWN0aW9uU3RhdGUgX3N0YXRlID0gQ29ubmVjdGlvblN0YXRlLmRpc2Nvbm5lY3RlZDsKICBUaW1lcj8gX2dvQXdheVRpbWVyOwoKICBmaW5hbCBfYXVkaW9Db250cm9sbGVyID0gU3RyZWFtQ29udHJvbGxlcjxVaW50OExpc3Q+LmJyb2FkY2FzdCgpOwogIGZpbmFsIF90cmFuc2NyaXB0Q29udHJvbGxlciA9IFN0cmVhbUNvbnRyb2xsZXI8U3RyaW5nPi5icm9hZGNhc3QoKTsKICBmaW5hbCBfc3RhdGVDb250cm9sbGVyID0gU3RyZWFtQ29udHJvbGxlcjxDb25uZWN0aW9uU3RhdGU+LmJyb2FkY2FzdCgpOwogIGZpbmFsIF9mdW5jdGlvbkNhbGxDb250cm9sbGVyID0gU3RyZWFtQ29udHJvbGxlcjxNYXA8U3RyaW5nLCBkeW5hbWljPj4uYnJvYWRjYXN0KCk7CiAgZmluYWwgX3R1cm5Db21wbGV0ZUNvbnRyb2xsZXIgPSBTdHJlYW1Db250cm9sbGVyPHZvaWQ+LmJyb2FkY2FzdCgpOwogIGZpbmFsIF9hdWRpb0FjdGl2aXR5Q29udHJvbGxlciA9IFN0cmVhbUNvbnRyb2xsZXI8dm9pZD4uYnJvYWRjYXN0KCk7CgogIFN0cmVhbTxVaW50OExpc3Q+IGdldCBhdWRpb1N0cmVhbSA9PiBfYXVkaW9Db250cm9sbGVyLnN0cmVhbTsKICBTdHJlYW08U3RyaW5nPiBnZXQgdHJhbnNjcmlwdFN0cmVhbSA9PiBfdHJhbnNjcmlwdENvbnRyb2xsZXIuc3RyZWFtOwogIFN0cmVhbTxDb25uZWN0aW9uU3RhdGU+IGdldCBzdGF0ZVN0cmVhbSA9PiBfc3RhdGVDb250cm9sbGVyLnN0cmVhbTsKICBTdHJlYW08TWFwPFN0cmluZywgZHluYW1pYz4+IGdldCBmdW5jdGlvbkNhbGxTdHJlYW0gPT4gX2Z1bmN0aW9uQ2FsbENvbnRyb2xsZXIuc3RyZWFtOwogIFN0cmVhbTx2b2lkPiBnZXQgdHVybkNvbXBsZXRlU3RyZWFtID0+IF90dXJuQ29tcGxldGVDb250cm9sbGVyLnN0cmVhbTsKICBTdHJlYW08dm9pZD4gZ2V0IGF1ZGlvQWN0aXZpdHlTdHJlYW0gPT4gX2F1ZGlvQWN0aXZpdHlDb250cm9sbGVyLnN0cmVhbTsKICBDb25uZWN0aW9uU3RhdGUgZ2V0IHN0YXRlID0+IF9zdGF0ZTsKCiAgU3RyaW5nPyBfcGVuZGluZ0Vycm9yOwoKICBTdHJpbmcgZ2V0IGxhc3RFcnJvciA9PiBfcGVuZGluZ0Vycm9yID8/ICcnOwoKICB2b2lkIGRpc3Bvc2UoKSB7CiAgICBfZ29Bd2F5VGltZXI/LmNhbmNlbCgpOwogICAgX2dvQXdheVRpbWVyID0gbnVsbDsKICAgIGRpc2Nvbm5lY3QoKTsKICAgIF9hdWRpb0NvbnRyb2xsZXIuY2xvc2UoKTsKICAgIF90cmFuc2NyaXB0Q29udHJvbGxlci5jbG9zZSgpOwogICAgX3N0YXRlQ29udHJvbGxlci5jbG9zZSgpOwogICAgX2Z1bmN0aW9uQ2FsbENvbnRyb2xsZXIuY2xvc2UoKTsKICAgIF90dXJuQ29tcGxldGVDb250cm9sbGVyLmNsb3NlKCk7CiAgICBfYXVkaW9BY3Rpdml0eUNvbnRyb2xsZXIuY2xvc2UoKTsKICB9Cn0K
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+import '../../config/gemini_config.dart';
+import 'package:flutter/foundation.dart';
+part 'socket/gemini_socket_connect.dart';
+part 'socket/gemini_socket_message_parse.dart';
+part 'socket/gemini_socket_send.dart';
+
+enum ConnectionState { disconnected, connecting, connected, error }
+
+
+class GeminiSocket {
+  GeminiSocket({
+    required this.apiKey,
+    this.systemPrompt,
+    this.voice = 'Kore',
+    this.tools,
+    this.resumptionHandle,
+  });
+
+  final String apiKey;
+  final String? systemPrompt;
+  final String voice;
+  final List<Map<String, dynamic>>? tools;
+
+  /// Latest server-issued session resumption handle. Updated on every
+  /// `sessionResumptionUpdate`; read by the service to resume on reconnect.
+  String? resumptionHandle;
+
+  WebSocketChannel? _channel;
+  bool _setupComplete = false;
+  ConnectionState _state = ConnectionState.disconnected;
+  Timer? _goAwayTimer;
+
+  final _audioController = StreamController<Uint8List>.broadcast();
+  final _transcriptController = StreamController<String>.broadcast();
+  final _stateController = StreamController<ConnectionState>.broadcast();
+  final _functionCallController = StreamController<Map<String, dynamic>>.broadcast();
+  final _turnCompleteController = StreamController<void>.broadcast();
+  final _audioActivityController = StreamController<void>.broadcast();
+
+  Stream<Uint8List> get audioStream => _audioController.stream;
+  Stream<String> get transcriptStream => _transcriptController.stream;
+  Stream<ConnectionState> get stateStream => _stateController.stream;
+  Stream<Map<String, dynamic>> get functionCallStream => _functionCallController.stream;
+  Stream<void> get turnCompleteStream => _turnCompleteController.stream;
+  Stream<void> get audioActivityStream => _audioActivityController.stream;
+  ConnectionState get state => _state;
+
+  String? _pendingError;
+
+  String get lastError => _pendingError ?? '';
+
+  void dispose() {
+    _goAwayTimer?.cancel();
+    _goAwayTimer = null;
+    disconnect();
+    _audioController.close();
+    _transcriptController.close();
+    _stateController.close();
+    _functionCallController.close();
+    _turnCompleteController.close();
+    _audioActivityController.close();
+  }
+}

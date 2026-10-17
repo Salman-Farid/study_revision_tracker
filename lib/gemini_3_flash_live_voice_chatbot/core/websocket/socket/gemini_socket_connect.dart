@@ -1,1 +1,118 @@
-cGFydCBvZiAnLi4vZ2VtaW5pX3NvY2tldC5kYXJ0JzsKCmV4dGVuc2lvbiBHZW1pbmlTb2NrZXRDb25uZWN0IG9uIEdlbWluaVNvY2tldCB7CiAgRnV0dXJlPHZvaWQ+IGNvbm5lY3QoKSBhc3luYyB7CiAgICBpZiAoX3N0YXRlID09IENvbm5lY3Rpb25TdGF0ZS5jb25uZWN0ZWQpIHJldHVybjsKICAgIF9zZXRTdGF0ZShDb25uZWN0aW9uU3RhdGUuY29ubmVjdGluZyk7CiAgICBfcGVuZGluZ0Vycm9yID0gbnVsbDsKCiAgICB0cnkgewogICAgICBmaW5hbCB1cmkgPSBVcmkucGFyc2UoR2VtaW5pQ29uZmlnLndzVXJsKTsKICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gQ29ubmVjdGluZyB0bzogJHt1cmkudG9TdHJpbmcoKS5yZXBsYWNlQWxsKFJlZ0V4cChyJ2tleT0uKicpLCAna2V5PSoqKicpfScpOwogICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSBNb2RlbDogJHtHZW1pbmlDb25maWcubW9kZWx9LCBWb2ljZTogJHZvaWNlJyk7CiAgICAgIF9jaGFubmVsID0gV2ViU29ja2V0Q2hhbm5lbC5jb25uZWN0KHVyaSk7CiAgICAgIGF3YWl0IF9jaGFubmVsIS5yZWFkeS50aW1lb3V0KEdlbWluaUNvbmZpZy5jb25uZWN0VGltZW91dCk7CiAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIFdlYlNvY2tldCBjb25uZWN0ZWQsIHNlbmRpbmcgc2V0dXAuLi4nKTsKCiAgICAgIF9jaGFubmVsIS5zdHJlYW0ubGlzdGVuKAogICAgICAgIF9vbk1lc3NhZ2UsCiAgICAgICAgb25FcnJvcjogX29uRXJyb3IsCiAgICAgICAgb25Eb25lOiBfb25Eb25lLAogICAgICApOwoKICAgICAgZmluYWwgc2V0dXBNc2cgPSB7CiAgICAgICAgJ3NldHVwJzogewogICAgICAgICAgJ21vZGVsJzogJ21vZGVscy8ke0dlbWluaUNvbmZpZy5tb2RlbH0nLAogICAgICAgICAgJ2dlbmVyYXRpb25Db25maWcnOiB7CiAgICAgICAgICAgICdyZXNwb25zZU1vZGFsaXRpZXMnOiBbJ0FVRElPJ10sCiAgICAgICAgICAgICdzcGVlY2hDb25maWcnOiB7CiAgICAgICAgICAgICAgJ3ZvaWNlQ29uZmlnJzogewogICAgICAgICAgICAgICAgJ3ByZWJ1aWx0Vm9pY2VDb25maWcnOiB7J3ZvaWNlTmFtZSc6IHZvaWNlfSwKICAgICAgICAgICAgICB9LAogICAgICAgICAgICB9LAogICAgICAgICAgfSwKICAgICAgICAgICdpbnB1dEF1ZGlvVHJhbnNjcmlwdGlvbic6IHt9LAogICAgICAgICAgLy8gUmVxdWVzdGVkIGJlY2F1c2Ugd2UgcGFyc2Ugb3V0cHV0VHJhbnNjcmlwdGlvbiBmcm9tIHNlcnZlckNvbnRlbnQuCiAgICAgICAgICAvLyBQcmV2aW91c2x5IG9taXR0ZWQgKHNlcnZlciBzZW50IGl0IGFueXdheSk7IGV4cGxpY2l0IHBlciBjb250cmFjdC4KICAgICAgICAgICdvdXRwdXRBdWRpb1RyYW5zY3JpcHRpb24nOiB7fSwKICAgICAgICAgIC8vIEVuYWJsZSBzZXJ2ZXItc2lkZSBzZXNzaW9uIHJlc3VtcHRpb24uIE5ldyBzZXNzaW9ucyBzZW5kIHt9OwogICAgICAgICAgLy8gcmVjb25uZWN0cyBzZW5kIHRoZSBsYXN0IGhhbmRsZSBzbyB0aGUgc2VydmVyIHJlc3RvcmVzIGNvbnRleHQKICAgICAgICAgIC8vIGluc3RlYWQgb2Ygc3RhcnRpbmcgY29sZC4KICAgICAgICAgICdzZXNzaW9uUmVzdW1wdGlvbic6IHJlc3VtcHRpb25IYW5kbGUgIT0gbnVsbCAmJiByZXN1bXB0aW9uSGFuZGxlIS5pc05vdEVtcHR5CiAgICAgICAgICAgICAgPyB7J2hhbmRsZSc6IHJlc3VtcHRpb25IYW5kbGV9CiAgICAgICAgICAgICAgOiA8U3RyaW5nLCBkeW5hbWljPnt9LAogICAgICAgICAgaWYgKHN5c3RlbVByb21wdCAhPSBudWxsKQogICAgICAgICAgICAnc3lzdGVtSW5zdHJ1Y3Rpb24nOiB7CiAgICAgICAgICAgICAgJ3BhcnRzJzogW3sndGV4dCc6IHN5c3RlbVByb21wdH1dLAogICAgICAgICAgICB9LAogICAgICAgICAgJ3Rvb2xzJzogWwogICAgICAgICAgICBpZiAodG9vbHMgIT0gbnVsbCAmJiB0b29scyEuaXNOb3RFbXB0eSkKICAgICAgICAgICAgICB7J2Z1bmN0aW9uRGVjbGFyYXRpb25zJzogdG9vbHN9LAogICAgICAgICAgXSwKICAgICAgICB9LAogICAgICB9OwogICAgICBmaW5hbCBzZXR1cEpzb24gPSBqc29uRW5jb2RlKHNldHVwTXNnKTsKICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gU2VuZGluZyBzZXR1cCBKU09OOiAke3NldHVwSnNvbi5sZW5ndGh9IGNoYXJzJyk7CiAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIFNldHVwIG1vZGVsOiBtb2RlbHMvJHtHZW1pbmlDb25maWcubW9kZWx9Jyk7CiAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIFNldHVwIHRvb2xzIGNvdW50OiAkeyhzZXR1cE1zZ1snc2V0dXAnXT9bJ3Rvb2xzJ10gYXMgTGlzdD8pPy5sZW5ndGggPz8gMH0nKTsKICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gU2V0dXAgcmVzdW1pbmc6ICR7cmVzdW1wdGlvbkhhbmRsZSAhPSBudWxsICYmIHJlc3VtcHRpb25IYW5kbGUhLmlzTm90RW1wdHl9Jyk7CiAgICAgIF9jaGFubmVsIS5zaW5rLmFkZChzZXR1cEpzb24pOwoKICAgICAgYXdhaXQgX3dhaXRGb3JTZXR1cCgpOwogICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSBTZXR1cCBjb21wbGV0ZSEnKTsKICAgICAgX3NldFN0YXRlKENvbm5lY3Rpb25TdGF0ZS5jb25uZWN0ZWQpOwogICAgfSBjYXRjaCAoZSkgewogICAgICBmaW5hbCBlcnJvck1zZyA9IF9wZW5kaW5nRXJyb3IgPz8gZS50b1N0cmluZygpOwogICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSBDb25uZWN0IGVycm9yOiAkZXJyb3JNc2cnKTsKICAgICAgX3NldFN0YXRlKENvbm5lY3Rpb25TdGF0ZS5lcnJvcik7CiAgICAgIF9wZW5kaW5nRXJyb3IgPSBlcnJvck1zZzsKICAgICAgcmV0aHJvdzsKICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBfd2FpdEZvclNldHVwKCkgYXN5bmMgewogICAgaW50IGF0dGVtcHRzID0gMDsKICAgIHdoaWxlICghX3NldHVwQ29tcGxldGUgJiYgYXR0ZW1wdHMgPCBHZW1pbmlDb25maWcuc2V0dXBNYXhBdHRlbXB0cykgewogICAgICBpZiAoX3BlbmRpbmdFcnJvciAhPSBudWxsKSB7CiAgICAgICAgdGhyb3cgRXhjZXB0aW9uKF9wZW5kaW5nRXJyb3IpOwogICAgICB9CiAgICAgIGF3YWl0IEZ1dHVyZS5kZWxheWVkKEdlbWluaUNvbmZpZy5zZXR1cFBvbGxJbnRlcnZhbCk7CiAgICAgIGF0dGVtcHRzKys7CiAgICB9CiAgICBpZiAoIV9zZXR1cENvbXBsZXRlKSB7CiAgICAgIHRocm93IFRpbWVvdXRFeGNlcHRpb24oJ0dlbWluaSBMaXZlIHNldHVwIHRpbWVkIG91dC4gJHtfcGVuZGluZ0Vycm9yID8/ICJObyBzZXR1cENvbXBsZXRlIHJlY2VpdmVkIOKAlCBjaGVjayBBUEkga2V5IGFuZCBtb2RlbCBuYW1lLiJ9Jyk7CiAgICB9CiAgfQoKICB2b2lkIF9zZXRTdGF0ZShDb25uZWN0aW9uU3RhdGUgcykgewogICAgX3N0YXRlID0gczsKICAgIF9zdGF0ZUNvbnRyb2xsZXIuYWRkKHMpOwogIH0KCiAgdm9pZCBfb25FcnJvcihPYmplY3QgZSkgewogICAgZGVidWdQcmludCgnW0dlbWluaV0gV2ViU29ja2V0IGVycm9yOiAkZScpOwogICAgX3BlbmRpbmdFcnJvciA9ICdXZWJTb2NrZXQgZXJyb3I6ICRlJzsKICAgIF9zZXRTdGF0ZShDb25uZWN0aW9uU3RhdGUuZXJyb3IpOwogIH0KCiAgdm9pZCBfb25Eb25lKCkgewogICAgZGVidWdQcmludCgnW0dlbWluaV0gV2ViU29ja2V0IGNsb3NlZC4gc2V0dXBDb21wbGV0ZT0kX3NldHVwQ29tcGxldGUgc3RhdGU9JF9zdGF0ZSBjbG9zZUNvZGU9JHtfY2hhbm5lbD8uY2xvc2VDb2RlfSBjbG9zZVJlYXNvbj0ke19jaGFubmVsPy5jbG9zZVJlYXNvbn0nKTsKICAgIGlmICghX3NldHVwQ29tcGxldGUpIHsKICAgICAgX3BlbmRpbmdFcnJvciA/Pz0gJ0Nvbm5lY3Rpb24gY2xvc2VkIGJlZm9yZSBzZXR1cCBjb21wbGV0ZWQgKGNvZGU9JHtfY2hhbm5lbD8uY2xvc2VDb2RlfSwgcmVhc29uPSR7X2NoYW5uZWw/LmNsb3NlUmVhc29ufSknOwogICAgfQogICAgLy8gU29ja2V0LWxldmVsIGF1dG8tcmVjb25uZWN0IHJlbW92ZWQ6IHRoZSBjb250cm9sbGVyIG93bnMgcmVjb25uZWN0aW9uCiAgICAvLyAoc2Vzc2lvbl9saWZlY3ljbGUuZGFydCkuIEEgc2Vjb25kIHJlY29ubmVjdCBsb29wIGhlcmUgY3JlYXRlZCBwYXJhbGxlbAogICAgLy8gc29ja2V0cyB0aGF0IGZvdWdodCB0aGUgY29udHJvbGxlcidzIGFuZCBjYXVzZWQgY29uc3RhbnQgZmxhcHBpbmcuCiAgICBfc2V0U3RhdGUoQ29ubmVjdGlvblN0YXRlLmRpc2Nvbm5lY3RlZCk7CiAgfQoKICBGdXR1cmU8dm9pZD4gZGlzY29ubmVjdCgpIGFzeW5jIHsKICAgIC8vIENhbmNlbCBhbnkgcGVuZGluZyBnb0F3YXkgY2xvc2Ug4oCUIHRoZSBzZXNzaW9uIGlzIGJlaW5nIHRvcm4gZG93bgogICAgLy8gZGVsaWJlcmF0ZWx5OyBhIHN0YWxlIHRpbWVyIG11c3Qgbm90IGNsb3NlIGEgcmVwbGFjZW1lbnQgc29ja2V0LgogICAgX2dvQXdheVRpbWVyPy5jYW5jZWwoKTsKICAgIF9nb0F3YXlUaW1lciA9IG51bGw7CiAgICBhd2FpdCBfY2hhbm5lbD8uc2luay5jbG9zZSgpOwogICAgX3NldHVwQ29tcGxldGUgPSBmYWxzZTsKICAgIF9zZXRTdGF0ZShDb25uZWN0aW9uU3RhdGUuZGlzY29ubmVjdGVkKTsKICB9Cn0K
+part of '../gemini_socket.dart';
+
+extension GeminiSocketConnect on GeminiSocket {
+  Future<void> connect() async {
+    if (_state == ConnectionState.connected) return;
+    _setState(ConnectionState.connecting);
+    _pendingError = null;
+
+    try {
+      final uri = Uri.parse(GeminiConfig.wsUrl);
+      debugPrint('[Gemini] Connecting to: ${uri.toString().replaceAll(RegExp(r'key=.*'), 'key=***')}');
+      debugPrint('[Gemini] Model: ${GeminiConfig.model}, Voice: $voice');
+      _channel = WebSocketChannel.connect(uri);
+      await _channel!.ready.timeout(GeminiConfig.connectTimeout);
+      debugPrint('[Gemini] WebSocket connected, sending setup...');
+
+      _channel!.stream.listen(
+        _onMessage,
+        onError: _onError,
+        onDone: _onDone,
+      );
+
+      final setupMsg = {
+        'setup': {
+          'model': 'models/${GeminiConfig.model}',
+          'generationConfig': {
+            'responseModalities': ['AUDIO'],
+            'speechConfig': {
+              'voiceConfig': {
+                'prebuiltVoiceConfig': {'voiceName': voice},
+              },
+            },
+          },
+          'inputAudioTranscription': {},
+          // Requested because we parse outputTranscription from serverContent.
+          // Previously omitted (server sent it anyway); explicit per contract.
+          'outputAudioTranscription': {},
+          // Enable server-side session resumption. New sessions send {};
+          // reconnects send the last handle so the server restores context
+          // instead of starting cold.
+          'sessionResumption': resumptionHandle != null && resumptionHandle!.isNotEmpty
+              ? {'handle': resumptionHandle}
+              : <String, dynamic>{},
+          if (systemPrompt != null)
+            'systemInstruction': {
+              'parts': [{'text': systemPrompt}],
+            },
+          'tools': [
+            if (tools != null && tools!.isNotEmpty)
+              {'functionDeclarations': tools},
+          ],
+        },
+      };
+      final setupJson = jsonEncode(setupMsg);
+      debugPrint('[Gemini] Sending setup JSON: ${setupJson.length} chars');
+      debugPrint('[Gemini] Setup model: models/${GeminiConfig.model}');
+      debugPrint('[Gemini] Setup tools count: ${(setupMsg['setup']?['tools'] as List?)?.length ?? 0}');
+      debugPrint('[Gemini] Setup resuming: ${resumptionHandle != null && resumptionHandle!.isNotEmpty}');
+      _channel!.sink.add(setupJson);
+
+      await _waitForSetup();
+      debugPrint('[Gemini] Setup complete!');
+      _setState(ConnectionState.connected);
+    } catch (e) {
+      final errorMsg = _pendingError ?? e.toString();
+      debugPrint('[Gemini] Connect error: $errorMsg');
+      _setState(ConnectionState.error);
+      _pendingError = errorMsg;
+      rethrow;
+    }
+  }
+
+  Future<void> _waitForSetup() async {
+    int attempts = 0;
+    while (!_setupComplete && attempts < GeminiConfig.setupMaxAttempts) {
+      if (_pendingError != null) {
+        throw Exception(_pendingError);
+      }
+      await Future.delayed(GeminiConfig.setupPollInterval);
+      attempts++;
+    }
+    if (!_setupComplete) {
+      throw TimeoutException('Gemini Live setup timed out. ${_pendingError ?? "No setupComplete received — check API key and model name."}');
+    }
+  }
+
+  void _setState(ConnectionState s) {
+    _state = s;
+    _stateController.add(s);
+  }
+
+  void _onError(Object e) {
+    debugPrint('[Gemini] WebSocket error: $e');
+    _pendingError = 'WebSocket error: $e';
+    _setState(ConnectionState.error);
+  }
+
+  void _onDone() {
+    debugPrint('[Gemini] WebSocket closed. setupComplete=$_setupComplete state=$_state closeCode=${_channel?.closeCode} closeReason=${_channel?.closeReason}');
+    if (!_setupComplete) {
+      _pendingError ??= 'Connection closed before setup completed (code=${_channel?.closeCode}, reason=${_channel?.closeReason})';
+    }
+    // Socket-level auto-reconnect removed: the controller owns reconnection
+    // (session_lifecycle.dart). A second reconnect loop here created parallel
+    // sockets that fought the controller's and caused constant flapping.
+    _setState(ConnectionState.disconnected);
+  }
+
+  Future<void> disconnect() async {
+    // Cancel any pending goAway close — the session is being torn down
+    // deliberately; a stale timer must not close a replacement socket.
+    _goAwayTimer?.cancel();
+    _goAwayTimer = null;
+    await _channel?.sink.close();
+    _setupComplete = false;
+    _setState(ConnectionState.disconnected);
+  }
+}

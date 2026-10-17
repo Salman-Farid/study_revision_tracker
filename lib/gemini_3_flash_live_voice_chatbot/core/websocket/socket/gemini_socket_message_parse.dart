@@ -1,1 +1,160 @@
-cGFydCBvZiAnLi4vZ2VtaW5pX3NvY2tldC5kYXJ0JzsKCmV4dGVuc2lvbiBHZW1pbmlTb2NrZXRNZXNzYWdlUGFyc2Ugb24gR2VtaW5pU29ja2V0IHsKICB2b2lkIF9vbk1lc3NhZ2UoZHluYW1pYyBkYXRhKSB7CiAgICB0cnkgewogICAgICBmaW5hbCBTdHJpbmcgdGV4dDsKICAgICAgaWYgKGRhdGEgaXMgU3RyaW5nKSB7CiAgICAgICAgdGV4dCA9IGRhdGE7CiAgICAgIH0gZWxzZSBpZiAoZGF0YSBpcyBMaXN0PGludD4pIHsKICAgICAgICB0ZXh0ID0gdXRmOC5kZWNvZGUoZGF0YSwgYWxsb3dNYWxmb3JtZWQ6IHRydWUpOwogICAgICB9IGVsc2UgewogICAgICAgIHRleHQgPSBkYXRhLnRvU3RyaW5nKCk7CiAgICAgIH0KICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gUmVjZWl2ZWQgbWVzc2FnZSAoJHt0ZXh0Lmxlbmd0aH0gY2hhcnMpOiAke3RleHQubGVuZ3RoID4gNTAwID8gdGV4dC5zdWJzdHJpbmcoMCwgNTAwKSArICcuLi4nIDogdGV4dH0nKTsKICAgICAgZmluYWwgbXNnID0ganNvbkRlY29kZSh0ZXh0KSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPjsKCiAgICAgIGlmIChtc2cuY29udGFpbnNLZXkoJ3NldHVwQ29tcGxldGUnKSkgewogICAgICAgIF9zZXR1cENvbXBsZXRlID0gdHJ1ZTsKICAgICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSBSZWNlaXZlZCBzZXR1cENvbXBsZXRlJyk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CgogICAgICBpZiAobXNnLmNvbnRhaW5zS2V5KCdzZXNzaW9uUmVzdW1wdGlvblVwZGF0ZScpKSB7CiAgICAgICAgZmluYWwgdXBkYXRlID0gbXNnWydzZXNzaW9uUmVzdW1wdGlvblVwZGF0ZSddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PzsKICAgICAgICBmaW5hbCBoYW5kbGUgPSB1cGRhdGU/WyduZXdIYW5kbGUnXSBhcyBTdHJpbmc/OwogICAgICAgIGlmIChoYW5kbGUgIT0gbnVsbCAmJiBoYW5kbGUuaXNOb3RFbXB0eSkgewogICAgICAgICAgcmVzdW1wdGlvbkhhbmRsZSA9IGhhbmRsZTsKICAgICAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIFNlc3Npb24gcmVzdW1wdGlvbiBoYW5kbGUgdXBkYXRlZCcpOwogICAgICAgIH0KICAgICAgICByZXR1cm47CiAgICAgIH0KCiAgICAgIGlmIChtc2cuY29udGFpbnNLZXkoJ2Vycm9yJykpIHsKICAgICAgICBmaW5hbCBlcnJvciA9IG1zZ1snZXJyb3InXSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPj87CiAgICAgICAgZmluYWwgY29kZSA9IGVycm9yP1snY29kZSddID8/ICd1bmtub3duJzsKICAgICAgICBmaW5hbCBtZXNzYWdlID0gZXJyb3I/WydtZXNzYWdlJ10gPz8gJ05vIG1lc3NhZ2UnOwogICAgICAgIGZpbmFsIHN0YXR1cyA9IGVycm9yP1snc3RhdHVzJ10gPz8gJ3Vua25vd24nOwogICAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIFNlcnZlciBlcnJvcjogY29kZT0kY29kZSBzdGF0dXM9JHN0YXR1cyBtZXNzYWdlPSRtZXNzYWdlJyk7CiAgICAgICAgX3BlbmRpbmdFcnJvciA9ICdHZW1pbmkgZXJyb3IgKCRjb2RlKTogJG1lc3NhZ2UnOwogICAgICAgIF9zZXRTdGF0ZShDb25uZWN0aW9uU3RhdGUuZXJyb3IpOwogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgaWYgKG1zZy5jb250YWluc0tleSgndG9vbENhbGwnKSkgewogICAgICAgIGZpbmFsIHRvb2xDYWxsID0gbXNnWyd0b29sQ2FsbCddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PzsKICAgICAgICBmaW5hbCBmdW5jdGlvbkNhbGxzID0gdG9vbENhbGw/WydmdW5jdGlvbkNhbGxzJ10gYXMgTGlzdDxkeW5hbWljPj8gPz8gW107CiAgICAgICAgZm9yIChmaW5hbCBmYyBpbiBmdW5jdGlvbkNhbGxzKSB7CiAgICAgICAgICBmaW5hbCBmY01hcCA9IGZjIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+OwogICAgICAgICAgZmluYWwgY2FsbElkID0gZmNNYXBbJ2lkJ10gYXMgU3RyaW5nPyA/PyAnJzsKICAgICAgICAgIGZpbmFsIG5hbWUgPSBmY01hcFsnbmFtZSddIGFzIFN0cmluZz8gPz8gJyc7CiAgICAgICAgICBmaW5hbCBhcmdzID0gZmNNYXBbJ2FyZ3MnXSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPj8gPz8ge307CiAgICAgICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSB0b29sQ2FsbDogJG5hbWUgaWQ9JGNhbGxJZCBhcmdzPSRhcmdzJyk7CiAgICAgICAgICBfZnVuY3Rpb25DYWxsQ29udHJvbGxlci5hZGQoewogICAgICAgICAgICAnaWQnOiBjYWxsSWQsCiAgICAgICAgICAgICduYW1lJzogbmFtZSwKICAgICAgICAgICAgJ2FyZ3MnOiBhcmdzLAogICAgICAgICAgfSk7CiAgICAgICAgfQogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgaWYgKG1zZy5jb250YWluc0tleSgndG9vbENhbGxDYW5jZWxsYXRpb24nKSkgewogICAgICAgIGZpbmFsIGNhbmNlbCA9IG1zZ1sndG9vbENhbGxDYW5jZWxsYXRpb24nXSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPj87CiAgICAgICAgZmluYWwgaWRzID0gY2FuY2VsP1snaWRzJ10gYXMgTGlzdDxkeW5hbWljPj8gPz8gW107CiAgICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gdG9vbENhbGxDYW5jZWxsYXRpb246IGlkcz0kaWRzJyk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CgogICAgICBpZiAobXNnLmNvbnRhaW5zS2V5KCdnb0F3YXknKSkgewogICAgICAgIGZpbmFsIGdvQXdheSA9IG1zZ1snZ29Bd2F5J10gYXMgTWFwPFN0cmluZywgZHluYW1pYz4/OwogICAgICAgIGZpbmFsIHRpbWVMZWZ0ID0gZ29Bd2F5P1sndGltZUxlZnQnXSA/PyAndW5rbm93bic7CiAgICAgICAgZGVidWdQcmludCgnW0dlbWluaV0g4pqg77iPIGdvQXdheSByZWNlaXZlZCDigJQgdGltZUxlZnQ9JHRpbWVMZWZ0LiBTZXJ2ZXIgd2FudHMgc2Vzc2lvbiB0byBlbmQuJyk7CiAgICAgICAgLy8gR3JhY2VmdWxseSBjbG9zZSDigJQgc2VuZCBlbmRUdXJuIHNvIEdlbWluaSBjYW4gd3JhcCB1cCwgdGhlbiBjbG9zZSBzaW5rCiAgICAgICAgdHJ5IHsKICAgICAgICAgIGVuZFR1cm4oKTsKICAgICAgICB9IGNhdGNoIChfKSB7fQogICAgICAgIC8vIENsb3NlIGFmdGVyIGEgc2hvcnQgZGVsYXkgdG8gbGV0IGVuZFR1cm4gZ28gdGhyb3VnaC4gU3RvcmVkIHNvCiAgICAgICAgLy8gZGlzY29ubmVjdCgpIGNhbiBjYW5jZWwgaXQgKGEgc3RhbGUgdGltZXIgbXVzdCBuZXZlciBjbG9zZSBhCiAgICAgICAgLy8gcmVwbGFjZW1lbnQgc29ja2V0KS4KICAgICAgICBfZ29Bd2F5VGltZXI/LmNhbmNlbCgpOwogICAgICAgIF9nb0F3YXlUaW1lciA9IFRpbWVyKGNvbnN0IER1cmF0aW9uKHNlY29uZHM6IDIpLCAoKSB7CiAgICAgICAgICBfZ29Bd2F5VGltZXIgPSBudWxsOwogICAgICAgICAgaWYgKF9zdGF0ZSA9PSBDb25uZWN0aW9uU3RhdGUuY29ubmVjdGVkKSB7CiAgICAgICAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIENsb3NpbmcgY29ubmVjdGlvbiBhZnRlciBnb0F3YXknKTsKICAgICAgICAgICAgX2NoYW5uZWw/LnNpbmsuY2xvc2UoMTAwMCwgJ1Nlc3Npb24gZW5kZWQgYWZ0ZXIgZ29Bd2F5Jyk7CiAgICAgICAgICB9CiAgICAgICAgfSk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CgogICAgICBpZiAobXNnLmNvbnRhaW5zS2V5KCdzZXJ2ZXJDb250ZW50JykpIHsKICAgICAgICBmaW5hbCBzYyA9IG1zZ1snc2VydmVyQ29udGVudCddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PzsKICAgICAgICBpZiAoc2MgPT0gbnVsbCkgcmV0dXJuOwoKICAgICAgICBpZiAoc2NbJ21vZGVsVHVybiddICE9IG51bGwpIHsKICAgICAgICAgIGZpbmFsIG1vZGVsVHVybiA9IHNjWydtb2RlbFR1cm4nXSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPjsKICAgICAgICAgIGZvciAoZmluYWwgcGFydCBpbiBtb2RlbFR1cm5bJ3BhcnRzJ10gPz8gW10pIHsKICAgICAgICAgICAgaWYgKHBhcnQgaXMgTWFwPFN0cmluZywgZHluYW1pYz4pIHsKICAgICAgICAgICAgICBpZiAocGFydFsnaW5saW5lRGF0YSddICE9IG51bGwpIHsKICAgICAgICAgICAgICAgIGZpbmFsIGlubGluZURhdGEgPSBwYXJ0WydpbmxpbmVEYXRhJ10gYXMgTWFwPFN0cmluZywgZHluYW1pYz4/OwogICAgICAgICAgICAgICAgZmluYWwgZGF0YVN0ciA9IGlubGluZURhdGE/WydkYXRhJ10gYXMgU3RyaW5nPzsKICAgICAgICAgICAgICAgIGlmIChkYXRhU3RyICE9IG51bGwgJiYgZGF0YVN0ci5pc05vdEVtcHR5KSB7CiAgICAgICAgICAgICAgICAgIGZpbmFsIGF1ZGlvQnl0ZXMgPSBiYXNlNjREZWNvZGUoZGF0YVN0cik7CiAgICAgICAgICAgICAgICAgIF9hdWRpb0NvbnRyb2xsZXIuYWRkKGF1ZGlvQnl0ZXMpOwogICAgICAgICAgICAgICAgICBfYXVkaW9BY3Rpdml0eUNvbnRyb2xsZXIuYWRkKG51bGwpOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgIH0KICAgICAgICAgICAgICBpZiAocGFydFsnZnVuY3Rpb25DYWxsJ10gIT0gbnVsbCkgewogICAgICAgICAgICAgICAgZmluYWwgZnVuY3Rpb25DYWxsID0gcGFydFsnZnVuY3Rpb25DYWxsJ10gYXMgTWFwPFN0cmluZywgZHluYW1pYz47CiAgICAgICAgICAgICAgICBmaW5hbCBjYWxsSWQgPSBmdW5jdGlvbkNhbGxbJ2lkJ10gYXMgU3RyaW5nPyA/PyAnJzsKICAgICAgICAgICAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIEZ1bmN0aW9uIGNhbGw6ICR7ZnVuY3Rpb25DYWxsWyduYW1lJ119IGlkPSRjYWxsSWQnKTsKICAgICAgICAgICAgICAgIF9mdW5jdGlvbkNhbGxDb250cm9sbGVyLmFkZCh7CiAgICAgICAgICAgICAgICAgICdpZCc6IGNhbGxJZCwKICAgICAgICAgICAgICAgICAgJ25hbWUnOiBmdW5jdGlvbkNhbGxbJ25hbWUnXSBhcyBTdHJpbmc/ID8/ICcnLAogICAgICAgICAgICAgICAgICAnYXJncyc6IGZ1bmN0aW9uQ2FsbFsnYXJncyddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PyA/PyB7fSwKICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgfQogICAgICAgIH0KCiAgICAgICAgaWYgKHNjWydvdXRwdXRUcmFuc2NyaXB0aW9uJ10gIT0gbnVsbCkgewogICAgICAgICAgZmluYWwgb3QgPSBzY1snb3V0cHV0VHJhbnNjcmlwdGlvbiddIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PzsKICAgICAgICAgIGZpbmFsIHRleHQgPSBvdD9bJ3RleHQnXSBhcyBTdHJpbmc/ID8/ICcnOwogICAgICAgICAgaWYgKHRleHQuaXNOb3RFbXB0eSkgX3RyYW5zY3JpcHRDb250cm9sbGVyLmFkZCh0ZXh0KTsKICAgICAgICB9CgogICAgICAgIGlmIChzY1snaW5wdXRUcmFuc2NyaXB0aW9uJ10gIT0gbnVsbCkgewogICAgICAgICAgZmluYWwgaXQgPSBzY1snaW5wdXRUcmFuc2NyaXB0aW9uJ10gYXMgTWFwPFN0cmluZywgZHluYW1pYz4/OwogICAgICAgICAgZmluYWwgdGV4dCA9IGl0P1sndGV4dCddIGFzIFN0cmluZz8gPz8gJyc7CiAgICAgICAgICBpZiAodGV4dC5pc05vdEVtcHR5KSBfdHJhbnNjcmlwdENvbnRyb2xsZXIuYWRkKCdVU0VSOiR0ZXh0Jyk7CiAgICAgICAgfQoKICAgICAgICBpZiAoc2NbJ2dlbmVyYXRpb25Db21wbGV0ZSddID09IHRydWUpIHsKICAgICAgICAgIF9kcmFpblRyYWlsaW5nKCk7CiAgICAgICAgfQoKICAgICAgICBpZiAoc2NbJ2ludGVycnVwdGVkJ10gPT0gdHJ1ZSkgewogICAgICAgICAgLy8gU2VydmVyIGFib3J0ZWQgdGhlIGN1cnJlbnQgdHVybi4gVHJlYXQgbGlrZSBhIHR1cm4gZW5kIHNvIHRoZQogICAgICAgICAgLy8gY29udHJvbGxlciBkb2Vzbid0IHdhaXQgZm9yZXZlciBmb3IgYSByZXBseSB0aGF0IHdpbGwgbmV2ZXIgY29tZS4KICAgICAgICAgIC8vIChUaGUgdHVybkNvbXBsZXRlIGhhbmRsZXIgaXMgaWRlbXBvdGVudCDigJQgYSBmb2xsb3dpbmcgcmVhbAogICAgICAgICAgLy8gdHVybkNvbXBsZXRlIGp1c3QgcmUtcnVucyB0aGUgc2FtZSBjaGVja3MuKQogICAgICAgICAgZGVidWdQcmludCgnW0dlbWluaV0gSW50ZXJydXB0ZWQg4oCUIHRyZWF0aW5nIGFzIHR1cm4gZW5kJyk7CiAgICAgICAgICBfdHVybkNvbXBsZXRlQ29udHJvbGxlci5hZGQobnVsbCk7CiAgICAgICAgfQoKICAgICAgICBpZiAoc2NbJ3R1cm5Db21wbGV0ZSddID09IHRydWUpIHsKICAgICAgICAgIGRlYnVnUHJpbnQoJ1tHZW1pbmldIHR1cm5Db21wbGV0ZSByZWNlaXZlZCcpOwogICAgICAgICAgX3R1cm5Db21wbGV0ZUNvbnRyb2xsZXIuYWRkKG51bGwpOwogICAgICAgIH0KICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCdbR2VtaW5pXSBfb25NZXNzYWdlIGVycm9yOiAkZScpOwogICAgfQogIH0KCiAgRnV0dXJlPHZvaWQ+IF9kcmFpblRyYWlsaW5nKCkgYXN5bmMgewogICAgYXdhaXQgRnV0dXJlLmRlbGF5ZWQoY29uc3QgRHVyYXRpb24obWlsbGlzZWNvbmRzOiAxMDApKTsKICB9Cn0K
+part of '../gemini_socket.dart';
+
+extension GeminiSocketMessageParse on GeminiSocket {
+  void _onMessage(dynamic data) {
+    try {
+      final String text;
+      if (data is String) {
+        text = data;
+      } else if (data is List<int>) {
+        text = utf8.decode(data, allowMalformed: true);
+      } else {
+        text = data.toString();
+      }
+      debugPrint('[Gemini] Received message (${text.length} chars): ${text.length > 500 ? text.substring(0, 500) + '...' : text}');
+      final msg = jsonDecode(text) as Map<String, dynamic>;
+
+      if (msg.containsKey('setupComplete')) {
+        _setupComplete = true;
+        debugPrint('[Gemini] Received setupComplete');
+        return;
+      }
+
+      if (msg.containsKey('sessionResumptionUpdate')) {
+        final update = msg['sessionResumptionUpdate'] as Map<String, dynamic>?;
+        final handle = update?['newHandle'] as String?;
+        if (handle != null && handle.isNotEmpty) {
+          resumptionHandle = handle;
+          debugPrint('[Gemini] Session resumption handle updated');
+        }
+        return;
+      }
+
+      if (msg.containsKey('error')) {
+        final error = msg['error'] as Map<String, dynamic>?;
+        final code = error?['code'] ?? 'unknown';
+        final message = error?['message'] ?? 'No message';
+        final status = error?['status'] ?? 'unknown';
+        debugPrint('[Gemini] Server error: code=$code status=$status message=$message');
+        _pendingError = 'Gemini error ($code): $message';
+        _setState(ConnectionState.error);
+        return;
+      }
+
+      if (msg.containsKey('toolCall')) {
+        final toolCall = msg['toolCall'] as Map<String, dynamic>?;
+        final functionCalls = toolCall?['functionCalls'] as List<dynamic>? ?? [];
+        for (final fc in functionCalls) {
+          final fcMap = fc as Map<String, dynamic>;
+          final callId = fcMap['id'] as String? ?? '';
+          final name = fcMap['name'] as String? ?? '';
+          final args = fcMap['args'] as Map<String, dynamic>? ?? {};
+          debugPrint('[Gemini] toolCall: $name id=$callId args=$args');
+          _functionCallController.add({
+            'id': callId,
+            'name': name,
+            'args': args,
+          });
+        }
+        return;
+      }
+
+      if (msg.containsKey('toolCallCancellation')) {
+        final cancel = msg['toolCallCancellation'] as Map<String, dynamic>?;
+        final ids = cancel?['ids'] as List<dynamic>? ?? [];
+        debugPrint('[Gemini] toolCallCancellation: ids=$ids');
+        return;
+      }
+
+      if (msg.containsKey('goAway')) {
+        final goAway = msg['goAway'] as Map<String, dynamic>?;
+        final timeLeft = goAway?['timeLeft'] ?? 'unknown';
+        debugPrint('[Gemini] ⚠️ goAway received — timeLeft=$timeLeft. Server wants session to end.');
+        // Gracefully close — send endTurn so Gemini can wrap up, then close sink
+        try {
+          endTurn();
+        } catch (_) {}
+        // Close after a short delay to let endTurn go through. Stored so
+        // disconnect() can cancel it (a stale timer must never close a
+        // replacement socket).
+        _goAwayTimer?.cancel();
+        _goAwayTimer = Timer(const Duration(seconds: 2), () {
+          _goAwayTimer = null;
+          if (_state == ConnectionState.connected) {
+            debugPrint('[Gemini] Closing connection after goAway');
+            _channel?.sink.close(1000, 'Session ended after goAway');
+          }
+        });
+        return;
+      }
+
+      if (msg.containsKey('serverContent')) {
+        final sc = msg['serverContent'] as Map<String, dynamic>?;
+        if (sc == null) return;
+
+        if (sc['modelTurn'] != null) {
+          final modelTurn = sc['modelTurn'] as Map<String, dynamic>;
+          for (final part in modelTurn['parts'] ?? []) {
+            if (part is Map<String, dynamic>) {
+              if (part['inlineData'] != null) {
+                final inlineData = part['inlineData'] as Map<String, dynamic>?;
+                final dataStr = inlineData?['data'] as String?;
+                if (dataStr != null && dataStr.isNotEmpty) {
+                  final audioBytes = base64Decode(dataStr);
+                  _audioController.add(audioBytes);
+                  _audioActivityController.add(null);
+                }
+              }
+              if (part['functionCall'] != null) {
+                final functionCall = part['functionCall'] as Map<String, dynamic>;
+                final callId = functionCall['id'] as String? ?? '';
+                debugPrint('[Gemini] Function call: ${functionCall['name']} id=$callId');
+                _functionCallController.add({
+                  'id': callId,
+                  'name': functionCall['name'] as String? ?? '',
+                  'args': functionCall['args'] as Map<String, dynamic>? ?? {},
+                });
+              }
+            }
+          }
+        }
+
+        if (sc['outputTranscription'] != null) {
+          final ot = sc['outputTranscription'] as Map<String, dynamic>?;
+          final text = ot?['text'] as String? ?? '';
+          if (text.isNotEmpty) _transcriptController.add(text);
+        }
+
+        if (sc['inputTranscription'] != null) {
+          final it = sc['inputTranscription'] as Map<String, dynamic>?;
+          final text = it?['text'] as String? ?? '';
+          if (text.isNotEmpty) _transcriptController.add('USER:$text');
+        }
+
+        if (sc['generationComplete'] == true) {
+          _drainTrailing();
+        }
+
+        if (sc['interrupted'] == true) {
+          // Server aborted the current turn. Treat like a turn end so the
+          // controller doesn't wait forever for a reply that will never come.
+          // (The turnComplete handler is idempotent — a following real
+          // turnComplete just re-runs the same checks.)
+          debugPrint('[Gemini] Interrupted — treating as turn end');
+          _turnCompleteController.add(null);
+        }
+
+        if (sc['turnComplete'] == true) {
+          debugPrint('[Gemini] turnComplete received');
+          _turnCompleteController.add(null);
+        }
+      }
+    } catch (e) {
+      debugPrint('[Gemini] _onMessage error: $e');
+    }
+  }
+
+  Future<void> _drainTrailing() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
+}
