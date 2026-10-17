@@ -306,6 +306,16 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   final List<Map<String, dynamic>> _pendingResponses = [];
   Timer? _pendingCallsSafetyTimer;
   Timer? _batchFlushTimer;
+  /// Human-readable summaries of the most recently flushed tool batch, used
+  /// for the silent-batch fallback message. Cleared on the next user turn.
+  List<String> _lastBatchSummaries = [];
+  /// Sequence guard so a stale batch timer never posts for a newer turn.
+  int _batchSeq = 0;
+  /// While true, an incoming USER: transcript chunk is the echo of a
+  /// reconnect re-drive (not a genuinely new user turn), so the completed
+  /// tool-result dedup cache must NOT be reset.
+  bool _redriveEchoWindow = false;
+  Timer? _redriveEchoTimer;
 
   static const int _maxPendingCalls = 60;
 

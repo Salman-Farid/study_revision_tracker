@@ -53,7 +53,13 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
           messages.add(ChatMessage(role: ChatRole.user, text: trimmed));
         }
         _batchRetryCount = 0;
-        _recentCalls.clear();
+        if (_redriveEchoWindow) {
+          // Echo of our own reconnect re-drive — not a genuinely new user turn.
+          debugPrint('[Gemini] 🔁 Re-drive echo — keeping dedup cache');
+        } else {
+          _recentCalls.clear();
+        }
+        _lastBatchSummaries = [];
         _awaitingAssistantReply = true;
         isProcessing.value = true;
         _showThinking();
@@ -516,7 +522,18 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
         if (lastUser != null && lastUser.text.trim().isNotEmpty) {
           debugPrint('[Gemini] 🔄 Re-driving interrupted turn after reconnect');
           _batchRetryCount = 0;
-          _recentCalls.clear();
+          // Do NOT clear _recentCalls here: the resumed session may re-issue
+          // tool calls from the interrupted turn (new call ids, identical
+          // args). The success-dedup cache must survive the reconnect so those
+          // are answered from cache instead of re-executed — a re-executed
+          // deleteDailyRoutine would fail with "nothing to delete" even though
+          // it already succeeded before the drop.
+          // The incoming USER: echo of this re-drive is not a new turn either.
+          _redriveEchoWindow = true;
+          _redriveEchoTimer?.cancel();
+          _redriveEchoTimer = Timer(const Duration(seconds: 15), () {
+            _redriveEchoWindow = false;
+          });
           _removeSilentNotices();
           _silentRecoverTimer?.cancel();
           isProcessing.value = true;
@@ -597,6 +614,9 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       currentTopicName = null;
       _processedCallIds.clear();
       _recentCalls.clear();
+      _redriveEchoTimer?.cancel();
+      _redriveEchoWindow = false;
+      _lastBatchSummaries = [];
       _pendingCallIds.clear();
       _pendingResponses.clear();
       _streamingMessage = null;

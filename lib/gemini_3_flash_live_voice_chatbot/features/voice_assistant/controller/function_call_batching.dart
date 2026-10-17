@@ -205,6 +205,7 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
   void _flushBatch(int gen, {bool forcedByTimeout = false}) {
     if (gen != _generation) return;
     _pendingCallsSafetyTimer?.cancel();
+    _batchSeq++;
     final okCount = _pendingResponses
         .where((r) => (r['result'] as Map<String, dynamic>?)?['success'] == true)
         .length;
@@ -225,6 +226,15 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
         .map((r) => {'id': r['id'], 'name': r['name'], 'result': r['result']})
         .toList();
 
+    // Remember human-readable summaries so the silent-batch fallback can
+    // tell the user what was done if the model never follows up.
+    _lastBatchSummaries = _pendingResponses.map((r) {
+      final raw = r['result'];
+      final result =
+          raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+      return _describeToolResult((r['name'] as String?) ?? 'tool', result);
+    }).toList();
+
     try {
       _service.sendBatchedFunctionResponses(wireResponses, retryCount: retryCountForService);
     } catch (e) {
@@ -233,6 +243,7 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
     _pendingResponses.clear();
 
     if (forcedByTimeout) {
+      _postSilentBatchSummary();
       _unmuteAfterFunctionCall();
       _finishBatchUi();
       // Recover Thinking even if Gemini never streams a follow-up.
@@ -248,14 +259,55 @@ extension VoiceAssistantFunctionBatching on VoiceAssistantController {
     _batchCompleted = 0;
     _batchFlushTimer?.cancel();
     // Safety: if Gemini doesn't respond within 8s, force unmute and finish
+    final seq = _batchSeq;
     _batchFlushTimer = Timer(const Duration(seconds: 8), () {
       if (gen != _generation) return;
+      if (seq != _batchSeq) return; // superseded by a newer batch
       if (_batchJustCompleted) {
         debugPrint('[Gemini] ⚠️ Batch safety timeout — forcing unmute');
+        _postSilentBatchSummary();
         _finishBatchUi();
         _unmuteAfterFunctionCall();
       }
     });
+  }
+
+  /// One-line, user-facing description of a tool result for the
+  /// silent-batch fallback message. Prefers the tool's own 'message' when
+  /// present; failures are always marked so they can't be mistaken for work.
+  String _describeToolResult(String name, Map<String, dynamic> result) {
+    if (result['success'] == true) {
+      final msg = (result['message'] as String?)?.trim();
+      if (msg != null && msg.isNotEmpty) return msg;
+      if (result['skipped'] == true) {
+        return '$name: already done — not repeated.';
+      }
+      return '$name completed.';
+    }
+    final err = (result['error'] as String?)?.trim();
+    return (err != null && err.isNotEmpty)
+        ? '❌ $name failed: $err'
+        : '❌ $name failed.';
+  }
+
+  /// Post a local assistant message summarizing a tool batch the model never
+  /// followed up on, so the user is never left in total silence.
+  void _postSilentBatchSummary() {
+    if (_lastBatchSummaries.isEmpty) return;
+    if (_assistantRepliedSinceUser()) return; // model did reply — stay quiet
+    debugPrint(
+        '[Gemini] 📝 Posting silent-batch fallback summary (${_lastBatchSummaries.length} ops)');
+    final lines = _lastBatchSummaries
+        .map((s) => s.startsWith('❌') ? s : '• $s')
+        .join('\n');
+    messages.add(ChatMessage(
+      role: ChatRole.assistant,
+      text: '✅ All done:\n$lines',
+    ));
+    _awaitingAssistantReply = false;
+    _removeSilentNotices();
+    _updateFloorStatus();
+    _triggerUiUpdate();
   }
 
   void _finishBatchUi() {
