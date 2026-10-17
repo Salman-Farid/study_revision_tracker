@@ -62,6 +62,10 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
         _lastBatchSummaries = [];
         _awaitingAssistantReply = true;
         isProcessing.value = true;
+        // New user turn (incl. barge-in / re-drive echo): the previous
+        // assistant turn is over — drop the streaming pointer so a stale
+        // message can't shadow "Thinking..." for the new turn.
+        _streamingMessage = null;
         _showThinking();
         debugPrint('[Gemini] 🆕 New user message — waiting for Pootu');
       } else {

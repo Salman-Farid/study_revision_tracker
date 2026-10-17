@@ -256,8 +256,13 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       }
       if (connectionState.value == ws.ConnectionState.connected) {
         if (_pendingCallIds.isNotEmpty || _batchInProgress) return 'Working...';
+        // Talking outranks Thinking: once the model's reply starts streaming,
+        // the assistant is speaking — never show "Thinking..." during playback.
+        if (_streamingMessage != null &&
+            _streamingMessage!.text.trim().isNotEmpty) {
+          return 'Talking to you';
+        }
         if (_thinkingMessage != null || isLoading.value) return 'Thinking...';
-        if (_streamingMessage != null) return 'Speaking...';
         if (isProcessing.value) return 'Processing...';
         if (_awaitingAssistantReply) return 'No reply — tap mic or send again';
         if (isMuted) return 'Mic off — tap mic';
