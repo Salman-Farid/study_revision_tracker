@@ -92,11 +92,11 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
 
-    if (!fast) {
-      Timer(const Duration(seconds: 8), () {
-        if (!navigated && mounted) finish(AppRoutes.home);
-      });
-    }
+    // Safety net: the splash must never hang — the fast (web/desktop) path
+    // has no other timer, so arm one here too.
+    Timer(Duration(seconds: fast ? 10 : 8), () {
+      if (!navigated && mounted) finish(fast ? AppRoutes.auth : AppRoutes.home);
+    });
 
     try {
       var user = Supabase.instance.client.auth.currentUser;
@@ -139,7 +139,9 @@ class _SplashScreenState extends State<SplashScreen>
       // dialog can open. Covers PKCE (?recovery=1) and mobile deep link.
       try {
         final recovery = Get.find<PasswordRecoveryService>();
-        await recovery.detectInitialRecoveryLink();
+        await recovery
+            .detectInitialRecoveryLink()
+            .timeout(const Duration(seconds: 2));
         if (recovery.isRecovery.value) {
           finish(AppRoutes.auth);
           return;
