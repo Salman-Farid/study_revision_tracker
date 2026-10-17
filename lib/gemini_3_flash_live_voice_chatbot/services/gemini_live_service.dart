@@ -21,6 +21,7 @@ class GeminiLiveService {
   mic.MicRecorder? _recorder;
   PcmAudioPlayer? _player;
 
+  StreamSubscription? _stateSub;
   StreamSubscription? _micSub;
   StreamSubscription? _responseAudioSub;
   StreamSubscription? _transcriptSub;

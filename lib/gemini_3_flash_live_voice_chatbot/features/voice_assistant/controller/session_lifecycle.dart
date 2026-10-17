@@ -220,7 +220,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
   }
 
   void _maybeReconnect() {
-    if (_userInitiatedStop) return;
+    if (_userInitiatedStop || _isStopping) return;
     if (_reconnectAttempts >= VoiceAssistantController._maxReconnectAttempts) {
       debugPrint('[Gemini] ❌ Max reconnect attempts reached — giving up');
       messages.add(ChatMessage(
@@ -243,6 +243,17 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
 
   Future<void> startSession({bool isReconnect = false}) async {
     try {
+      // Callers (e.g. RoutineController.openAssistant) fire stopSession()
+      // + startSession() back-to-back without awaiting. Wait for any
+      // in-flight stop to fully finish first — otherwise the stop tears
+      // down the socket this start just created, and the UI gets stuck
+      // on "Connecting" / flaps between states.
+      while (_stopFuture != null) {
+        await _stopFuture;
+      }
+      // Another start won the race while we were waiting.
+      if (_isStarting) return;
+      _isStarting = true;
       _userInitiatedStop = false;
       _isStopping = false;
       _sessionStartRequested = true;
@@ -440,7 +451,10 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
         tools: activeTools,
       );
 
-      if (gen != _generation) return;
+      if (gen != _generation) {
+        _isStarting = false;
+        return;
+      }
 
       messages.removeWhere((m) =>
       m.role == ChatRole.system &&
@@ -452,7 +466,9 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       ));
       _reconnectAttempts = 0;
       _triggerUiUpdate();
+      _isStarting = false;
     } catch (e) {
+      _isStarting = false;
       developer.log('Failed to start session: $e');
       errorMessage.value = e.toString();
       messages.removeWhere((m) =>
@@ -466,58 +482,70 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
 
   Future<void> stopSession({bool userInitiated = true}) async {
     if (_isStopping) {
-      debugPrint('[Gemini] ⚠️ stopSession called while already stopping — ignoring');
-      return;
+      // Coalesce: a stop is already running. Return its future so
+      // startSession's wait-for-stop loop resolves only when it truly ends.
+      debugPrint('[Gemini] ⚠️ stopSession called while already stopping — joining in-flight stop');
+      return _stopFuture ?? Future<void>.value();
     }
     _isStopping = true;
-    _userInitiatedStop = userInitiated;
-    _generation++;
-    _connectionSub?.cancel();
-    _transcriptSub?.cancel();
-    _audioSub?.cancel();
-    _functionCallSub?.cancel();
-    _turnCompleteSub?.cancel();
-    _pendingCallsSafetyTimer?.cancel();
-    _batchFlushTimer?.cancel();
-    _reconnectTimer?.cancel();
-    _unmuteDebounceTimer?.cancel();
-    _uiRefreshDebounce?.cancel();
-    _subjectCreationCompleters.clear();
-    pendingSubtopicAsks.clear();
+    final done = Completer<void>();
+    _stopFuture = done.future;
     try {
-      await _service.stopSession();
-    } catch (e) {
-      debugPrint('[Gemini] ⚠️ Error stopping service session: $e');
+      _userInitiatedStop = userInitiated;
+      _generation++;
+      _connectionSub?.cancel();
+      _transcriptSub?.cancel();
+      _audioSub?.cancel();
+      _functionCallSub?.cancel();
+      _turnCompleteSub?.cancel();
+      _pendingCallsSafetyTimer?.cancel();
+      _batchFlushTimer?.cancel();
+      _reconnectTimer?.cancel();
+      _unmuteDebounceTimer?.cancel();
+      _uiRefreshDebounce?.cancel();
+      _subjectCreationCompleters.clear();
+      pendingSubtopicAsks.clear();
+      try {
+        await _service.stopSession();
+      } catch (e) {
+        debugPrint('[Gemini] ⚠️ Error stopping service session: $e');
+      }
+      messages.clear();
+      connectionState.value = ws.ConnectionState.disconnected;
+      isProcessing.value = false;
+      isLoading.value = false;
+      errorMessage.value = '';
+      _micMuted.value = false;
+      _mutedByFunctionCall = false;
+      currentSubjectName = null;
+      currentTopicName = null;
+      _processedCallIds.clear();
+      _recentCalls.clear();
+      _pendingCallIds.clear();
+      _pendingResponses.clear();
+      _streamingMessage = null;
+      _thinkingMessage = null;
+      _batchInProgress = false;
+      _batchJustCompleted = false;
+      _batchTotal = 0;
+      _batchCompleted = 0;
+      _batchCompletedCount = 0;
+      _batchRetryCount = 0;
+      _batchProgressMessage = null;
+      _reconnectAttempts = 0;
+      _lastAssistantText = '';
+      _lastUnmuteAt = null;
+      _summaryCache = null;
+      isExpanded.value = false;
+      dialogueOffsetInitialized = false;
+      resetDialogueSize();
+    } finally {
+      // Always release the gate — a dropped stop left later stops silently
+      // skipped and startSession waiting forever.
+      _isStopping = false;
+      _stopFuture = null;
+      done.complete();
     }
-    messages.clear();
-    connectionState.value = ws.ConnectionState.disconnected;
-    isProcessing.value = false;
-    isLoading.value = false;
-    errorMessage.value = '';
-    _micMuted.value = false;
-    _mutedByFunctionCall = false;
-    currentSubjectName = null;
-    currentTopicName = null;
-    _processedCallIds.clear();
-    _recentCalls.clear();
-    _pendingCallIds.clear();
-    _pendingResponses.clear();
-    _streamingMessage = null;
-    _thinkingMessage = null;
-    _batchInProgress = false;
-    _batchJustCompleted = false;
-    _batchTotal = 0;
-    _batchCompleted = 0;
-    _batchCompletedCount = 0;
-    _batchRetryCount = 0;
-    _batchProgressMessage = null;
-    _reconnectAttempts = 0;
-    _lastAssistantText = '';
-    _lastUnmuteAt = null;
-    _summaryCache = null;
-    isExpanded.value = false;
-    dialogueOffsetInitialized = false;
-    resetDialogueSize();
   }
 
   void _triggerUiUpdate() {

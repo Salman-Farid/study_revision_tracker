@@ -9,7 +9,12 @@ extension GeminiLiveSessionControl on GeminiLiveService {
     bool streamMicrophone = true,
     List<Map<String, dynamic>>? tools,
   }) async {
-    if (_sessionActive) return;
+    // Never silently no-op: if a session is still marked active (e.g. a
+    // previous start raced a stop, or the socket died without a stop),
+    // tear it down first so the new socket actually comes up.
+    if (_sessionActive) {
+      await stopSession();
+    }
 
     final gen = ++_generation;
     _sessionActive = true;
@@ -23,8 +28,14 @@ extension GeminiLiveSessionControl on GeminiLiveService {
       tools: tools,
     );
 
-    // Forward connection state
-    _socket!.stateStream.listen((s) => _stateController.add(s));
+    // Forward connection state — keep the handle so stopSession can cancel
+    // it (a leaked subscription let dead sockets keep flapping the UI), and
+    // drop events from stale generations.
+    _stateSub?.cancel();
+    _stateSub = _socket!.stateStream.listen((s) {
+      if (gen != _generation) return;
+      _stateController.add(s);
+    });
 
     // Forward response audio → play immediately (streaming, not buffered)
     _responseAudioSub = _socket!.audioStream.listen((data) {
@@ -61,7 +72,16 @@ extension GeminiLiveSessionControl on GeminiLiveService {
       }
     });
 
-    await _socket!.connect();
+    try {
+      await _socket!.connect();
+    } catch (_) {
+      // Don't leave the session marked active after a failed connect —
+      // that used to make the next startSession a silent no-op.
+      if (gen == _generation) {
+        _sessionActive = false;
+      }
+      rethrow;
+    }
 
     // Check if session was stopped while we were connecting
     if (gen != _generation) return;
@@ -91,10 +111,15 @@ extension GeminiLiveSessionControl on GeminiLiveService {
 
   /// Full teardown — stop everything, close streams, release resources
   Future<void> stopSession() async {
-    final gen = ++_generation; // Invalidate any in-flight startSession
+    _generation++; // Invalidate any in-flight startSession
     _sessionActive = false;
     _autoMutedByGemini = false;
     isMuted = false;
+
+    // Cancel state forwarding FIRST — the disconnect below emits events, and
+    // a leaked subscription kept pushing them into the UI after stop.
+    await _stateSub?.cancel();
+    _stateSub = null;
 
     // Cancel mic subscription first, then stop recorder
     await _micSub?.cancel();

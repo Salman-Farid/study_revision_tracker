@@ -269,11 +269,16 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
       final netDown = Get.isRegistered<ConnectivityService>() &&
           !Get.find<ConnectivityService>().isConnected.value;
       if (netDown) return 'Offline';
+      if (_sessionStartRequested &&
+          _reconnectAttempts >= VoiceAssistantController._maxReconnectAttempts) {
+        // Reconnect gave up — stop pretending, tell the user to retry.
+        return 'Connection lost — tap mic';
+      }
       if (connectionState.value == ws.ConnectionState.error && _sessionStartRequested) {
         // Session tried and failed — still say Connecting unless we know net is down.
         return 'Connecting...';
       }
-      return _sessionStartRequested ? 'Connecting...' : 'Connecting...';
+      return _sessionStartRequested ? 'Connecting...' : 'Tap mic to connect';
     }();
   }
 
@@ -328,6 +333,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   Timer? _reconnectTimer;
   bool _userInitiatedStop = false;
   bool _isStopping = false;
+  bool _isStarting = false;
+  /// Completes when the in-flight stopSession body has fully finished.
+  /// startSession awaits this so stop+start fired back-to-back cannot race.
+  Future<void>? _stopFuture;
 
   // Short TTL — stale cache after delete/create caused ghost routines + Thinking loops.
   Map<String, dynamic>? _summaryCache;
