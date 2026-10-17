@@ -155,7 +155,7 @@ const Map<String, String> kn = {
     'assistant': 'Assistant',
     'oneTime': 'One-time',
     'tba': 'TBA',
-    'smartRevisionTracker': 'Smart Revision Tracker',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'Room {room}',
     'noRoutinesForToday': 'No routines for today',
     'tapMicToAskAssistant': 'Tap the mic to ask the assistant to build your day.',

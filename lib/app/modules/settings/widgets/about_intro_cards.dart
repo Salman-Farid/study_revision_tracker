@@ -48,7 +48,7 @@ class AboutHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Smart Revision Tracker',
+                  'Pootu: StudyCompanion',
                   style: AppTextStyles.headlineSmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,

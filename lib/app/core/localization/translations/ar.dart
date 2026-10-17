@@ -155,7 +155,7 @@ const Map<String, String> ar = {
     'assistant': 'مساعد',
     'oneTime': 'مرة واحدة',
     'tba': 'غير محدد',
-    'smartRevisionTracker': 'متتبع المراجعة الذكي',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'غرفة {room}',
     'noRoutinesForToday': 'لا يوجد جدول لهذا اليوم',
     'tapMicToAskAssistant': 'اضغط على الميكروفون لاسأل المساعد لتنظيم يومك.',

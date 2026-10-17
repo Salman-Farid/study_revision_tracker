@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   AppConstants._();
-  static const String appName = 'Smart Revision Tracker';
-  static const String appVersion = '1.0.0';
+  static const String appName = 'Pootu: StudyCompanion';
+  static const String appVersion = '1.0.3';
 
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL', defaultValue: 'https://bvvflpxmpdwgpliispxi.supabase.co');

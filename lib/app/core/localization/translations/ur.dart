@@ -155,7 +155,7 @@ const Map<String, String> ur = {
     'assistant': 'معاون',
     'oneTime': 'ایک بار',
     'tba': 'مقرر نہیں',
-    'smartRevisionTracker': 'سمارٹ ریویژن ٹریکر',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'کمرہ {room}',
     'noRoutinesForToday': 'آج کے لیے کوئی روٹین نہیں',
     'tapMicToAskAssistant': 'اپنا دن بنانے کے لیے معاون سے پوچھنے کے لیے مائک دبائیں۔',

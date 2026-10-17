@@ -155,7 +155,7 @@ const Map<String, String> fa = {
     'assistant': 'دستیار',
     'oneTime': 'یک بار',
     'tba': 'تعیین نشده',
-    'smartRevisionTracker': 'ردیاب هوشمند مرور',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'اتاق {room}',
     'noRoutinesForToday': 'برای امروز برنامه‌ای نیست',
     'tapMicToAskAssistant': 'برای برنامه‌ریزی روزتان روی میکروفون بزنید و از دستیار بپرسید.',

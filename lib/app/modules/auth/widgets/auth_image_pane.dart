@@ -43,7 +43,7 @@ class AuthImagePane extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Smart Revision Tracker',
+                  'Pootu: StudyCompanion',
                   style: AppTextStyles.headlineMedium.copyWith(
                     color: Colors.white,
                     shadows: [

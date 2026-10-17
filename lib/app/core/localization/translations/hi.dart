@@ -158,7 +158,7 @@ const Map<String, String> hi = {
     'assistant': 'सहायक',
     'oneTime': 'एक बार',
     'tba': 'निर्धारित नहीं',
-    'smartRevisionTracker': 'स्मार्ट रिविज़न ट्रैकर',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'कमरा {room}',
     'noRoutinesForToday': 'आज के लिए कोई रूटीन नहीं',
     'tapMicToAskAssistant': 'अपना दिन बनाने के लिए सहायक से पूछने के लिए माइक दबाएं।',

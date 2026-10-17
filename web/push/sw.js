@@ -19,13 +19,13 @@ function absolute(path) {
 }
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'Smart Revision Tracker', body: '' };
+  let data = { title: 'Pootu: StudyCompanion', body: '' };
   try {
     if (event.data) data = Object.assign({}, data, event.data.json());
   } catch (_) {
     if (event.data) data.body = event.data.text();
   }
-  const title = data.title || 'Smart Revision Tracker';
+  const title = data.title || 'Pootu: StudyCompanion';
   const options = {
     body: data.body || '',
     icon: '/icons/Icon-192.png',

@@ -11,10 +11,10 @@ class SplashFeatureOrbit extends StatefulWidget {
   const SplashFeatureOrbit({super.key});
 
   static const featureAssets = <String>[
-    'assets/images/splash_feature_revision.png',
-    'assets/images/splash_feature_routines.png',
-    'assets/images/splash_feature_voice.png',
-    'assets/images/splash_feature_progress.png',
+    'assets/images/splash_feature_revision.webp',
+    'assets/images/splash_feature_routines.webp',
+    'assets/images/splash_feature_voice.webp',
+    'assets/images/splash_feature_progress.webp',
   ];
 
   @override

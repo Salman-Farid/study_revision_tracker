@@ -162,7 +162,7 @@ const Map<String, String> bn = {
     'assistant': 'সহকারী',
     'oneTime': 'এককালীন',
     'tba': 'নির্ধারিত হয়নি',
-    'smartRevisionTracker': 'স্মার্ট রিভিশন ট্র্যাকার',
+    'smartRevisionTracker': 'Pootu: StudyCompanion',
     'roomNumber': 'রুম {room}',
     'noRoutinesForToday': 'আজকের জন্য কোনো রুটিন নেই',
     'tapMicToAskAssistant': 'আপনার দিনটি তৈরি করতে সহকারীকে বলতে মাইকে ট্যাপ করুন।',

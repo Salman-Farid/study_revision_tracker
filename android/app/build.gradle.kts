@@ -56,6 +56,28 @@ android {
         }
     }
 
+    packaging {
+        resources {
+            // Drop transitive jar/source clutter that never ships to devices.
+            excludes += setOf(
+                "kotlin/**",
+                "kotlin-tooling-metadata.json",
+                "org/dmfs/**",
+                "**.kotlin_builtins",
+                "META-INF/*.version",
+                "META-INF/*.kotlin_module",
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES",
+                "DebugProbesKt.bin",
+                "third_party/**",
+            )
+        }
+        jniLibs {
+            // split-per-abi already isolates ABIs; never ship foreign ABIs inside one APK.
+            pickFirsts += "**/libc++_shared.so"
+        }
+    }
+
     bundle {
         // Play delivers a single ABI/DPI/language per device — keep splits on.
         language { enableSplit = true }

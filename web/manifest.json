@@ -1,11 +1,11 @@
 {
-    "name": "AI Powered Study Companion",
-    "short_name": "Study Companion",
+    "name": "Pootu: StudyCompanion",
+    "short_name": "Pootu",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F8F9FC",
     "theme_color": "#87CEEB",
-    "description": "AI Powered Study Companion — spaced revisions, routines, and voice assistant.",
+    "description": "Pootu: StudyCompanion — spaced revisions, routines, and voice assistant.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
