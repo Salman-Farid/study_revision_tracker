@@ -20,6 +20,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       } else if (s == ws.ConnectionState.connected) {
         errorMessage.value = '';
         _reconnectAttempts = 0;
+        _reconnectGiveUpNotified = false;
         _reconnectTimer?.cancel();
       } else if (s == ws.ConnectionState.disconnected) {
         _cleanupOrphanedBatchState(reason: 'disconnected');
@@ -221,13 +222,17 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
 
   void _maybeReconnect() {
     if (_userInitiatedStop || _isStopping) return;
+    if (_reconnectTimer?.isActive ?? false) return; // retry already scheduled — don't stack
     if (_reconnectAttempts >= VoiceAssistantController._maxReconnectAttempts) {
-      debugPrint('[Gemini] ❌ Max reconnect attempts reached — giving up');
-      messages.add(ChatMessage(
-        role: ChatRole.system,
-        text: 'Connection lost. Tap the mic to reconnect.',
-      ));
-      _triggerUiUpdate();
+      if (!_reconnectGiveUpNotified) {
+        _reconnectGiveUpNotified = true;
+        debugPrint('[Gemini] ❌ Max reconnect attempts reached — giving up');
+        messages.add(ChatMessage(
+          role: ChatRole.system,
+          text: 'Connection lost. Tap the mic to reconnect.',
+        ));
+        _triggerUiUpdate();
+      }
       return;
     }
     _reconnectAttempts++;
@@ -267,6 +272,10 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       _isStopping = false;
       _sessionStartRequested = true;
       final gen = ++_generation;
+      if (!isReconnect) {
+        _reconnectAttempts = 0;
+        _reconnectGiveUpNotified = false;
+      }
 
       // Floor must say Connecting (not Offline) while the socket comes up.
       connectionState.value = ws.ConnectionState.connecting;
@@ -490,6 +499,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
         text: isReconnect ? 'Reconnected! Tap mic to speak.' : 'Connected! Tap mic to speak.',
       ));
       _reconnectAttempts = 0;
+      _reconnectGiveUpNotified = false;
       _triggerUiUpdate();
       _isStarting = false;
     } catch (e) {
@@ -517,6 +527,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       return _stopFuture ?? Future<void>.value();
     }
     _isStopping = true;
+    _isStarting = false; // any in-flight start's socket is now dead; don't let the stale flag veto its replacement
     final done = Completer<void>();
     _stopFuture = done.future;
     try {
@@ -563,6 +574,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       _batchRetryCount = 0;
       _batchProgressMessage = null;
       _reconnectAttempts = 0;
+      _reconnectGiveUpNotified = false;
       _lastAssistantText = '';
       _lastUnmuteAt = null;
       _summaryCache = null;
@@ -586,4 +598,5 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
     });
   }
 }
+
 

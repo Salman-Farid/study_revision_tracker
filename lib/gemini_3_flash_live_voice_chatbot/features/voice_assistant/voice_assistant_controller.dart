@@ -331,6 +331,7 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
 
   static const int _maxReconnectAttempts = 3;
   int _reconnectAttempts = 0;
+  bool _reconnectGiveUpNotified = false;
   Timer? _reconnectTimer;
   bool _userInitiatedStop = false;
   bool _isStopping = false;
@@ -569,4 +570,5 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     }
   }
 }
+
 
