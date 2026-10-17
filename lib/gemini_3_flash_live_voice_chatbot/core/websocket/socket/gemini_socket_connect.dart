@@ -1,9 +1,8 @@
 part of '../gemini_socket.dart';
 
 extension GeminiSocketConnect on GeminiSocket {
-  Future<void> connect({bool reconnect = true}) async {
+  Future<void> connect() async {
     if (_state == ConnectionState.connected) return;
-    _manualDisconnect = false;
     _setState(ConnectionState.connecting);
     _pendingError = null;
 
@@ -51,7 +50,6 @@ extension GeminiSocketConnect on GeminiSocket {
 
       await _waitForSetup();
       debugPrint('[Gemini] Setup complete!');
-      _reconnectAttempt = 0;
       _setState(ConnectionState.connected);
     } catch (e) {
       final errorMsg = _pendingError ?? e.toString();
@@ -92,38 +90,13 @@ extension GeminiSocketConnect on GeminiSocket {
     if (!_setupComplete) {
       _pendingError ??= 'Connection closed before setup completed (code=${_channel?.closeCode}, reason=${_channel?.closeReason})';
     }
+    // Socket-level auto-reconnect removed: the controller owns reconnection
+    // (session_lifecycle.dart). A second reconnect loop here created parallel
+    // sockets that fought the controller's and caused constant flapping.
     _setState(ConnectionState.disconnected);
-
-    if (!_manualDisconnect) {
-      _scheduleReconnect();
-    }
-  }
-
-  void _scheduleReconnect() {
-    _reconnectAttempt++;
-    final delayMs = (1000 * (1 << (_reconnectAttempt - 1))).clamp(1000, 30000);
-    debugPrint('[Gemini] Scheduling reconnect #$_reconnectAttempt in ${delayMs}ms');
-
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(milliseconds: delayMs), () async {
-      if (_manualDisconnect || _state == ConnectionState.connected) return;
-      try {
-        _setupComplete = false;
-        _pendingError = null;
-        await connect(reconnect: false);
-        debugPrint('[Gemini] Reconnect succeeded');
-      } catch (e) {
-        debugPrint('[Gemini] Reconnect failed: $e');
-        if (_reconnectAttempt < 5 && !_manualDisconnect) {
-          _scheduleReconnect();
-        }
-      }
-    });
   }
 
   Future<void> disconnect() async {
-    _manualDisconnect = true;
-    _reconnectTimer?.cancel();
     await _channel?.sink.close();
     _setupComplete = false;
     _setState(ConnectionState.disconnected);

@@ -46,15 +46,10 @@ class GeminiSocket {
   ConnectionState get state => _state;
 
   String? _pendingError;
-  bool _manualDisconnect = false;
-  int _reconnectAttempt = 0;
-  Timer? _reconnectTimer;
 
   String get lastError => _pendingError ?? '';
 
   void dispose() {
-    _manualDisconnect = true;
-    _reconnectTimer?.cancel();
     disconnect();
     _audioController.close();
     _transcriptController.close();
