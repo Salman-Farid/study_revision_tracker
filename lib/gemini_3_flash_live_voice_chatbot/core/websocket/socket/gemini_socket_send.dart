@@ -82,32 +82,12 @@ extension GeminiSocketSend on GeminiSocket {
       return result['success'] != true;
     }).toList();
 
-    final summaryParts = <String>[
-      'BATCH_RESULT: ${succeeded.length} succeeded, ${failed.length} failed out of ${responses.length} total.',
-    ];
-    if (failed.isNotEmpty) {
-      summaryParts.add('FAILED_ITEMS:');
-      for (final f in failed) {
-        final result = f['result'] as Map<String, dynamic>? ?? {};
-        final name = f['name'] as String;
-        final params = f['params'] as Map<String, dynamic>? ?? {};
-        final error = result['error'] ?? 'unknown error';
-        // Include original parameters so Gemini can retry with exact same data
-        summaryParts.add('  - $name | params: $params | error: $error');
-      }
-      if (retryCount >= 3) {
-        summaryParts.add('RETRY_LIMIT_REACHED: This batch has already been retried ${retryCount - 1} time(s) and still has failures. STOP. Do NOT retry again. Tell the user which items failed and ask them to try again manually later.');
-      } else {
-        summaryParts.add('To retry: call the SAME functions above with the SAME parameters. Do NOT call getAllData first — just retry the failed calls directly. Inform the user you are retrying ONLY the failed items.');
-      }
-    } else {
-      summaryParts.add('ALL operations completed successfully. Confirm to the user what was created.');
-    }
-    final summaryText = summaryParts.join(' ');
-
-    // Prepend summary as a text part, followed by all function response parts
+    // Send ONLY functionResponse parts. The Live API treats any text part in a
+    // tool-response turn as a barge-in (new user message), which makes the
+    // server cancel the tool call (toolCallCancellation + interrupted) and can
+    // corrupt turn state leading to 1011 closes. The result maps already carry
+    // success/error info for the model to read.
     final allParts = <Map<String, dynamic>>[
-      {'text': summaryText},
       ...functionParts,
     ];
 

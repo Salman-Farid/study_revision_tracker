@@ -501,6 +501,41 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       _reconnectAttempts = 0;
       _reconnectGiveUpNotified = false;
       _triggerUiUpdate();
+      // If we were waiting for a reply when the drop happened, the new
+      // session has no context of the interrupted turn (no session resumption
+      // yet). Re-send the last user message so the turn completes without
+      // the user having to repeat themselves manually.
+      if (isReconnect && _awaitingAssistantReply) {
+        ChatMessage? lastUser;
+        for (var i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role == ChatRole.user) {
+            lastUser = messages[i];
+            break;
+          }
+        }
+        if (lastUser != null && lastUser.text.trim().isNotEmpty) {
+          debugPrint('[Gemini] 🔄 Re-driving interrupted turn after reconnect');
+          _batchRetryCount = 0;
+          _recentCalls.clear();
+          _removeSilentNotices();
+          _silentRecoverTimer?.cancel();
+          isProcessing.value = true;
+          _awaitingAssistantReply = true;
+          _setMicMuted(true, reason: 're-drive after reconnect');
+          _showThinking();
+          try {
+            _service.sendText(lastUser.text);
+          } catch (e) {
+            debugPrint('[Gemini] ⚠️ Re-drive send failed: $e');
+          }
+          messages.add(ChatMessage(
+            role: ChatRole.system,
+            text: 'Re-sent your last message after reconnect.',
+          ));
+          _updateFloorStatus();
+          _triggerUiUpdate();
+        }
+      }
       _isStarting = false;
     } catch (e) {
       _isStarting = false;
