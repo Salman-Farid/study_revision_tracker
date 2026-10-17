@@ -231,8 +231,17 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       return;
     }
     _reconnectAttempts++;
-    final delay = Duration(seconds: _reconnectAttempts * 2);
-    debugPrint('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/$VoiceAssistantController._maxReconnectAttempts in ${delay.inSeconds}s');
+    // Fast, aggressive reconnect: the first retry fires almost immediately so
+    // a transient drop recovers before the user feels it; then back off.
+    final delay = _reconnectAttempts == 1
+        ? const Duration(milliseconds: 300)
+        : _reconnectAttempts == 2
+            ? const Duration(seconds: 1)
+            : const Duration(seconds: 2);
+    final delayLabel = delay.inMilliseconds < 1000
+        ? '${delay.inMilliseconds}ms'
+        : '${delay.inSeconds}s';
+    debugPrint('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/$VoiceAssistantController._maxReconnectAttempts in $delayLabel');
     _reconnectTimer?.cancel();
     final gen = _generation;
     _reconnectTimer = Timer(delay, () {
@@ -456,6 +465,22 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
         return;
       }
 
+      // Never post a false "Connected!" — the service can return without
+      // throwing after a silent no-op or a mid-handshake kill. Verify the
+      // socket is truly connected (synchronous read, no stream lag).
+      if (_service.socket?.state != ws.ConnectionState.connected) {
+        _isStarting = false;
+        debugPrint('[Gemini] ⚠️ startSession returned but socket is not connected — treating as failure');
+        messages.removeWhere((m) =>
+        m.role == ChatRole.system &&
+            (m.text == 'Connecting to Gemini...' || m.text.startsWith('Reconnecting...')));
+        messages.add(ChatMessage(
+            role: ChatRole.system, text: 'Connection failed: socket not connected'));
+        _triggerUiUpdate();
+        _maybeReconnect();
+        return;
+      }
+
       messages.removeWhere((m) =>
       m.role == ChatRole.system &&
           (m.text == 'Connecting to Gemini...' || m.text.startsWith('Reconnecting...')));
@@ -471,6 +496,10 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
       _isStarting = false;
       developer.log('Failed to start session: $e');
       errorMessage.value = e.toString();
+      // Clear the service latch so the reconnect below isn't a silent no-op.
+      try {
+        await _service.stopSession();
+      } catch (_) {}
       messages.removeWhere((m) =>
       m.role == ChatRole.system &&
           (m.text == 'Connecting to Gemini...' || m.text.startsWith('Reconnecting...')));
@@ -492,6 +521,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
     _stopFuture = done.future;
     try {
       _userInitiatedStop = userInitiated;
+      _sessionStartRequested = false;
       _generation++;
       _connectionSub?.cancel();
       _transcriptSub?.cancel();
@@ -556,3 +586,4 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
     });
   }
 }
+

@@ -274,9 +274,10 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
         // Reconnect gave up — stop pretending, tell the user to retry.
         return 'Connection lost — tap mic';
       }
-      if (connectionState.value == ws.ConnectionState.error && _sessionStartRequested) {
-        // Session tried and failed — still say Connecting unless we know net is down.
-        return 'Connecting...';
+      if (connectionState.value == ws.ConnectionState.error) {
+        // Honest failure state — the reconnect loop retries automatically,
+        // and the user can tap mic to retry manually.
+        return 'Connection failed — retrying…';
       }
       return _sessionStartRequested ? 'Connecting...' : 'Tap mic to connect';
     }();
@@ -568,3 +569,4 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     }
   }
 }
+

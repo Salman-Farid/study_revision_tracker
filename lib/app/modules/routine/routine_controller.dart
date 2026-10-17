@@ -229,17 +229,18 @@ class RoutineController extends GetxController {
     return items;
   }
 
-  void openAssistant() {
+  Future<void> openAssistant() async {
     voice.currentRoutineMode = mode.value == RoutineMode.daily ? 'daily' : 'class';
     voice.toolMode = 'routine';
     voice.currentSubjectName = null;
     voice.currentTopicName = null;
     voice.showDialogue.value = true;
-    // Restart session so filtered tools take effect
+    // Restart session so filtered tools take effect — await the stop so its
+    // teardown can't kill the socket the start below just created.
     if (voice.connectionState.value != ws.ConnectionState.disconnected) {
-      try { voice.stopSession(); } catch (_) {}
+      try { await voice.stopSession(); } catch (_) {}
     }
-    try { voice.startSession(); } catch (_) {}
+    try { await voice.startSession(); } catch (_) {}
   }
 
   void toggleMic() {
@@ -247,3 +248,4 @@ class RoutineController extends GetxController {
     voice.toggleListening();
   }
 }
+
