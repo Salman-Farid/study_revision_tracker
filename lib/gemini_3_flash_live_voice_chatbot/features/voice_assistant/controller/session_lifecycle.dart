@@ -246,7 +246,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
     final delayLabel = delay.inMilliseconds < 1000
         ? '${delay.inMilliseconds}ms'
         : '${delay.inSeconds}s';
-    debugPrint('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/$VoiceAssistantController._maxReconnectAttempts in $delayLabel');
+    debugPrint('[Gemini] 🔁 Reconnect attempt $_reconnectAttempts/${VoiceAssistantController._maxReconnectAttempts} in $delayLabel');
     _reconnectTimer?.cancel();
     final gen = _generation;
     _reconnectTimer = Timer(delay, () {
@@ -288,7 +288,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       } else {
         messages.add(ChatMessage(
           role: ChatRole.system,
-          text: 'Reconnecting... (attempt $_reconnectAttempts/$VoiceAssistantController._maxReconnectAttempts)',
+          text: 'Reconnecting... (attempt $_reconnectAttempts/${VoiceAssistantController._maxReconnectAttempts})',
         ));
       }
       _triggerUiUpdate();
