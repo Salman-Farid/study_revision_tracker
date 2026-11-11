@@ -88,9 +88,14 @@ void main() {
       expect(RoutineTimeline.streakDays(completed, today), 3);
     });
 
-    test('zero when today not completed', () {
+    test('counts yesterday when today not completed (no morning reset)', () {
       final today = DateTime(2026, 9, 17);
-      expect(RoutineTimeline.streakDays({DateTime(2026, 9, 16)}, today), 0);
+      expect(RoutineTimeline.streakDays({DateTime(2026, 9, 16)}, today), 1);
+    });
+
+    test('zero when neither today nor yesterday completed', () {
+      final today = DateTime(2026, 9, 17);
+      expect(RoutineTimeline.streakDays({DateTime(2026, 9, 15)}, today), 0);
     });
   });
 
