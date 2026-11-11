@@ -235,10 +235,14 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerClassRoutine',
-      'description': 'Register a class routine / timetable entry. Location is optional — pass it as one string in "location" (e.g. "UB43A"); do not ask separately for building/floor/room.',
+      'description': 'Register a class routine / timetable entry. MANDATORY topicScope: you must have asked "Specific topic(s) or all topics?" (or the user already made scope clear) before calling. Location is optional — pass it as one string in "location" (e.g. "UB43A"); do not ask separately for building/floor/room.',
       'parameters': {
         'type': 'object',
         'properties': {
+          'topicScope': {
+            'type': 'string',
+            'description': 'MANDATORY. "specific" = only the named subject/topic(s); "all" = whole subject / all topics. Set only after the user answered "Specific topic(s) or all topics?" (or already made scope obvious in this turn). Omitting this blocks the write.',
+          },
           'subjectName': {'type': 'string', 'description': 'Subject name for the class'},
           'startTime': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "09:00" or "14:30"'},
           'endTime': {'type': 'string', 'description': 'End time HH:mm 24h. Auto-calculate from duration if the user gives one (e.g. 9:00 + 1.5h = 10:30).'},
@@ -259,15 +263,24 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
           'room': {'type': 'string', 'description': 'Room number (optional).'},
           'notes': {'type': 'string', 'description': 'Optional notes about the class'},
         },
-        'required': ['subjectName', 'startTime', 'durationMinutes'],
+        'required': ['topicScope', 'subjectName', 'startTime', 'durationMinutes'],
       },
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine for a date. Pass ordered work blocks in items[]; the app auto-inserts meals, freshen-up, and gap fills. Call getAllData first for real subject/topic names, due revisions, and today\'s classes.',
+      'description': 'Register a daily study routine for a date. MANDATORY topicScope: ask "Specific topic(s) or all topics?" first unless the user already made scope clear. Pass ordered work blocks in items[]; the app auto-inserts meals, freshen-up, and gap fills. Call getAllData first for real subject/topic names, due revisions, and today\'s classes.',
       'parameters': {
         'type': 'object',
         'properties': {
+          'topicScope': {
+            'type': 'string',
+            'description': 'MANDATORY. "specific" = only the named subject(s)/topic(s) in items[]; "all" = first-read topics + due revisions across all subjects. Set only after the user answered "Specific topic(s) or all topics?" (or already made scope obvious in this turn). Omitting this blocks the write.',
+          },
+          'topicNames': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'When topicScope=specific: the exact subject/topic names the user chose. Empty or omitted when topicScope=all.',
+          },
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
             'type': 'array',
@@ -286,7 +299,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
             },
           },
         },
-        'required': ['items'],
+        'required': ['topicScope', 'items'],
       },
     },
     {

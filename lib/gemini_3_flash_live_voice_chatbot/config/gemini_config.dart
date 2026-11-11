@@ -7,15 +7,19 @@ class GeminiConfig {
     defaultValue: ' ',
   );
 
-  static const String model = 'gemini-3.1-flash-live-preview';
+  static const String model = 'gemini-3.8-live';
 
-  static const String wsBaseUrl =
-      'wss://generativelanguage.googleapis.com/ws/'
+  /// Wire-level diagnostics: full setup JSON, full inbound messages,
+  /// outbound toolResponse payloads. Enable/disable at build time:
+  ///   flutter run --dart-define=GEMINI_DEBUG_WIRE=false
+  static const bool debugWire = bool.fromEnvironment(
+    'GEMINI_DEBUG_WIRE',
+    defaultValue: true,
+  );
+
+  static const String wsBaseUrl = 'wss://generativelanguage.googleapis.com/ws/'
       'google.ai.generativelanguage.v1beta.GenerativeService'
       '.BidiGenerateContent';
-  // Note: Some Live API features require v1alpha. If v1beta fails, try:
-  // 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent'
-
   static String get wsUrl => '$wsBaseUrl?key=$apiKey';
 
   // Audio format: Gemini Live outputs 24kHz 16-bit mono PCM

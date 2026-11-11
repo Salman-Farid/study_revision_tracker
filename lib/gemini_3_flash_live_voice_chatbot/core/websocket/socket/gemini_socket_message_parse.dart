@@ -13,6 +13,15 @@ extension GeminiSocketMessageParse on GeminiSocket {
       }
       debugPrint('[Gemini] Received message (${text.length} chars): ${text.length > 500 ? text.substring(0, 500) + '...' : text}');
       final msg = jsonDecode(text) as Map<String, dynamic>;
+      if (GeminiConfig.debugWire) {
+        final type = msg.keys.isNotEmpty ? msg.keys.first : 'empty';
+        final extras = msg.keys.length > 1 ? '+${msg.keys.skip(1).join(",")}' : '';
+        debugPrint('[Gemini][wire] recv type=$type$extras keys=${msg.keys.toList()}');
+        // Audio payloads are huge and unhelpful — dump everything else in full.
+        if (type != 'serverContent' || text.length < 4000) {
+          debugPrint('[Gemini][wire] recv >>> $text');
+        }
+      }
 
       if (msg.containsKey('setupComplete')) {
         _setupComplete = true;

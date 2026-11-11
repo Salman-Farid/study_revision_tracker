@@ -27,6 +27,9 @@ extension GeminiSocketSend on GeminiSocket {
   }
 
   void sendText(String text) {
+    if (GeminiConfig.debugWire) {
+      debugPrint('[Gemini][wire] clientContent >>> $text');
+    }
     _safeSend({
       'clientContent': {
         'turns': [
@@ -82,6 +85,9 @@ extension GeminiSocketSend on GeminiSocket {
         'functionResponses': functionResponses,
       },
     });
+    if (GeminiConfig.debugWire) {
+      debugPrint('[Gemini][wire] toolResponse >>> ${jsonEncode(functionResponses)}');
+    }
     debugPrint('[Gemini] Sent ${responses.length} batched tool responses (toolResponse)');
   }
 }

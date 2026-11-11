@@ -65,6 +65,77 @@ void showLanguageSheet(SettingsController c) {
   );
 }
 
+// ─── VOICE LANGUAGE SHEET (assistant reply language) ──────────
+void showVoiceLanguageSheet(SettingsController c) {
+  showModalBottomSheet(
+    context: Get.context!,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => Container(
+      constraints: BoxConstraints(maxHeight: Get.height * 0.75),
+      padding: EdgeInsets.all(S.xl),
+      decoration: BoxDecoration(color: AppColors.surface(Get.isDarkMode),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('chooseVoiceLanguage'.tr, style: AppTextStyles.headlineSmall),
+        SizedBox(height: S.base),
+        Flexible(child: ListView(
+          shrinkWrap: true,
+          children: [
+            Obx(() {
+              final selected = c.voiceLanguageCode.value == 'auto';
+              return Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                    color: selected ? AppConstants.primaryColor : AppColors.textMuted(Get.isDarkMode)),
+                  title: Text('voiceLanguageAuto'.tr, style: AppTextStyles.titleSmall.copyWith(
+                    color: AppColors.textPrimary(Get.isDarkMode),
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                  subtitle: Text('voiceLanguageAutoHint'.tr,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted(Get.isDarkMode))),
+                  onTap: () {
+                    c.changeVoiceLanguage('auto');
+                    Get.back();
+                  },
+                ),
+              );
+            }),
+            ...AppLanguages.all.entries.map((e) {
+              final code = e.key;
+              final name = e.value;
+              return Obx(() {
+                final selected = c.voiceLanguageCode.value == code;
+                return Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(selected
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                      color: selected ? AppConstants.primaryColor : AppColors.textMuted(Get.isDarkMode)),
+                    title: Text(name, style: AppTextStyles.titleSmall.copyWith(
+                      color: AppColors.textPrimary(Get.isDarkMode),
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+                    onTap: () {
+                      c.changeVoiceLanguage(code);
+                      Get.back();
+                    },
+                  ),
+                );
+              });
+            }),
+          ],
+        )),
+        SizedBox(height: S.base),
+      ]),
+    ),
+  );
+}
+
 // ─── THEME SHEET ──────────────────────────────────────────────
 void showThemeSheet(SettingsController c) {
   showModalBottomSheet(

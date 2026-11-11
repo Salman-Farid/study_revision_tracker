@@ -9,8 +9,6 @@ class AppConstants {
     'SUPABASE_URL', defaultValue: 'https://bvvflpxmpdwgpliispxi.supabase.co');
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY', defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2dmZscHhtcGR3Z3BsaWlzcHhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0ODQ5ODQsImV4cCI6MjEwMzA2MDk4NH0.h0sisR7CK6lujdTkSdk76oBcz4uGXoIJ2eeCVkOxBNU');
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY', defaultValue: 'AQ.Ab8RN6JGHXx2rGlPBqDdfiC9BQsEWu0s7o9AFXZOWD6LuGQcDg');
 
   static const List<int> revisionDays = [1, 3, 7, 14, 30, 90];
   static const List<String> revisionDayLabels = [

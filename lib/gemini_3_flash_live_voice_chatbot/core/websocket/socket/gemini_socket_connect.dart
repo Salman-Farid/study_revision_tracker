@@ -56,6 +56,10 @@ extension GeminiSocketConnect on GeminiSocket {
       debugPrint('[Gemini] Setup model: models/${GeminiConfig.model}');
       debugPrint('[Gemini] Setup tools count: ${(setupMsg['setup']?['tools'] as List?)?.length ?? 0}');
       debugPrint('[Gemini] Setup resuming: ${resumptionHandle != null && resumptionHandle!.isNotEmpty}');
+      if (GeminiConfig.debugWire) {
+        // Full setup body (no secrets — API key lives only in the WS URL).
+        debugPrint('[Gemini][wire] setup >>> $setupJson');
+      }
       _channel!.sink.add(setupJson);
 
       await _waitForSetup();

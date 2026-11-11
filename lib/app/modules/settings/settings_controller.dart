@@ -35,7 +35,10 @@ class SettingsController extends GetxController {
 
   static const _themeKey = 'theme_mode';
   static const _notifKey = 'notifications_enabled';
+  // 'auto' (default) or a BCP-47-ish code — read by the voice assistant at startSession.
+  static const _voiceLangKey = 'voice_language';
   final themeMode = ThemeMode.system.obs;
+  final voiceLanguageCode = 'auto'.obs;
 
   @override
   void onInit() {
@@ -109,6 +112,7 @@ class SettingsController extends GetxController {
       if (t == 'dark') themeMode.value = ThemeMode.dark;
       if (t == 'system') themeMode.value = ThemeMode.system;
       notificationsEnabled.value = p.getBool(_notifKey) ?? true;
+      voiceLanguageCode.value = p.getString(_voiceLangKey) ?? 'auto';
     });
   }
 
@@ -118,6 +122,21 @@ class SettingsController extends GetxController {
 
   Future<void> changeLanguage(String code) async {
     await _lang.changeLanguage(code);
+  }
+
+  // ── Voice language (assistant reply language; not UI language) ──
+  String get voiceLanguageName {
+    final c = voiceLanguageCode.value;
+    if (c == 'auto') return 'Auto';
+    return AppLanguages.all[c] ?? c;
+  }
+
+  Future<void> changeVoiceLanguage(String code) async {
+    voiceLanguageCode.value = code;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_voiceLangKey, code);
+    } catch (_) {}
   }
 
   // ── Theme ──

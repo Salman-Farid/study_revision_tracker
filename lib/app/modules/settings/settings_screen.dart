@@ -24,6 +24,8 @@ class SettingsScreen extends StatelessWidget {
           _section('preferences'.tr, [
             _tile(Icons.language_rounded, 'language'.tr, c.currentLanguageName,
                 () => showLanguageSheet(c)),
+            Obx(() => _tile(Icons.record_voice_over_rounded, 'voiceLanguage'.tr,
+                c.voiceLanguageName, () => showVoiceLanguageSheet(c))),
             Obx(() => _tile(Icons.brightness_6_rounded, 'theme'.tr,
                 themeLabel(c.themeMode.value), () => showThemeSheet(c))),
             Obx(() => Material(

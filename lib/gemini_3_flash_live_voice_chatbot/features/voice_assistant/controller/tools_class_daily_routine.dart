@@ -2,7 +2,38 @@ part of '../voice_assistant_controller.dart';
 
 /// Voice tools that CREATE class and daily routines.
 extension VoiceAssistantRoutineTools on VoiceAssistantController {
+  /// ROUTINE FLOW GATE — returns true when the call may proceed.
+  /// Blocks until topicScope is "specific" or "all" (user answered, or the
+  /// same turn already made scope obvious). Mirrors the HIERARCHY GATE.
+  bool _gateRoutineTopicScope(
+    String callId,
+    String toolName,
+    Map<String, dynamic> args,
+  ) {
+    final scope = (args['topicScope'] as String?)?.trim().toLowerCase();
+    if (scope == 'specific' || scope == 'all') return true;
+
+    _respondToFunction(callId, toolName, {
+      'success': false,
+      'blocked': 'routine_topic_scope_missing',
+      'error':
+          'ROUTINE FLOW GATE: topicScope is required ("specific" or "all"). '
+          'You MUST first ask the user (their language): '
+          '"Specific topic(s) or all topics?" and WAIT for their answer. '
+          'Then call $toolName again with topicScope: "specific" '
+          '(only the named subject/topic(s); for daily also pass topicNames) '
+          'OR topicScope: "all" (first-read topics + due revisions for all subjects). '
+          'If this turn already named specific subject(s)/topic(s) → use "specific" with those exact names. '
+          'If they said all/everything → use "all". Never invent names.',
+      'pending_question': 'specific_topic_or_all_topics',
+    }, params: args);
+    return false;
+  }
+
   Future<void> _registerClassRoutine(String callId, Map<String, dynamic> args) async {
+    // ROUTINE FLOW GATE — topicScope must be decided (asked or obvious) first.
+    if (!_gateRoutineTopicScope(callId, 'registerClassRoutine', args)) return;
+
     final subjectName = (args['subjectName'] as String?)?.trim();
     final startTimeStr = (args['startTime'] as String?)?.trim();
     final durationMinutes = (args['durationMinutes'] as num?)?.toInt();
@@ -106,6 +137,9 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
   }
 
   Future<void> _registerDailyRoutine(String callId, Map<String, dynamic> args) async {
+    // ROUTINE FLOW GATE — topicScope must be decided (asked or obvious) first.
+    if (!_gateRoutineTopicScope(callId, 'registerDailyRoutine', args)) return;
+
     final itemsRaw = args['items'] as List<dynamic>?;
     final dateStr = (args['date'] as String?)?.trim();
 

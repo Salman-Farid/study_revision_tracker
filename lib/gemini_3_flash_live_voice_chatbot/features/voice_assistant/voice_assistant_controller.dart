@@ -5,7 +5,9 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../app/core/localization/language_controller.dart';
 import '../../../app/data/repositories/subject_repository.dart';
 import '../../../app/data/repositories/topic_repository.dart';
 import '../../../app/data/repositories/revision_repository.dart';
@@ -55,6 +57,42 @@ final _normalizeWhitespace = RegExp(r'\s+');
 final _cjkGlyphs = RegExp(r'[\u4e00-\u9fff]+');
 
 String _sanitizeName(String s) => s.replaceAll(_cjkGlyphs, '').trim();
+
+/// SharedPreferences key for the Voice language preference.
+/// 'auto' (default) = follow the user's last-message language.
+const String kVoiceLanguagePrefKey = 'voice_language';
+
+/// Builds the non-hardcoded voice-language prompt rule for the system prompt.
+/// [preferredLanguage] is a BCP-47-ish code from prefs ('bn', 'hi', …) or
+/// null/'auto' → empty string (existing LANGUAGE LOCK handles detection).
+/// Native audio models (gemini-3.8-live) ignore speechConfig.languageCode;
+/// language restriction is prompt-only per Gemini Live docs.
+String buildLanguageRule(String? preferredLanguage) {
+  final code = preferredLanguage?.trim();
+  if (code == null || code.isEmpty || code.toLowerCase() == 'auto') return '';
+  // Display name via AppLanguages when known; else the raw code. No hardcoding.
+  String name = code;
+  try {
+    name = AppLanguages.all[code] ?? code;
+  } catch (_) {}
+  return '''
+VOICE LANGUAGE SETTING (user preference — HIGHEST priority for reply language):
+- The user set Voice language to "$name". ALWAYS reply in this language (BCP-47: $code) for EVERY turn.
+- Match its native script. Do NOT switch to Hindi/English/other mid-reply.
+- Subject/topic names from the database may stay as stored (often English). Every other word = this language.
+- Only switch if the user EXPLICITLY asks for another language in this conversation.
+''';
+}
+
+/// Loads the persisted Voice language code ('auto' when unset).
+Future<String?> loadVoiceLanguagePreference() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(kVoiceLanguagePrefKey);
+  } catch (_) {
+    return null;
+  }
+}
 
 class VoiceAssistantController extends GetxController with GetTickerProviderStateMixin {
   GeminiLiveService get _service => Get.find<GeminiLiveService>();
