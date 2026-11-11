@@ -419,6 +419,23 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
     _routineScopeAsk = null;
   }
 
+  /// Screen context the currently established server session was built with.
+  /// Format: 'toolMode|routineMode|subjectName|topicName'.
+  String? _sessionCtxKey;
+
+  String get _currentSessionCtxKey =>
+      '$toolMode|${currentRoutineMode ?? ''}|'
+      '${currentSubjectName ?? ''}|${currentTopicName ?? ''}';
+
+  /// True when the live session was established under a DIFFERENT screen
+  /// context (routine ↔ subjects ↔ topic screens). A resumed session keeps
+  /// the OLD system instruction + tools server-side, so the other screen's
+  /// assistant ends up with the wrong prompt and filtered-out tools
+  /// (e.g. no addSubject while a routine session is live). Callers must
+  /// (re)start the session instead of reusing the connected one.
+  bool get sessionContextChanged =>
+      _sessionCtxKey != null && _sessionCtxKey != _currentSessionCtxKey;
+
   // Tools blocked in routine mode — routine can only fetch data, never modify subjects/topics
   static const _routineBlockedTools = {
     'addSubjectsBulk', 'addSubject', 'addTopic', 'addSubtopics',

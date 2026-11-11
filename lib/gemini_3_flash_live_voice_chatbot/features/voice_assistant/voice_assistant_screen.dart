@@ -28,7 +28,8 @@ class VoiceAssistantScreen extends StatelessWidget {
     final c = Get.find<VoiceAssistantController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (c.connectionState.value == ws.ConnectionState.disconnected) {
+    if (c.connectionState.value == ws.ConnectionState.disconnected ||
+        c.sessionContextChanged) {
       c.startSession();
     }
 
@@ -218,7 +219,8 @@ class VoiceAssistantSheet extends StatelessWidget {
     final c = Get.find<VoiceAssistantController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (c.connectionState.value == ws.ConnectionState.disconnected) {
+    if (c.connectionState.value == ws.ConnectionState.disconnected ||
+        c.sessionContextChanged) {
       c.startSession();
     }
     c.initSheetAnim();

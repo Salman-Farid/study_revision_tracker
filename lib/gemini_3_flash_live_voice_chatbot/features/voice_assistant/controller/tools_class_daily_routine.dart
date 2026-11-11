@@ -226,14 +226,19 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
     return {
       'level': level,
       'askedAtUserTurn': _userTurnCounter,
-      'passed': passed,
+      // growable copy — `passed` may be `const []` (default arg); a const
+      // list would throw "Unsupported operation: add" on the next call.
+      'passed': List<String>.from(passed),
     };
   }
 
   /// ROUTINE FLOW GATE — multi-level, stateful.
   /// Order: subject scope → topic scope → subtopic scope (only if has_subtopics).
-  /// - First register* of a create flow blocks (level-0) and asks level 1.
-  /// - Each level needs a NEW user turn after the ask before its field is accepted.
+  /// - Blocks ONLY a missing/invalid scope level and asks THAT level's
+  ///   question. A complete, valid chain is accepted even on the first call
+  ///   (the user may already have answered in conversation — never force a
+  ///   re-ask of a question that was already answered).
+  /// - A blocked level needs a NEW user turn before its field is accepted.
   /// - Once the full chain passes, the ask is marked 'complete' so failed
   ///   creates can be retried WITHOUT restarting from the subject question.
   /// - 'complete' is cleared only on successful create/delete/startSession.
@@ -257,56 +262,45 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
       return true;
     }
 
-    // ── Level 0: first call always blocks (model may invent scope fields) ──
-    if (ask == null) {
-      final initialLevel = skipSubjectLevel ? 'topic' : 'subject';
-      final (qEn, qBan) =
-          _scopeQuestion(initialLevel, subjectNames, topicNames);
-      _routineScopeAsk = _blockRoutineScope(
-        callId: callId,
-        toolName: toolName,
-        level: initialLevel,
-        args: args,
-        question: qEn,
-        questionBan: qBan,
-        detail:
-            'This is the first register* of a create flow — scope questions have not been tracked yet.',
-      );
-      return false;
-    }
-
-    final askedAt = (ask['askedAtUserTurn'] as int?) ?? -1;
-    final pendingLevel = (ask['level'] as String?) ?? 'subject';
-
-    // Same-turn retry without a genuine new user turn → block again.
-    if (_userTurnCounter <= askedAt) {
-      final (qEn, qBan) =
-          _scopeQuestion(pendingLevel, subjectNames, topicNames);
-      debugPrint(
-          '[Gemini] 🔒 ROUTINE GATE same-turn retry blocked '
-          'level=$pendingLevel askedAt=$askedAt counter=$_userTurnCounter');
-      _respondToFunction(callId, toolName, {
-        'success': false,
-        'blocked': 'routine_scope_wait_for_user',
-        'error':
-            'ROUTINE FLOW GATE: You asked (or were blocked for) the scope question '
-            'but the user has NOT answered yet (no new user turn). '
-            'Repeat it in their language — English: "$qEn" · Banglish: "$qBan" — '
-            'and WAIT. Do NOT call $toolName again until they reply.',
-        'pending_question': switch (pendingLevel) {
-          'subject' => 'specific_subject_or_all_subjects',
-          'subtopic' => 'specific_subtopic_or_all_subtopics',
-          _ => 'specific_topic_or_all_topics',
-        },
-        'scope_level': pendingLevel,
-      }, params: args);
-      return false;
+    // ── A question is pending → it needs a genuine NEW user turn before the
+    //    model retries. (No blind level-0 block: the model usually asks the
+    //    scope questions in conversation FIRST, so its first register* call
+    //    already carries a valid chain — forcing a re-ask loops the flow.)
+    if (ask != null) {
+      final askedAt = (ask['askedAtUserTurn'] as int?) ?? -1;
+      final pendingLevel = (ask['level'] as String?) ?? 'subject';
+      if (_userTurnCounter <= askedAt) {
+        final (qEn, qBan) =
+            _scopeQuestion(pendingLevel, subjectNames, topicNames);
+        debugPrint(
+            '[Gemini] 🔒 ROUTINE GATE same-turn retry blocked '
+            'level=$pendingLevel askedAt=$askedAt counter=$_userTurnCounter');
+        _respondToFunction(callId, toolName, {
+          'success': false,
+          'blocked': 'routine_scope_wait_for_user',
+          'error':
+              'ROUTINE FLOW GATE: You asked (or were blocked for) the scope question '
+              'but the user has NOT answered yet (no new user turn). '
+              'Repeat it in their language — English: "$qEn" · Banglish: "$qBan" — '
+              'and WAIT. Do NOT call $toolName again until they reply.',
+          'pending_question': switch (pendingLevel) {
+            'subject' => 'specific_subject_or_all_subjects',
+            'subtopic' => 'specific_subtopic_or_all_subtopics',
+            _ => 'specific_topic_or_all_topics',
+          },
+          'scope_level': pendingLevel,
+        }, params: args);
+        return false;
+      }
     }
 
     // ── Evaluate chain; block at first incomplete level ──
     // Levels confirmed earlier in this create flow (carried from prior asks).
-    final passed =
-        (ask['passed'] as List?)?.cast<String>() ?? <String>[];
+    // Copy into a GROWABLE list: a stored `const []` (or `.cast()` view over
+    // one) would throw "Unsupported operation: add" and crash the gate
+    // mid-chain. `ask` is null on the very first register* call.
+    final passed = List<String>.from(
+        (ask?['passed'] as List?)?.cast<String>() ?? const <String>[]);
 
     // A block at level L may only claim levels strictly before L as confirmed.
     List<String> passedBefore(String level) {

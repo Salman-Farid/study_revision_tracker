@@ -8,12 +8,22 @@ extension GeminiLiveSessionControl on GeminiLiveService {
     String? systemPrompt,
     bool streamMicrophone = true,
     List<Map<String, dynamic>>? tools,
+    bool freshSession = false,
   }) async {
     // Never silently no-op: if a session is still marked active (e.g. a
     // previous start raced a stop, or the socket died without a stop),
     // tear it down first so the new socket actually comes up.
     if (_sessionActive) {
       await stopSession();
+    }
+
+    // Context switch (routine ↔ subjects ↔ topic screen): resuming would
+    // restore the OLD session's system instruction + tools server-side, so
+    // this setup would be ignored. Drop the handle AFTER stopSession (which
+    // re-persists it) so this start creates a session matching the context.
+    if (freshSession && _resumptionHandle != null) {
+      _resumptionHandle = null;
+      debugPrint('[Gemini] 🧩 Context-switch start — resumption handle dropped (fresh session)');
     }
 
     final gen = ++_generation;

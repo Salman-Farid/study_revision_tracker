@@ -31,7 +31,8 @@ class _StudyAssistantDialogueState extends State<StudyAssistantDialogue> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _sessionStarted) return;
       final c = Get.find<VoiceAssistantController>();
-      if (c.connectionState.value == ws.ConnectionState.disconnected) {
+      if (c.connectionState.value == ws.ConnectionState.disconnected ||
+          c.sessionContextChanged) {
         _sessionStarted = true;
         try {
           c.startSession();

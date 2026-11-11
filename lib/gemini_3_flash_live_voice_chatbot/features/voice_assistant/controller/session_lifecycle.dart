@@ -293,6 +293,17 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       // New session — drop any pending ROUTINE FLOW scope ask.
       _resetRoutineScopeAsk(reason: 'startSession');
 
+      // Screen context may have changed since the server session was
+      // established (routine ↔ subjects ↔ topic screen). A resumed session
+      // restores the OLD instruction+tools server-side — start fresh instead.
+      final ctxKey = _currentSessionCtxKey;
+      final freshSession = _sessionCtxKey != null && _sessionCtxKey != ctxKey;
+      if (freshSession) {
+        debugPrint('[Gemini] 🧩 Screen context changed '
+            '($_sessionCtxKey → $ctxKey) — fresh session (no resume)');
+      }
+      _sessionCtxKey = ctxKey;
+
       // Floor must say Connecting (not Offline) while the socket comes up.
       connectionState.value = ws.ConnectionState.connecting;
       _updateFloorStatus();
@@ -350,7 +361,7 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
       final routineContextInfo = (toolMode == 'routine' && currentRoutineMode != null)
           ? 'SCREEN CONTEXT: User is on the "$currentRoutineMode" routine screen right now.\n'
               '- If user says "add class", "I have class", "register class", "set class schedule" → call registerClassRoutine. NEVER ask "daily or class?"\n'
-              '- ROUTINE FLOW (3 steps, strict order — each step has its OWN wording, never reuse one question): (1) daily only, class subject is fixed: "Which subjects should your routine cover — some specific ones, or all of them?" → (2) if specific subject(s): "Which topics of <subject> should I plan — some specific ones, or all of its topics?" → (3) only if a named topic has subtopics: "Under <topic>, which subtopics should become the study units — some specific ones, or all of them?" — NEVER call subtopics "topics". Ask ONE question, WAIT for the user\'s answer, then set the matching scope field. Each step needs a new user turn.\n'
+              '- ROUTINE FLOW (3 steps, strict order — each step has its OWN wording, never reuse one question): (1) daily only, class subject is fixed: "Which subjects should your routine cover — some specific ones, or all of them?" → (2) if specific subject(s): "Which topics of <subject> should I plan — some specific ones, or all of its topics?" → (3) only if a named topic has subtopics: "Under <topic>, which subtopics should become the study units — some specific ones, or all of them?" — NEVER call subtopics "topics". Ask ONE question, WAIT for the user\'s answer, then set the matching scope field. Each step needs a new user turn. NEVER re-ask a question the user already answered in conversation — if scope is already clear, call register* directly with all fields set.\n'
               '- If user already named subjects/topics AND answered scope questions → build ONLY those. Do NOT add any other subject/topic. Do NOT auto-include other subjects\' revisions.\n'
               '- If user says "build my routine", "plan my day", "create routine" WITHOUT any subject → getAllData, then step 1: ask all subjects together or specific subject(s)? WAIT.\n'
               '- If they pick one/many specific subject(s) → use ONLY those. If they named topics already, use those exact topics only. Never invent topics. Never pad with other subjects.\n'
@@ -457,9 +468,9 @@ FIRST READ & REVISION WORKFLOW:
 - Dates come from getTopicStatus / getAllTopicsRevisionDates — never guess.
 
 ROUTINE FLOW (MANDATORY 3-LEVEL GATE — daily AND class register*):
-STRICT ORDER — one question at a time, WAIT for the user's answer, then set the matching field. Each level needs a NEW user turn before the field is accepted. The gate blocks inventing or skipping steps. The three questions are DIFFERENT — never reuse one wording for all three; translate the meaning naturally into the user's language.
+STRICT ORDER — one question at a time, WAIT for the user's answer, then set the matching field. Each level needs a NEW user turn before the field is accepted. The gate blocks ONLY a scope level that is missing from your register* call — NEVER re-ask a question the user already answered in conversation; if the user already told you subject/topic (or said "all"), set the fields and call register* directly. The three questions are DIFFERENT — never reuse one wording for all three; translate the meaning naturally into the user's language.
 1. SUBJECT (daily only; class subject is fixed):
-   - First register* of a create flow ALWAYS gets blocked → ask and WAIT.
+   - Ask this ONLY if the user hasn't already made the scope clear. If they already named subject(s) or said "all subjects" → skip the question, set the field, proceed.
      English: "Which subjects should your routine cover — some specific ones, or all of them?"
      Banglish (user writes Romanized Bengali → reply in বাংলা script): "Routine-e ki ki subject debo — kichu nirdishto subject, na shobgulo?"
    - Answer = specific → subjectScope: "specific" + subjectNames: [exact names from getAllData.subjects[]]. Never invent. NEVER claim an existing subject is "not in the list".
@@ -516,6 +527,7 @@ FEEDBACK: confirm what was created in the user's language; if some failed, name 
         voice: 'Kore',
         systemPrompt: systemPrompt,
         tools: activeTools,
+        freshSession: freshSession,
       );
 
       if (gen != _generation) {
