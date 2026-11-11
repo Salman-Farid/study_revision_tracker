@@ -128,7 +128,7 @@ extension VoiceAssistantSubjectReadTools on VoiceAssistantController {
                 'Subtopic ≠ Topic — never create subject-level topics for those names. '
                 'Genuine new topics → write tool with confirmNewTopics: true.',
           },
-        'note': 'subjects: s=name,t=topics,c=completed,p=pending,fr=first_read_done,fast_read_left=topics not yet first-read. topics_for_fast_read = exact subject+topic names still in first read — answer "which subjects/topics for fast read" from THIS list in the user\'s language. daily_routines_today is the live plan (empty = none). HIERARCHY: Subject→Topic→Subtopic; after creating topics you MUST ask about subtopics; subtopics use addSubtopics under a topic.',
+        'note': 'subjects: s=name,t=topics,c=completed,p=pending,fr=first_read_done,fast_read_left=topics not yet first-read. EVERY entry in subjects[] is a valid selectable subject — INCLUDING t=0 (zero topics): say "no topics yet — add topics first", NEVER "not in the list". topics_for_fast_read = exact subject+topic names still in first read — answer "which subjects/topics for fast read" from THIS list in the user\'s language. daily_routines_today is the live plan (empty = none). HIERARCHY: Subject→Topic→Subtopic; after creating topics you MUST ask about subtopics; subtopics use addSubtopics under a topic.',
       };
       _summaryCache = result;
       _summaryCachedAt = DateTime.now();

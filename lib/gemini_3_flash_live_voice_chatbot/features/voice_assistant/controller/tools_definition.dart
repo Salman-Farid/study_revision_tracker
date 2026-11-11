@@ -235,13 +235,27 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerClassRoutine',
-      'description': 'Register a class routine / timetable entry. MANDATORY topicScope: you must have asked "Specific topic(s) or all topics?" (or the user already made scope clear) before calling. Location is optional — pass it as one string in "location" (e.g. "UB43A"); do not ask separately for building/floor/room.',
+      'description': 'Register a class routine / timetable entry. MANDATORY 3-step ROUTINE FLOW before write: (1) subject is fixed (class has one) → (2) ask "Specific topic(s) of <subject> or all its topics?" → (3) only if a named topic has subtopics, ask "Specific subtopic(s) or all subtopics?" — subtopics are NEVER called topics. Location is optional — pass it as one string in "location" (e.g. "UB43A"); do not ask separately for building/floor/room.',
       'parameters': {
         'type': 'object',
         'properties': {
           'topicScope': {
             'type': 'string',
-            'description': 'MANDATORY. "specific" = only the named subject/topic(s); "all" = whole subject / all topics. Set only after the user answered "Specific topic(s) or all topics?" (or already made scope obvious in this turn). Omitting this blocks the write.',
+            'description': 'MANDATORY. Step 2 of ROUTINE FLOW. "specific" = only the named topic(s)/subtopic(s) of this class subject; "all" = all topics of the subject. Set ONLY after the user answered the topic-scope question (or already made it clear). Omitting blocks the write.',
+          },
+          'topicNames': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'When topicScope=specific: exact topic names the user chose. Empty when topicScope=all.',
+          },
+          'subtopicScope': {
+            'type': 'string',
+            'description': 'Step 3 — ONLY when a named topic has child subtopics (gate will tell you via blocked=routine_subtopic_scope_required). "specific" = only named subtopic(s); "all" = all subtopics under the named topic(s). Never call subtopics "topics".',
+          },
+          'subtopicNames': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'When subtopicScope=specific: exact subtopic names the user chose.',
           },
           'subjectName': {'type': 'string', 'description': 'Subject name for the class'},
           'startTime': {'type': 'string', 'description': 'Start time in HH:MM 24h format, e.g. "09:00" or "14:30"'},
@@ -268,18 +282,36 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
     },
     {
       'name': 'registerDailyRoutine',
-      'description': 'Register a daily study routine for a date. MANDATORY topicScope: ask "Specific topic(s) or all topics?" first unless the user already made scope clear. Pass ordered work blocks in items[]; the app auto-inserts meals, freshen-up, and gap fills. Call getAllData first for real subject/topic names, due revisions, and today\'s classes.',
+      'description': 'Register a daily study routine for a date. MANDATORY 3-step ROUTINE FLOW before write: (1) "Specific subject(s) or all subjects?" (2) if specific subject(s): "Specific topic(s) of <subject> or all its topics?" (3) only if a named topic has subtopics: "Specific subtopic(s) or all subtopics?" — subtopics are NEVER called topics. Pass ordered work blocks in items[]; the app auto-inserts meals, freshen-up, and gap fills. Call getAllData first for real subject/topic names, due revisions, and today\'s classes.',
       'parameters': {
         'type': 'object',
         'properties': {
+          'subjectScope': {
+            'type': 'string',
+            'description': 'MANDATORY. Step 1 of ROUTINE FLOW. "specific" = only the subject(s) the user named; "all" = every subject (then skip topic/subtopic questions). Set ONLY after the user answered the subject-scope question. Omitting blocks the write.',
+          },
+          'subjectNames': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'When subjectScope=specific: exact subject names the user chose. Empty when subjectScope=all.',
+          },
           'topicScope': {
             'type': 'string',
-            'description': 'MANDATORY. "specific" = only the named subject(s)/topic(s) in items[]; "all" = first-read topics + due revisions across all subjects. Set only after the user answered "Specific topic(s) or all topics?" (or already made scope obvious in this turn). Omitting this blocks the write.',
+            'description': 'MANDATORY. Step 2 of ROUTINE FLOW (skip when subjectScope=all). "specific" = only the named subject(s)/topic(s) in items[]; "all" = first-read topics + due revisions across the chosen subject(s). Set ONLY after the user answered the topic-scope question. Omitting blocks the write.',
           },
           'topicNames': {
             'type': 'array',
             'items': {'type': 'string'},
             'description': 'When topicScope=specific: the exact subject/topic names the user chose. Empty or omitted when topicScope=all.',
+          },
+          'subtopicScope': {
+            'type': 'string',
+            'description': 'Step 3 — ONLY when a named topic has child subtopics (gate will tell you via blocked=routine_subtopic_scope_required). "specific" = only named subtopic(s); "all" = all subtopics under the named topic(s). Never call subtopics "topics".',
+          },
+          'subtopicNames': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'When subtopicScope=specific: exact subtopic names the user chose.',
           },
           'date': {'type': 'string', 'description': 'Date for this routine in YYYY-MM-DD format. Use today if not specified.'},
           'items': {
@@ -299,7 +331,7 @@ List<Map<String, dynamic>> buildVoiceAssistantTools() {
             },
           },
         },
-        'required': ['topicScope', 'items'],
+        'required': ['subjectScope', 'topicScope', 'items'],
       },
     },
     {

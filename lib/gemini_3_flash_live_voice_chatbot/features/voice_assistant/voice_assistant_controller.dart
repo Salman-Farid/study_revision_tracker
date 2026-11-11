@@ -398,6 +398,27 @@ class VoiceAssistantController extends GetxController with GetTickerProviderStat
   DateTime? _summaryCachedAt;
   Timer? _thinkingSafetyTimer;
 
+  /// Genuine user-turn counter for the ROUTINE FLOW gate.
+  /// Increments only on real USER: messages (not re-drive echoes, not tool
+  /// results). Lets the gate require a NEW user turn after each scope ask.
+  int _userTurnCounter = 0;
+
+  /// Active routine-scope question for the create flow.
+  /// null = no pending ask (not started, or reset after create/delete/session start).
+  /// Keys: 'level' ('subject'|'topic'|'subtopic'|'complete'),
+  /// 'askedAtUserTurn' (int), 'passed' (confirmed level names).
+  /// 'complete' = full chain passed; gate allows retries until reset.
+  Map<String, dynamic>? _routineScopeAsk;
+
+  void _resetRoutineScopeAsk({String? reason}) {
+    if (_routineScopeAsk != null) {
+      debugPrint('[Gemini] 🧹 ROUTINE GATE reset'
+          '${reason != null ? ' ($reason)' : ''}'
+          ' level=${_routineScopeAsk!['level']}');
+    }
+    _routineScopeAsk = null;
+  }
+
   // Tools blocked in routine mode — routine can only fetch data, never modify subjects/topics
   static const _routineBlockedTools = {
     'addSubjectsBulk', 'addSubject', 'addTopic', 'addSubtopics',

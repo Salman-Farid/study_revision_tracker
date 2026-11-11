@@ -7,6 +7,7 @@ extension SubjectsVoiceChat on SubjectsController {
     try {
       final vc = Get.find<VoiceAssistantController>();
       vc.toolMode = 'subjects';
+      vc.currentRoutineMode = null;
       vc.currentSubjectName = null;
       vc.currentTopicName = null;
     } catch (_) {}
@@ -21,6 +22,7 @@ extension SubjectsVoiceChat on SubjectsController {
     }
     final vc = Get.find<VoiceAssistantController>();
     vc.toolMode = 'subjects'; // no class/daily routine tools on Subjects tab
+    vc.currentRoutineMode = null;
     vc.currentSubjectName = null;
     vc.currentTopicName = null;
     vc.showDialogue.value = true;

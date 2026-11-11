@@ -58,6 +58,10 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
           debugPrint('[Gemini] 🔁 Re-drive echo — keeping dedup cache');
         } else {
           _recentCalls.clear();
+          // Genuine user turn — advances the ROUTINE FLOW gate.
+          _userTurnCounter++;
+          debugPrint('[Gemini] 🔢 userTurn=$_userTurnCounter'
+              '${_routineScopeAsk != null ? ' (routine ask pending: ${_routineScopeAsk!['level']})' : ''}');
         }
         _lastBatchSummaries = [];
         _awaitingAssistantReply = true;
@@ -286,6 +290,8 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
         _reconnectAttempts = 0;
         _reconnectGiveUpNotified = false;
       }
+      // New session — drop any pending ROUTINE FLOW scope ask.
+      _resetRoutineScopeAsk(reason: 'startSession');
 
       // Floor must say Connecting (not Offline) while the socket comes up.
       connectionState.value = ws.ConnectionState.connecting;
@@ -341,14 +347,15 @@ extension VoiceAssistantSessionLifecycle on VoiceAssistantController {
               'New unrelated topics → write tool with confirmNewTopics: true. '
               'Subtopic ≠ Topic — never put a subtopic on a subject.\n';
 
-      final routineContextInfo = currentRoutineMode != null
+      final routineContextInfo = (toolMode == 'routine' && currentRoutineMode != null)
           ? 'SCREEN CONTEXT: User is on the "$currentRoutineMode" routine screen right now.\n'
               '- If user says "add class", "I have class", "register class", "set class schedule" → call registerClassRoutine. NEVER ask "daily or class?"\n'
-              '- If user ALREADY named subjects/topics ("ami CS er AI porte chai", "CS AI and Math probability") → build ONLY those. Do NOT ask all-vs-specific. Do NOT add any other subject/topic. Do NOT auto-include other subjects\' revisions. topicScope: "specific".\n'
-              '- If user says "build my routine", "plan my day", "create routine" WITHOUT any subject → getAllData, then ASK: all subjects together or specific subject(s)? WAIT.\n'
-              '- If they pick one/many specific subject(s) → use ONLY those (topicScope: "specific"). If they named topics already, use those exact topics only. Never invent topics. Never pad with other subjects.\n'
-              '- If they say all subjects → use only first-read topics (latest index per subject) + revisions_due_today (topicScope: "all"). Never invent topics.\n'
-              '- Every register* call needs topicScope. If blocked=routine_topic_scope_missing → ask "Specific topic(s) or all topics?" then retry.\n'
+              '- ROUTINE FLOW (3 steps, strict order — each step has its OWN wording, never reuse one question): (1) daily only, class subject is fixed: "Which subjects should your routine cover — some specific ones, or all of them?" → (2) if specific subject(s): "Which topics of <subject> should I plan — some specific ones, or all of its topics?" → (3) only if a named topic has subtopics: "Under <topic>, which subtopics should become the study units — some specific ones, or all of them?" — NEVER call subtopics "topics". Ask ONE question, WAIT for the user\'s answer, then set the matching scope field. Each step needs a new user turn.\n'
+              '- If user already named subjects/topics AND answered scope questions → build ONLY those. Do NOT add any other subject/topic. Do NOT auto-include other subjects\' revisions.\n'
+              '- If user says "build my routine", "plan my day", "create routine" WITHOUT any subject → getAllData, then step 1: ask all subjects together or specific subject(s)? WAIT.\n'
+              '- If they pick one/many specific subject(s) → use ONLY those. If they named topics already, use those exact topics only. Never invent topics. Never pad with other subjects.\n'
+              '- If they say all subjects → use only first-read topics (latest index per subject) + revisions_due_today. Never invent topics.\n'
+              '- Every register* call needs subjectScope (daily) + topicScope (+ subtopicScope only when gated). If blocked=routine_subject_scope_required / routine_topic_scope_required / routine_subtopic_scope_required → ask that pending_question NOW in their language, WAIT for the reply, then retry.\n'
               '- If user says "delete my routine" → delete from the $currentRoutineMode routine. NEVER ask which type.\n'
           : '';
 
@@ -383,10 +390,14 @@ $subjectsModeInfo- You are multilingual: you CAN use any language Gemini Live su
 - ONE reply = ONE language = the detected/requested language. Full stop.
 - Examples:
   • User: "मैं हिंदी में बात करना चाहता हूँ" → reply ONLY in Hindi (Devanagari). No Bengali. No English.
+  • User: "आज मुझे इंग्लिश पढ़ना है" / "mujhe padhna hai" / "kya hai" / "batao" / "banao" → Hindi ONLY (Devanagari).
   • User: "আমি বাংলায় কথা বলতে চাই" → reply ONLY in Bengali (বাংলা). No Hindi. No English.
+  • User: "Ajke ami English porte chai" / "Hello putu amar jonno ekti routine toiri koro" / "ami/tumi/chai/porte/koro/ajke/amar/tomar/ektu/ki/hobe" → Banglish (Romanized Bengali) → reply ONLY in Bengali (বাংলা script). NEVER Hindi.
+  • User: "Achha, tahole ami tense porte chai ajke" → reply ONLY in Bengali (বাংলা). No Hindi. No English.
   • User: "Create my routine" → reply ONLY in English.
-  • User: "routine banao" (Hindi/Banglish request for Hindi) → if they used Hindi words + asked Hindi → Hindi only.
-- SCRIPT: Match the language's native script. Bengali → বাংলা only (never Devanagari). Hindi → Devanagari only. Chinese → Hanzi only.
+  • User: "routine banao" alone with Hindi verbs (banao/do/karo) → Hindi (Devanagari) only.
+- BANGLISH RULE (critical): Romanized Bengali (Latin letters, Bengali words: ami, tumi, apni, chai, porte, kora/koro, ajke, kalke, amar, tomar, toiri, koro, bolo, dao, hobe, ki, kothay, thik ache, dhonnobad, …) is BENGALI, not Hindi. Reply in বাংলা script ONLY. NEVER switch to Hindi/Devanagari when the last user message has these markers.
+- SCRIPT: Match the language's native script. Bengali (incl. Banglish) → বাংলা only (never Devanagari). Hindi → Devanagari only. Chinese → Hanzi only.
 - If asked which languages you speak → answer in THEIR language, short: you follow whatever language they use. Do not list languages in three scripts.
 - Subject/topic names from the database may stay as stored (often English). Every other word = that one language.
 - Tool JSON keys stay English. Your spoken/chat reply = that one language only.
@@ -445,20 +456,33 @@ FIRST READ & REVISION WORKFLOW:
 - Sequential order: 1st → 2nd → … Never skip.
 - Dates come from getTopicStatus / getAllTopicsRevisionDates — never guess.
 
-ROUTINE FLOW (MANDATORY GATE — daily AND class register*):
-- Every registerDailyRoutine / registerClassRoutine MUST include topicScope: "specific" or "all". No exceptions.
-- Decide scope BEFORE calling the tool:
-  • User named specific subject(s)/topic(s) → topicScope: "specific" (ONLY those names; daily also topicNames: [...]). Never ask all-vs-specific again.
-  • User said all subjects / everything → topicScope: "all".
-  • Class with a named subject → topicScope: "specific".
-  • User named NOTHING about scope → ASK in their language: "Specific topic(s) or all topics?" and WAIT. Do NOT call the tool yet.
-- If a write returns blocked=routine_topic_scope_missing → ask that question NOW, then retry with topicScope set.
-- topicScope is REQUIRED on every register* call. Never omit it.
+ROUTINE FLOW (MANDATORY 3-LEVEL GATE — daily AND class register*):
+STRICT ORDER — one question at a time, WAIT for the user's answer, then set the matching field. Each level needs a NEW user turn before the field is accepted. The gate blocks inventing or skipping steps. The three questions are DIFFERENT — never reuse one wording for all three; translate the meaning naturally into the user's language.
+1. SUBJECT (daily only; class subject is fixed):
+   - First register* of a create flow ALWAYS gets blocked → ask and WAIT.
+     English: "Which subjects should your routine cover — some specific ones, or all of them?"
+     Banglish (user writes Romanized Bengali → reply in বাংলা script): "Routine-e ki ki subject debo — kichu nirdishto subject, na shobgulo?"
+   - Answer = specific → subjectScope: "specific" + subjectNames: [exact names from getAllData.subjects[]]. Never invent. NEVER claim an existing subject is "not in the list".
+   - Answer = all → subjectScope: "all" → skip questions 2 and 3 (build first-read + due revisions across all subjects).
+2. TOPIC (skip when subjectScope=all):
+   - Ask and WAIT.
+     English: "Which topics of <subject> should I plan — some specific ones, or all of its topics?"
+     Banglish: "<subject> er kon kon topic gulo plan korbo — kichu nirdishto, na shobgulo topic?"
+   - specific → topicScope: "specific" + topicNames: [exact chosen topic names] (+ items[] with only those).
+   - all → topicScope: "all" → skip question 3.
+3. SUBTOPIC (only when a named topic actually has child subtopics — the gate tells you via blocked=routine_subtopic_scope_required):
+   - Ask and WAIT. NEVER say "topic" when you mean subtopic.
+     English: "Under <topic>, which subtopics should become the study units — some specific ones, or all of them?"
+     Banglish: "<topic> er niche kon kon subtopic gulo study unit hobe — kichu nirdishto, na shobgulo? (subtopic alada jinish — eta topic noy)"
+   - specific → subtopicScope: "specific" + subtopicNames: [exact names].
+   - all → subtopicScope: "all".
+   - If no subtopics under the named topic(s) → no subtopic question; proceed with topicScope only.
+BLOCKED CODES → ask the pending_question NOW in the user's language, WAIT for their reply, then retry with the matching field set. If the block carries ALREADY CONFIRMED / already_confirmed_levels → keep those fields in the retry and do NOT re-ask those levels. Never call register* again in the same turn as a block. Never invent subject/topic/subtopic names.
 
 DAILY ROUTINE WORKFLOW — STUDY-FIRST:
 CRITICAL: Call getAllData before creating any daily routine. Fake subject names FAIL validation.
 NO FAKE SUBJECTS/TOPICS. Allowed non-DB labels: Break, Breakfast, Lunch, Snack, Dinner, Power Nap. NEVER invent names like "Study Gap Filler" / "Self Study" / "Final Study Gap Filler" as study subjects — use real subject names from getAllData only (e.g. Computer Science). App fills empty gaps itself.
-ASK BEFORE BUILDING only when user named NOTHING: ask all-vs-specific in their language, WAIT, then set topicScope from their answer.
+ASK BEFORE BUILDING only when scope questions are still pending (ROUTINE FLOW 3-level gate): step 1 all-vs-specific subjects → WAIT → step 2 topic scope → step 3 subtopic scope only if has_subtopics. Set subjectScope/topicScope/subtopicScope from their answers.
 WINDOW: ALWAYS from the EXACT MINUTE the user creates (7:20 AM → first block starts 7:20). HARD END: last block MUST finish at EXACTLY 11:30 PM (23:30) — never earlier, never later. App enforces this. NEVER start later than create time. NEVER start at 8:00 unless they create at 8:00.
 FRESHEN UP: if create time is before 8:00 AM, app auto-inserts a 30-min Freshen Up at the start (7:20 → Freshen Up 7:20–7:50). Do NOT invent or omit it. After 8:00 AM → no Freshen Up.
 NEVER SKIP A GAP: if a block does not fit the gap, use a short study or short break to fill it. App splits blocks automatically — never drop a study block, never leave empty holes between meals/classes.

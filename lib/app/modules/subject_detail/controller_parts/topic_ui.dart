@@ -74,6 +74,7 @@ extension SubjectDetailUi on SubjectDetailController {
     // On subtopic screen: voice must nest writes under THIS parent topic.
     vc.currentTopicName = isSubtopicMode ? _parentTopic?.name : null;
     vc.toolMode = 'subjects'; // isolate: no class/daily routine tools
+    vc.currentRoutineMode = null;
     Get.bottomSheet(
       const VoiceAssistantSheet(),
       isScrollControlled: true,

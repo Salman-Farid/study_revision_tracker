@@ -49,6 +49,7 @@ class TopicDetailController extends GetxController {
     // Topic detail → subtopic requests belong UNDER this topic.
     vc.currentTopicName = topic.name;
     vc.toolMode = 'subjects'; // isolate: no class/daily routine tools
+    vc.currentRoutineMode = null;
     Get.bottomSheet(
       const VoiceAssistantSheet(),
       isScrollControlled: true,

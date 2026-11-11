@@ -2,37 +2,465 @@ part of '../voice_assistant_controller.dart';
 
 /// Voice tools that CREATE class and daily routines.
 extension VoiceAssistantRoutineTools on VoiceAssistantController {
-  /// ROUTINE FLOW GATE — returns true when the call may proceed.
-  /// Blocks until topicScope is "specific" or "all" (user answered, or the
-  /// same turn already made scope obvious). Mirrors the HIERARCHY GATE.
-  bool _gateRoutineTopicScope(
-    String callId,
-    String toolName,
-    Map<String, dynamic> args,
-  ) {
-    final scope = (args['topicScope'] as String?)?.trim().toLowerCase();
-    if (scope == 'specific' || scope == 'all') return true;
+  static const _nonStudyBlockLabels = {
+    'break', 'breakfast', 'lunch', 'dinner', 'snack', 'power nap',
+    'freshen up', 'freshen_up', 'meal', 'nap', 'class', 'review',
+    'active recall', 'recall', 'gap filler', 'self study',
+    'study gap filler', 'final study gap filler', 'focus time',
+    'wrap up', 'catch up',
+  };
 
-    _respondToFunction(callId, toolName, {
-      'success': false,
-      'blocked': 'routine_topic_scope_missing',
-      'error':
-          'ROUTINE FLOW GATE: topicScope is required ("specific" or "all"). '
-          'You MUST first ask the user (their language): '
-          '"Specific topic(s) or all topics?" and WAIT for their answer. '
-          'Then call $toolName again with topicScope: "specific" '
-          '(only the named subject/topic(s); for daily also pass topicNames) '
-          'OR topicScope: "all" (first-read topics + due revisions for all subjects). '
-          'If this turn already named specific subject(s)/topic(s) → use "specific" with those exact names. '
-          'If they said all/everything → use "all". Never invent names.',
-      'pending_question': 'specific_topic_or_all_topics',
-    }, params: args);
+  static String? _normScope(dynamic v) {
+    final s = (v as String?)?.trim().toLowerCase();
+    if (s == 'all' || s == 'specific') return s;
+    return null;
+  }
+
+  List<String> _studyTopicNamesFromArgs(Map<String, dynamic> args) {
+    final out = <String>{};
+    final topicNames = args['topicNames'];
+    if (topicNames is List) {
+      for (final t in topicNames) {
+        final n = t.toString().trim();
+        if (n.isNotEmpty) out.add(n);
+      }
+    }
+    final items = args['items'];
+    if (items is List) {
+      for (final raw in items) {
+        if (raw is! Map) continue;
+        final type = ((raw['type'] as String?) ?? '').trim().toLowerCase();
+        final topic = ((raw['topic'] as String?) ?? '').trim();
+        if (topic.isEmpty) continue;
+        if (_nonStudyBlockLabels.contains(topic.toLowerCase())) continue;
+        if (type.isNotEmpty &&
+            const {'break', 'meal', 'nap', 'class', 'freshen_up', 'freshen up'}
+                .contains(type)) {
+          continue;
+        }
+        out.add(topic);
+      }
+    }
+    return out.toList();
+  }
+
+  List<String> _subjectNamesFromArgs(Map<String, dynamic> args) {
+    final out = <String>{};
+    final subjectNames = args['subjectNames'];
+    if (subjectNames is List) {
+      for (final s in subjectNames) {
+        final n = s.toString().trim();
+        if (n.isNotEmpty) out.add(n);
+      }
+    }
+    final single = (args['subjectName'] as String?)?.trim();
+    if (single != null && single.isNotEmpty) out.add(single);
+    final items = args['items'];
+    if (items is List) {
+      for (final raw in items) {
+        if (raw is! Map) continue;
+        final type = ((raw['type'] as String?) ?? '').trim().toLowerCase();
+        if (const {'break', 'meal', 'nap', 'class', 'freshen_up', 'freshen up'}
+            .contains(type)) {
+          continue;
+        }
+        final subject = ((raw['subject'] as String?) ?? '').trim();
+        if (subject.isEmpty) continue;
+        if (_nonStudyBlockLabels.contains(subject.toLowerCase())) continue;
+        out.add(subject);
+      }
+    }
+    return out.toList();
+  }
+
+  /// True when at least one of [topicNames] (under any of [subjectNames])
+  /// has child subtopics in the DB.
+  Future<bool> _topicsHaveSubtopics(
+    List<String> subjectNames,
+    List<String> topicNames,
+  ) async {
+    if (topicNames.isEmpty) return false;
+    final topicLower = topicNames.map((t) => t.toLowerCase()).toSet();
+    try {
+      final allSubjects = await _subjectRepo.getAll();
+      for (final sub in allSubjects) {
+        if (subjectNames.isNotEmpty &&
+            !subjectNames.any((s) =>
+                s.toLowerCase() == sub.name.toLowerCase() ||
+                s.toLowerCase().contains(sub.name.toLowerCase()) ||
+                sub.name.toLowerCase().contains(s.toLowerCase()))) {
+          continue;
+        }
+        final topics = await _topicRepo.getBySubject(sub.id);
+        for (final t in topics) {
+          if (!topicLower.contains(t.name.toLowerCase())) continue;
+          final parentId = t.parentTopicId;
+          if (parentId != null && parentId.isNotEmpty) continue; // is a subtopic
+          final kids = topics.where((k) =>
+              k.parentTopicId != null &&
+              (k.parentTopicId as String).isNotEmpty &&
+              k.parentTopicId == t.id);
+          if (kids.isNotEmpty) return true;
+        }
+      }
+    } catch (e) {
+      debugPrint('[Gemini] ⚠️ _topicsHaveSubtopics failed: $e');
+      // Fail open on lookup error — do not permanently block the create flow.
+      return false;
+    }
     return false;
   }
 
+  /// Levels in scope-chain order — a block at level L can only claim
+  /// levels strictly before L as already confirmed.
+  static const _scopeLevelOrder = ['subject', 'topic', 'subtopic'];
+
+  /// Natural per-level scope questions — distinct wording per level so the
+  /// three ROUTINE FLOW questions never sound identical.
+  /// Returns (English, Banglish). The subtopic wording NEVER calls a
+  /// subtopic a topic.
+  (String, String) _scopeQuestion(
+    String level,
+    List<String> subjectNames,
+    List<String> topicNames, {
+    bool missingNames = false,
+  }) {
+    final s = subjectNames.join(', ');
+    final t = topicNames.join(', ');
+    switch (level) {
+      case 'subject':
+        return missingNames
+            ? (
+                'You picked specific subjects — exactly which ones should I use?',
+                'Nirdishto subject bola — thik ki ki subject use korbo?',
+              )
+            : (
+                'Which subjects should your routine cover — some specific ones, or all of them?',
+                'Routine-e ki ki subject debo — kichu nirdishto subject, na shobgulo?',
+              );
+      case 'topic':
+        return missingNames
+            ? (
+                s.isNotEmpty
+                    ? 'You picked specific topics of $s — exactly which ones?'
+                    : 'You picked specific topics — exactly which ones?',
+                s.isNotEmpty
+                    ? '$s er thik ki ki nirdishto topic?'
+                    : 'Thik ki ki nirdishto topic?',
+              )
+            : (
+                s.isNotEmpty
+                    ? 'Which topics of $s should I plan — some specific ones, or all of its topics?'
+                    : 'Which topics should I plan — some specific ones, or all of them?',
+                s.isNotEmpty
+                    ? '$s er kon kon topic gulo plan korbo — kichu nirdishto, na shobgulo topic?'
+                    : 'Kon kon topic plan korbo — kichu nirdishto, na shobgulo topic?',
+              );
+      case 'subtopic':
+        // Never call subtopics "topics" — parent name reference only.
+        return missingNames
+            ? (
+                'Which specific subtopics should I use as the study units?',
+                'Ki ki nirdishto subtopic study unit hisebe korbo?',
+              )
+            : (
+                t.isNotEmpty
+                    ? 'Under $t, which subtopics should become the study units — some specific ones, or all of them?'
+                    : 'Which subtopics should become the study units — some specific ones, or all of them?',
+                t.isNotEmpty
+                    ? '$t er niche kon kon subtopic gulo study unit hobe — kichu nirdishto, na shobgulo? (subtopic alada jinish — eta topic noy)'
+                    : 'Kon kon subtopic study unit hobe — kichu nirdishto, na shobgulo? (subtopic alada jinish — eta topic noy)',
+              );
+      default:
+        return (
+          'Specific subject(s) or all subjects?',
+          'Specific subject(s) or all subjects?',
+        );
+    }
+  }
+
+  Map<String, dynamic> _blockRoutineScope({
+    required String callId,
+    required String toolName,
+    required String level,
+    required Map<String, dynamic> args,
+    required String question,
+    required String questionBan,
+    required String detail,
+    List<String> passed = const [],
+  }) {
+    final blockedCode = switch (level) {
+      'subject' => 'routine_subject_scope_required',
+      'subtopic' => 'routine_subtopic_scope_required',
+      _ => 'routine_topic_scope_required',
+    };
+    debugPrint(
+        '[Gemini] 🔒 ROUTINE GATE block level=$level code=$blockedCode '
+        'passed=$passed askedAt=${_routineScopeAsk?['askedAtUserTurn']} '
+        'counter=$_userTurnCounter tool=$toolName');
+    final confirmed = passed.isEmpty
+        ? ''
+        : 'ALREADY CONFIRMED — do NOT re-ask these and keep these fields in '
+            'every retry: ${passed.join(', ')}. ';
+    _respondToFunction(callId, toolName, {
+      'success': false,
+      'blocked': blockedCode,
+      'error':
+          'ROUTINE FLOW GATE (level=$level): $detail '
+          'Ask the user NOW in THEIR language (translate, keep the meaning) — '
+          'English: "$question" · Banglish (user writes Romanized Bengali → reply '
+          'in বাংলা script): "$questionBan" '
+          'WAIT for their answer. Do NOT call $toolName again in the same turn. '
+          '$confirmed'
+          'After they answer, call $toolName again with ONLY the missing scope field set. '
+          'SUBTOPIC is NEVER called a topic. Never invent subject/topic/subtopic names. '
+          'Every subject from getAllData.subjects[] is valid — including t=0 (say "no topics yet — add topics first", never "not in the list").',
+      'pending_question': switch (level) {
+        'subject' => 'specific_subject_or_all_subjects',
+        'subtopic' => 'specific_subtopic_or_all_subtopics',
+        _ => 'specific_topic_or_all_topics',
+      },
+      'scope_level': level,
+      if (passed.isNotEmpty) 'already_confirmed_levels': passed,
+    }, params: args);
+    return {
+      'level': level,
+      'askedAtUserTurn': _userTurnCounter,
+      'passed': passed,
+    };
+  }
+
+  /// ROUTINE FLOW GATE — multi-level, stateful.
+  /// Order: subject scope → topic scope → subtopic scope (only if has_subtopics).
+  /// - First register* of a create flow blocks (level-0) and asks level 1.
+  /// - Each level needs a NEW user turn after the ask before its field is accepted.
+  /// - Once the full chain passes, the ask is marked 'complete' so failed
+  ///   creates can be retried WITHOUT restarting from the subject question.
+  /// - 'complete' is cleared only on successful create/delete/startSession.
+  Future<bool> _gateRoutineScope(
+    String callId,
+    String toolName,
+    Map<String, dynamic> args, {
+    bool skipSubjectLevel = false,
+  }) async {
+    final subjectScope = _normScope(args['subjectScope']);
+    final topicScope = _normScope(args['topicScope']);
+    final subtopicScope = _normScope(args['subtopicScope']);
+    final subjectNames = _subjectNamesFromArgs(args);
+    final topicNames = _studyTopicNamesFromArgs(args);
+
+    // ── Chain already passed for this create flow → allow retries ──
+    final ask = _routineScopeAsk;
+    if (ask != null && ask['level'] == 'complete') {
+      debugPrint(
+          '[Gemini] 🔓 ROUTINE GATE allow (flow already complete — retry)');
+      return true;
+    }
+
+    // ── Level 0: first call always blocks (model may invent scope fields) ──
+    if (ask == null) {
+      final initialLevel = skipSubjectLevel ? 'topic' : 'subject';
+      final (qEn, qBan) =
+          _scopeQuestion(initialLevel, subjectNames, topicNames);
+      _routineScopeAsk = _blockRoutineScope(
+        callId: callId,
+        toolName: toolName,
+        level: initialLevel,
+        args: args,
+        question: qEn,
+        questionBan: qBan,
+        detail:
+            'This is the first register* of a create flow — scope questions have not been tracked yet.',
+      );
+      return false;
+    }
+
+    final askedAt = (ask['askedAtUserTurn'] as int?) ?? -1;
+    final pendingLevel = (ask['level'] as String?) ?? 'subject';
+
+    // Same-turn retry without a genuine new user turn → block again.
+    if (_userTurnCounter <= askedAt) {
+      final (qEn, qBan) =
+          _scopeQuestion(pendingLevel, subjectNames, topicNames);
+      debugPrint(
+          '[Gemini] 🔒 ROUTINE GATE same-turn retry blocked '
+          'level=$pendingLevel askedAt=$askedAt counter=$_userTurnCounter');
+      _respondToFunction(callId, toolName, {
+        'success': false,
+        'blocked': 'routine_scope_wait_for_user',
+        'error':
+            'ROUTINE FLOW GATE: You asked (or were blocked for) the scope question '
+            'but the user has NOT answered yet (no new user turn). '
+            'Repeat it in their language — English: "$qEn" · Banglish: "$qBan" — '
+            'and WAIT. Do NOT call $toolName again until they reply.',
+        'pending_question': switch (pendingLevel) {
+          'subject' => 'specific_subject_or_all_subjects',
+          'subtopic' => 'specific_subtopic_or_all_subtopics',
+          _ => 'specific_topic_or_all_topics',
+        },
+        'scope_level': pendingLevel,
+      }, params: args);
+      return false;
+    }
+
+    // ── Evaluate chain; block at first incomplete level ──
+    // Levels confirmed earlier in this create flow (carried from prior asks).
+    final passed =
+        (ask['passed'] as List?)?.cast<String>() ?? <String>[];
+
+    // A block at level L may only claim levels strictly before L as confirmed.
+    List<String> passedBefore(String level) {
+      final idx = _scopeLevelOrder.indexOf(level);
+      return passed.where((l) {
+        final li = _scopeLevelOrder.indexOf(l);
+        return idx >= 0 && li >= 0 && li < idx;
+      }).toList();
+    }
+
+    // Full chain validated → mark complete so retries never restart at
+    // the subject question. Cleared only on successful create/delete/startSession.
+    void completeFlow(String reason) {
+      debugPrint(
+          '[Gemini] 🔓 ROUTINE GATE allow ($reason) — flow marked complete, '
+          'passed=$passed');
+      _routineScopeAsk = {
+        'level': 'complete',
+        'askedAtUserTurn': _userTurnCounter,
+        'passed': List<String>.from(passed),
+      };
+    }
+
+    // Level: subject (skipped for class — subjectName is mandatory)
+    if (!skipSubjectLevel) {
+      if (subjectScope == null) {
+        final (qEn, qBan) = _scopeQuestion('subject', subjectNames, topicNames);
+        _routineScopeAsk = _blockRoutineScope(
+          callId: callId,
+          toolName: toolName,
+          level: 'subject',
+          args: args,
+          question: qEn,
+          questionBan: qBan,
+          detail: 'subjectScope is missing (must be "specific" or "all").',
+          passed: passedBefore('subject'),
+        );
+        return false;
+      }
+      if (subjectScope == 'specific' && subjectNames.isEmpty) {
+        final (qEn, qBan) = _scopeQuestion('subject', subjectNames, topicNames,
+            missingNames: true);
+        _routineScopeAsk = _blockRoutineScope(
+          callId: callId,
+          toolName: toolName,
+          level: 'subject',
+          args: args,
+          question: qEn,
+          questionBan: qBan,
+          detail: 'subjectScope is "specific" but no subject names were provided.',
+          passed: passedBefore('subject'),
+        );
+        return false;
+      }
+      if (!passed.contains('subject')) passed.add('subject');
+      if (subjectScope == 'all') {
+        // All subjects → all topics; skip topic + subtopic questions.
+        completeFlow('subjectScope=all');
+        return true;
+      }
+    }
+
+    // Level: topic
+    if (topicScope == null) {
+      final (qEn, qBan) = _scopeQuestion('topic', subjectNames, topicNames);
+      _routineScopeAsk = _blockRoutineScope(
+        callId: callId,
+        toolName: toolName,
+        level: 'topic',
+        args: args,
+        question: qEn,
+        questionBan: qBan,
+        detail: 'topicScope is missing (must be "specific" or "all").',
+        passed: passedBefore('topic'),
+      );
+      return false;
+    }
+    if (topicScope == 'specific' && topicNames.isEmpty) {
+      final (qEn, qBan) = _scopeQuestion('topic', subjectNames, topicNames,
+          missingNames: true);
+      _routineScopeAsk = _blockRoutineScope(
+        callId: callId,
+        toolName: toolName,
+        level: 'topic',
+        args: args,
+        question: qEn,
+        questionBan: qBan,
+        detail: 'topicScope is "specific" but topicNames/items have no study topics.',
+        passed: passedBefore('topic'),
+      );
+      return false;
+    }
+    if (!passed.contains('topic')) passed.add('topic');
+    if (topicScope == 'all') {
+      // All topics of the subject(s) — includes any subtopics; skip subtopic Q.
+      completeFlow('topicScope=all');
+      return true;
+    }
+
+    // Level: subtopic — only when a named topic actually has child subtopics.
+    final hasSubs = await _topicsHaveSubtopics(subjectNames, topicNames);
+    if (!hasSubs) {
+      completeFlow('specific topics, no subtopics under them');
+      return true;
+    }
+
+    if (subtopicScope == null) {
+      final (qEn, qBan) = _scopeQuestion('subtopic', subjectNames, topicNames);
+      _routineScopeAsk = _blockRoutineScope(
+        callId: callId,
+        toolName: toolName,
+        level: 'subtopic',
+        args: args,
+        question: qEn,
+        questionBan: qBan,
+        detail:
+            'The named topic(s) have subtopics under them (has_subtopics=true). '
+            'Study units are the SUBTOPICS, never the parent topic. '
+            'subtopicScope is missing.',
+        passed: passedBefore('subtopic'),
+      );
+      return false;
+    }
+    if (subtopicScope == 'specific') {
+      final subtopicNames = args['subtopicNames'];
+      final hasNames = subtopicNames is List && subtopicNames.isNotEmpty;
+      if (!hasNames) {
+        final (qEn, qBan) = _scopeQuestion('subtopic', subjectNames, topicNames,
+            missingNames: true);
+        _routineScopeAsk = _blockRoutineScope(
+          callId: callId,
+          toolName: toolName,
+          level: 'subtopic',
+          args: args,
+          question: qEn,
+          questionBan: qBan,
+          detail: 'subtopicScope is "specific" but subtopicNames is empty.',
+          passed: passedBefore('subtopic'),
+        );
+        return false;
+      }
+    }
+    if (!passed.contains('subtopic')) passed.add('subtopic');
+
+    completeFlow('full chain complete');
+    return true;
+  }
+
   Future<void> _registerClassRoutine(String callId, Map<String, dynamic> args) async {
-    // ROUTINE FLOW GATE — topicScope must be decided (asked or obvious) first.
-    if (!_gateRoutineTopicScope(callId, 'registerClassRoutine', args)) return;
+    // ROUTINE FLOW GATE — class has a mandatory subject; start at topic level.
+    if (!await _gateRoutineScope(callId, 'registerClassRoutine', args,
+        skipSubjectLevel: true)) {
+      return;
+    }
 
     final subjectName = (args['subjectName'] as String?)?.trim();
     final startTimeStr = (args['startTime'] as String?)?.trim();
@@ -118,6 +546,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'location': routine.locationText,
         'message': 'Class routine registered: $subjectName at ${routine.timeText} (${routine.durationText})$locationText$dateText. Reply times in 12-hour AM/PM only.',
       }, params: args);
+      _resetRoutineScopeAsk(reason: 'class routine created');
 
       // Force refresh so RoutineController picks it up immediately
       refreshClassRoutines();
@@ -137,8 +566,10 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
   }
 
   Future<void> _registerDailyRoutine(String callId, Map<String, dynamic> args) async {
-    // ROUTINE FLOW GATE — topicScope must be decided (asked or obvious) first.
-    if (!_gateRoutineTopicScope(callId, 'registerDailyRoutine', args)) return;
+    // ROUTINE FLOW GATE — subject → topic → subtopic (if has_subtopics).
+    if (!await _gateRoutineScope(callId, 'registerDailyRoutine', args)) {
+      return;
+    }
 
     final itemsRaw = args['items'] as List<dynamic>?;
     final dateStr = (args['date'] as String?)?.trim();
@@ -742,6 +1173,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
             'Say the routine is ready and the block count (e.g. "Done — your routine is ready, ${clamped.length} blocks until 11:30 PM"). '
             'Do NOT stay silent. Do NOT dump every time slot. One clear confirmation sentence.',
       }, params: args);
+      _resetRoutineScopeAsk(reason: 'daily routine created');
 
       // Schedule a local notification for every future block right away.
       try {
@@ -935,6 +1367,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'message': 'Deleted ${matched.length} class routine(s) for "${matched.first.subjectName}".',
         'deleted_count': matched.length,
       }, params: args);
+      _resetRoutineScopeAsk(reason: 'class routine deleted');
     } catch (e) {
       Get.snackbar('Error', 'Failed to delete class routine: $e',
           snackPosition: SnackPosition.BOTTOM,
@@ -1014,6 +1447,7 @@ extension VoiceAssistantRoutineTools on VoiceAssistantController {
         'language_rule': 'Confirm deletion in EXACTLY ONE language (the user\'s last language) — short. No bilingual reply. If they already asked to create a new routine → getAllData (fresh) → registerDailyRoutine. Never re-delete. Never stall on Thinking.',
         'next_step': 'If user wants a new routine: getAllData → if they named subject/topic use only those → registerDailyRoutine ending at 23:30. Do not ask the same question twice in one turn.',
       }, params: args);
+      _resetRoutineScopeAsk(reason: 'daily routine deleted');
     } catch (e) {
       Get.snackbar('Error', 'Failed to delete daily routine: $e',
           snackPosition: SnackPosition.BOTTOM,
