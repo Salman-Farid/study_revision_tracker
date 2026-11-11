@@ -60,3 +60,7 @@ supabase/.temp/
 /brag-output-*/
 /pootustudycompanion/
 /.playwright-mcp/
+
+# Local secrets — never commit
+secrets.json
+/dist/
